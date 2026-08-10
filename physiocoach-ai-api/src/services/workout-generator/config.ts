@@ -284,7 +284,7 @@ async function fetchOpenRouterJson(input: {
         ],
         ...(input.model.includes('nemotron') ? {} : { response_format: { type: 'json_object' } }),
         temperature: 0.2,
-        max_tokens: 2000,
+        max_tokens: 4000,
         reasoning: {
           max_tokens: 0,
         },
