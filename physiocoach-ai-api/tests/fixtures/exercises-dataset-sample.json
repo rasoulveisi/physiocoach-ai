@@ -1,0 +1,80 @@
+[
+  {
+    "id": "0001",
+    "name": "Lever Chest Press",
+    "category": "chest",
+    "body_part": "chest",
+    "equipment": "leverage machine",
+    "instructions": {
+      "en": "Press the handles forward.",
+      "it": "Premi le maniglie in avanti.",
+      "tr": "Kolları ileri itin.",
+      "es": "Empuja las asas hacia adelante.",
+      "ru": "Нажмите ручки вперед.",
+      "zh": "向前推手柄。",
+      "hi": "हैंडल को आगे दबाएं।",
+      "pl": "Naciśnij uchwyty do przodu.",
+      "ko": "손잡이를 앞으로 밉니다.",
+      "fr": "Poussez les poignées vers l'avant."
+    },
+    "instruction_steps": {
+      "en": ["Sit down.", "Press the handles forward."],
+      "it": ["Siediti.", "Premi in avanti."],
+      "tr": ["Oturun.", "İleri itin."],
+      "es": ["Siéntate.", "Empuja hacia adelante."],
+      "ru": ["Сядьте.", "Нажмите вперед."],
+      "zh": ["坐下。", "向前推。"],
+      "hi": ["बैठें।", "आगे दबाएं।"],
+      "pl": ["Usiądź.", "Naciśnij do przodu."],
+      "ko": ["앉으세요.", "앞으로 밉니다."],
+      "fr": ["Asseyez-vous.", "Poussez vers l'avant."]
+    },
+    "muscle_group": "pectorals",
+    "secondary_muscles": ["triceps", "shoulders"],
+    "target": "pectorals",
+    "image": "images/0001-example.jpg",
+    "gif_url": "videos/0001-example.gif",
+    "media_id": "example1",
+    "created_at": "2026-03-18T12:31:32.854798+00:00",
+    "attribution": "© Gym visual — https://gymvisual.com/"
+  },
+  {
+    "id": "0002",
+    "name": "Bodyweight Squat",
+    "category": "upper legs",
+    "body_part": "upper legs",
+    "equipment": "body weight",
+    "instructions": {
+      "en": "Squat with control.",
+      "it": "Accovacciati con controllo.",
+      "tr": "Kontrollü çömelin.",
+      "es": "Haz sentadillas con control.",
+      "ru": "Приседайте контролируемо.",
+      "zh": "控制地下蹲。",
+      "hi": "नियंत्रण के साथ स्क्वाट करें।",
+      "pl": "Wykonaj przysiad z kontrolą.",
+      "ko": "통제하며 스쿼트합니다.",
+      "fr": "Accroupissez-vous avec contrôle."
+    },
+    "instruction_steps": {
+      "en": ["Stand tall.", "Lower into a squat."],
+      "it": ["Stai in piedi.", "Abbassati."],
+      "tr": ["Dik durun.", "Çömelin."],
+      "es": ["Ponte de pie.", "Baja."],
+      "ru": ["Встаньте.", "Опуститесь."],
+      "zh": ["站立。", "下蹲。"],
+      "hi": ["सीधे खड़े हों।", "नीचे झुकें।"],
+      "pl": ["Stań prosto.", "Opuść się."],
+      "ko": ["똑바로 서세요.", "내려갑니다."],
+      "fr": ["Tenez-vous debout.", "Descendez."]
+    },
+    "muscle_group": "quads",
+    "secondary_muscles": ["glutes"],
+    "target": "quads",
+    "image": "images/0002-example.jpg",
+    "gif_url": "videos/0002-example.gif",
+    "media_id": "example2",
+    "created_at": "2026-03-18T12:31:32.854798+00:00",
+    "attribution": "© Gym visual — https://gymvisual.com/"
+  }
+]

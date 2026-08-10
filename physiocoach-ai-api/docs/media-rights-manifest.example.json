@@ -1,0 +1,14 @@
+{
+  "datasetSha256": "<sha256-of-exercises.json>",
+  "rightsHolder": "Gym Visual",
+  "permissionDocument": "<signed-license-or-contract-url-or-record-id>",
+  "useProfile": "noncommercial_learning",
+  "commercialUse": false,
+  "assets": { "images": true, "gifs": true },
+  "attributionTemplate": "© Gym visual — https://gymvisual.com/",
+  "maxResolution": { "width": 180, "height": 180 },
+  "healthSensitiveUse": true,
+  "aiPlatformUse": true,
+  "redistribution": false,
+  "allowedSourceIds": ["0001", "0002"]
+}

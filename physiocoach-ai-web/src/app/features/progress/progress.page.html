@@ -1,0 +1,192 @@
+<div class="grid min-w-0 max-w-full gap-4 overflow-hidden break-words">
+  <section class="rounded-lg border border-surface-border bg-surface-0 p-5 shadow-sm">
+    <p class="pc-kicker">Progress</p>
+    <h1 class="mt-2 text-2xl font-semibold leading-tight">Training momentum</h1>
+
+    @if (progress.loading()) {
+      <pc-skeleton-block
+        ariaLabel="Loading progress data"
+        [count]="6"
+        height="5rem"
+        containerClass="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+        skeletonClass="w-full rounded-lg"
+      />
+    } @else if (progress.error(); as message) {
+      <p class="pc-alert-danger mt-3">
+        {{ message }}
+      </p>
+    } @else {
+      @if (progress.summary(); as summary) {
+        <div
+          class="mt-5 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+        >
+          <pc-metric-tile label="Workouts this week" [value]="summary.workoutsCompletedThisWeek" />
+          <pc-metric-tile label="Current streak" [value]="summary.streakDays + ' days'" />
+          <pc-metric-tile label="Compliance" [value]="summary.complianceScore + '%'" />
+          <pc-metric-tile label="Weekly volume" [value]="summary.totalVolumeThisWeek + ' kg'" />
+          <pc-metric-tile label="New PRs" [value]="summary.personalRecords" />
+          <pc-metric-tile
+            label="Plateau signal"
+            [value]="summary.plateauDetected ? 'Detected' : 'None'"
+          />
+        </div>
+
+        @if (summary.warnings.length) {
+          <section class="pc-alert-warn mt-4">
+            <p class="font-medium">Warnings</p>
+            <p class="mt-1">{{ summary.warnings.join(' · ') }}</p>
+          </section>
+        }
+
+        <section class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
+          <article class="rounded-lg border border-surface-border bg-surface-bg p-4">
+            <div class="flex min-w-0 items-start justify-between gap-2">
+              <div>
+                <h2 class="text-base font-semibold">Weekly volume</h2>
+                <p class="text-sm text-muted">
+                  Conservative 7-day split from workouts completed this week and total weekly
+                  volume.
+                </p>
+              </div>
+              <span class="pc-badge pc-badge-info">{{ weeklyVolumeBucketCount() }} days shown</span>
+            </div>
+            <p
+              class="mt-3 rounded-md border border-surface-border bg-surface-0 p-2 text-xs text-muted"
+            >
+              Total: {{ summary.totalVolumeThisWeek + ' kg' }} across
+              {{ summary.workoutsCompletedThisWeek }} workouts.
+            </p>
+            <div class="mt-3 h-56">
+              @if (canRenderCharts()) {
+                <canvas class="h-full w-full" #weeklyVolumeCanvas></canvas>
+              } @else {
+                <div class="pc-alert-info h-full border-none">
+                  Open in browser to render the weekly volume chart.
+                </div>
+              }
+            </div>
+          </article>
+
+          <article class="rounded-lg border border-surface-border bg-surface-bg p-4">
+            <div class="flex min-w-0 items-start justify-between gap-2">
+              <div>
+                <h2 class="text-base font-semibold">7-day streak heatmap</h2>
+                <p class="text-sm text-muted">
+                  {{ maxStreakValue() }} day streak shown as a 7-day GitHub-style heatmap.
+                </p>
+              </div>
+              <span class="pc-badge pc-badge-brand">Last 7 days</span>
+            </div>
+            <div class="mt-3 grid grid-cols-7 gap-2">
+              @for (cell of streakHeatmapCells(); track $index) {
+                <div
+                  class="min-w-0 rounded-md border py-3 text-center text-xs font-semibold {{
+                    streakCellClasses(cell.level)
+                  }}"
+                  [attr.aria-label]="streakCellAriaLabel(cell, maxStreakValue())"
+                >
+                  <p>{{ cell.day }}</p>
+                  <p class="text-[10px]">{{ cell.level === 0 ? '—' : '●' }}</p>
+                </div>
+              }
+            </div>
+          </article>
+        </section>
+      }
+    }
+  </section>
+
+  <section class="grid gap-3 rounded-lg border border-surface-border bg-surface-0 p-5 shadow-sm">
+    <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+      <h2 class="text-lg font-semibold">Latest body measurement</h2>
+      <a
+        class="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300 dark:hover:text-brand-200"
+        routerLink="/measurements"
+      >
+        Manage
+      </a>
+    </div>
+
+    @if (progress.latestBodyMeasurementLoading()) {
+      <div class="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,.85fr)]">
+        <pc-skeleton-block
+          ariaLabel="Loading latest body measurement metadata"
+          [count]="4"
+          containerClass="grid min-w-0 gap-3 sm:grid-cols-2"
+          height="4rem"
+          skeletonClass="rounded-lg"
+        />
+        <pc-skeleton-block
+          ariaLabel="Loading latest body weight sparkline"
+          [count]="1"
+          height="10rem"
+          skeletonClass="w-full rounded-lg"
+        />
+      </div>
+    } @else if (progress.latestBodyMeasurementError(); as message) {
+      <p class="pc-alert-danger">
+        {{ message }}
+      </p>
+    } @else if (progress.latestBodyMeasurement(); as measurement) {
+      <div class="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,.85fr)]">
+        <dl class="grid min-w-0 gap-3 sm:grid-cols-2">
+          <div class="rounded-lg border border-surface-border bg-surface-bg p-3">
+            <dt class="text-sm text-muted">Measured at</dt>
+            <dd class="mt-1 font-medium break-words">{{ measurement.measuredAt }}</dd>
+          </div>
+          <div class="rounded-lg border border-surface-border bg-surface-bg p-3">
+            <dt class="text-sm text-muted">Body weight</dt>
+            <dd class="mt-1 font-medium">{{ measurement.bodyWeightKg }} kg</dd>
+          </div>
+          <div class="rounded-lg border border-surface-border bg-surface-bg p-3">
+            <dt class="text-sm text-muted">Waist / hips</dt>
+            <dd class="mt-1 font-medium">
+              {{ measurement.waistCm ?? '—' }} / {{ measurement.hipsCm ?? '—' }} cm
+            </dd>
+          </div>
+          <div class="rounded-lg border border-surface-border bg-surface-bg p-3">
+            <dt class="text-sm text-muted">Body fat estimate</dt>
+            <dd class="mt-1 font-medium">
+              {{
+                measurement.bodyFatEstimate === undefined || measurement.bodyFatEstimate === null
+                  ? 'Not logged'
+                  : measurement.bodyFatEstimate + '%'
+              }}
+            </dd>
+          </div>
+        </dl>
+
+        <article class="rounded-lg border border-surface-border bg-surface-bg p-4">
+          <div class="mb-2 flex min-w-0 items-center justify-between gap-2">
+            <h3 class="text-sm font-semibold">Body weight sparkline</h3>
+            <span class="pc-badge pc-badge-brand text-[0.7rem]">Latest-only view</span>
+          </div>
+          <div class="rounded-md border border-dashed border-surface-border bg-surface-0 p-2">
+            @if (bodyWeightPointForDisplay(); as point) {
+              <div class="flex h-40 flex-col items-center justify-center gap-2 text-sm text-muted">
+                <span class="h-3 w-3 rounded-full bg-brand-500"></span>
+                <p class="text-center">
+                  Single-point trend preview only.
+                  <br />
+                  Latest measurement:
+                  <strong class="text-primary">{{ point.weight }} kg</strong> on
+                  <strong>{{ point.dateLabel }}</strong
+                  >.
+                </p>
+              </div>
+            } @else {
+              <p class="pc-alert-info border-none">No measurement history available yet.</p>
+            }
+          </div>
+        </article>
+      </div>
+    } @else {
+      <p class="pc-alert-info">
+        No latest measurement available yet. Record your next body measurement in the measurements
+        screen.
+      </p>
+    }
+  </section>
+
+  <pc-disclaimer />
+</div>

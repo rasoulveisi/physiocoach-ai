@@ -1,0 +1,12 @@
+{
+  "name": "physiocoach-ai-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:api": "pnpm --filter physiocoach-ai-api dev",
+    "dev:web": "pnpm --filter physiocoach-ai-web start",
+    "build": "pnpm --recursive run build",
+    "test": "pnpm --recursive run test",
+    "typecheck": "pnpm --recursive run typecheck"
+  }
+}

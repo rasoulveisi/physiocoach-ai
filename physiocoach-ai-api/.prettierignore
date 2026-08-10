@@ -1,0 +1,5 @@
+# Historical planning notes are preserved as authored and are not source artifacts.
+.superpowers/
+docs/superpowers/
+pnpm-lock.yaml
+src/db/migrations/meta/

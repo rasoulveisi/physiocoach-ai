@@ -1,0 +1,116 @@
+<div class="grid min-w-0 max-w-full gap-4 overflow-hidden break-words">
+  <section class="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <p class="pc-kicker">Profile</p>
+    <h1 class="text-2xl font-semibold leading-tight">Preferences</h1>
+    <div class="rounded-lg border border-surface-border bg-surface-bg px-3 py-3">
+      <div class="flex min-w-0 items-center gap-3">
+        <span
+          class="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-muted"
+          [attr.aria-label]="auth.userDisplayName()"
+        >
+          @if (auth.userImageUrl()) {
+            <img
+              class="h-full w-full object-cover"
+              src="{{ auth.userImageUrl() }}"
+              [alt]="`${auth.userDisplayName()} avatar`"
+            />
+          } @else {
+            <span class="text-sm font-semibold text-primary">
+              {{ auth.userInitials() }}
+            </span>
+          }
+        </span>
+        <div class="min-w-0">
+          <p class="truncate text-sm font-semibold text-primary">
+            {{ auth.userDisplayName() }}
+          </p>
+          @if (auth.userEmail()) {
+            <p class="truncate text-xs text-secondary" aria-label="Authenticated email">
+              {{ auth.userEmail() }}
+            </p>
+          }
+          <p class="mt-1 inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-secondary">
+            {{ auth.isUserAuthenticated() ? 'Authenticated' : 'Guest session' }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    @if (store.loading()) {
+      <pc-skeleton-block
+        ariaLabel="Loading settings"
+        [count]="6"
+        height="2.75rem"
+        containerClass="grid min-w-0 gap-3"
+      />
+    } @else if (store.error(); as message) {
+      <p class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        {{ message }}
+      </p>
+    }
+
+    @if (store.settings(); as settings) {
+      <form class="grid gap-4">
+        <label class="grid gap-1 min-w-0">
+          <span class="text-sm font-medium">Theme</span>
+          <select
+            id="theme"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            [ngModel]="settings.theme"
+            (ngModelChange)="onThemeChange($event)"
+            name="theme"
+          >
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+
+        <label class="grid gap-1 min-w-0">
+          <span class="text-sm font-medium">Units</span>
+          <select
+            id="unitSystem"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            [ngModel]="settings.unitSystem"
+            (ngModelChange)="onUnitSystemChange($event)"
+            name="unitSystem"
+          >
+            <option value="metric">Metric · kg/cm</option>
+            <option value="imperial">Imperial · lb/in</option>
+          </select>
+        </label>
+
+        <label class="grid gap-1 min-w-0">
+          <span class="text-sm font-medium">Default workout view</span>
+          <select
+            id="defaultWorkoutView"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            [ngModel]="settings.defaultWorkoutView"
+            (ngModelChange)="onDefaultWorkoutViewChange($event)"
+            name="defaultWorkoutView"
+          >
+            <option value="byExercise">By exercise</option>
+            <option value="byDay">By day</option>
+            <option value="byPlan">By plan</option>
+          </select>
+        </label>
+
+        <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <label class="min-w-0 text-sm font-medium break-words" for="remindersEnabled">Workout reminders</label>
+          <p-toggleswitch
+            inputId="remindersEnabled"
+            [ngModel]="settings.remindersEnabled"
+            (ngModelChange)="store.setRemindersEnabled($event)"
+            name="remindersEnabled"
+          ></p-toggleswitch>
+        </div>
+      </form>
+    }
+
+    <button class="w-full justify-center whitespace-normal sm:w-auto" pButton type="button" (click)="load()">
+      Reload settings
+    </button>
+  </section>
+
+  <pc-disclaimer />
+</div>

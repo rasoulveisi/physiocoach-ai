@@ -1,0 +1,43 @@
+set -e
+
+ref_name="$3"
+if [ -z "$ref_name" ]; then
+  ref_name="$5"
+fi
+
+branch="${ref_name#refs/heads/}"
+
+SYNC_ENV_ARGS=""
+
+case "$branch" in
+  *prod*|*main*)
+    SYNC_ENV_ARGS="NG_APP_ENV=production NG_APP_API_BASE_URL=https://physiocoach-ai-api.otconnect.ir/api/v1"
+    ;;
+  *dev*)
+    SYNC_ENV_ARGS="NG_APP_ENV=development NG_APP_API_BASE_URL=https://physiocoach-ai-api-dev.otconnect.ir/api/v1"
+    ;;
+  *)
+    ;;
+esac
+
+if command -v pnpm >/dev/null 2>&1; then
+  PM="pnpm"
+elif command -v corepack >/dev/null 2>&1; then
+  PM="corepack pnpm"
+else
+  echo "pnpm not found. Install with: corepack enable && corepack prepare pnpm@11.2.2 --activate"
+  exit 1
+fi
+
+if [ -n "$SYNC_ENV_ARGS" ]; then
+  eval "env $SYNC_ENV_ARGS ${PM} run sync:config"
+else
+  ${PM} run sync:config
+fi
+
+if [ -n "$(git status --short -- public/config.js .env 2>/dev/null || true)" ]; then
+  echo "pre-push warning: configuration files changed during sync:config."
+  echo "Please commit these env/config updates before pushing."
+  git diff -- public/config.js .env
+  exit 1
+fi

@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ir.otconnect.physiocoach",
+      "sha256_cert_fingerprints": [
+        "REPLACE_WITH_YOUR_RELEASE_SHA256_FINGERPRINT_FROM_PLAY_CONSOLE",
+        "REPLACE_WITH_YOUR_DEBUG_SHA256_FINGERPRINT_FROM_KEYTOOL_IF_TESTING"
+      ]
+    }
+  }
+]

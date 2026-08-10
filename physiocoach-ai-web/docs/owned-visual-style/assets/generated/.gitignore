@@ -1,0 +1,3 @@
+# Source PNG renders are retained locally for regeneration/audit. The app ships
+# optimized WebP derivatives from public/images/exercises/catalog instead.
+*.png

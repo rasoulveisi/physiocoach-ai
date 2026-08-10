@@ -1,0 +1,176 @@
+<div class="grid min-w-0 gap-5 animate-fade-up">
+  <!-- ===== GREETING + STREAK ROW ===== -->
+  <div class="grid gap-4 sm:grid-cols-[1fr_auto]">
+    <!-- Greeting card -->
+    <div
+      class="relative overflow-hidden rounded-[18px] bg-gradient-to-br from-brand-600 via-violet-600 to-violet-700 p-7 shadow-[0_8px_32px_-8px_rgb(99_102_241/0.45)]"
+    >
+      <!-- Decorative glow blob -->
+      <div
+        class="pointer-events-none absolute -top-1/3 -right-[10%] size-[200px] rounded-full bg-[radial-gradient(ellipse,rgb(255_255_255/0.08),transparent_70%)]"
+        aria-hidden="true"
+      ></div>
+      <p class="text-xs font-bold uppercase tracking-[0.08em] text-white/65">{{ greeting }}</p>
+      <h1
+        class="mt-1 text-[clamp(1.25rem,3vw,1.625rem)] font-extrabold tracking-[-0.02em] text-white"
+      >
+        Ready to train today? 💪
+      </h1>
+      <p class="mt-1 text-[0.8125rem] text-white/70">{{ todayLabel }}</p>
+    </div>
+
+    <!-- Streak ring widget -->
+    <div
+      class="flex min-w-30 flex-col items-center justify-center gap-2 rounded-[18px] border border-surface-border bg-surface-0 px-6 py-5 shadow-card"
+    >
+      <!-- Conic ring — pure CSS, no SVG needed -->
+      <div
+        class="flex size-14 items-center justify-center rounded-full shadow-[0_0_0_4px_theme(colors.surface.0)]"
+        style="
+          background: conic-gradient(#6366f1 0deg, #6366f1 252deg, var(--color-surface-muted) 0deg);
+        "
+      >
+        <div
+          class="flex size-[42px] items-center justify-center rounded-full bg-surface-0 text-lg font-extrabold text-brand-600"
+        >
+          🔥
+        </div>
+      </div>
+      <p class="pc-kicker mt-1 text-center leading-[1.3]">Weekly<br />Streak</p>
+    </div>
+  </div>
+
+  <!-- ===== TODAY'S PLAN ===== -->
+  @if (planStore.currentPlan$ | async; as current) {
+    <section class="pc-card rounded-[18px]">
+      <div class="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div class="min-w-0">
+          <p class="pc-kicker">Today's focus</p>
+          <h2
+            class="mt-2 text-2xl font-semibold leading-tight tracking-[-0.02em] text-primary sm:text-3xl"
+          >
+            {{ current.plan.days[0]?.focus || 'Workout Plan' }}
+          </h2>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-secondary">
+            {{ current.plan.days.length }} training days this week. Start with the first planned
+            session and log sets as you go.
+          </p>
+        </div>
+        <a
+          routerLink="/session"
+          class="pc-btn-brand h-11 shrink-0 px-[1.375rem] text-[0.9375rem] rounded-xl shadow-[0_4px_16px_rgb(99_102_241/0.4)] hover:shadow-[0_8px_24px_rgb(99_102_241/0.5)]"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          Start workout
+        </a>
+      </div>
+
+      <!-- Metric tiles -->
+      <div class="mt-5 grid gap-3 sm:grid-cols-3">
+        <pc-metric-tile
+          label="Weekly target"
+          [value]="current.plan.days.length + ' sessions'"
+          caption="Based on your onboarding frequency."
+        />
+        <pc-metric-tile
+          label="Plan type"
+          [value]="current.plan.source === 'fallback' ? 'Fallback' : 'AI Generated'"
+          caption="Personalized to your constraints."
+        />
+        <pc-metric-tile
+          label="Next focus"
+          [value]="current.plan.days[0]?.name || 'Day 1'"
+          [caption]="current.plan.days[0]?.focus || 'Open your plan for details.'"
+        />
+      </div>
+    </section>
+  } @else {
+    <!-- Empty state — no plan yet -->
+    <section class="pc-card rounded-[18px] py-8 text-center">
+      <p class="text-5xl">📋</p>
+      <p class="pc-kicker mt-3 mb-2">Start here</p>
+      <h2 class="pc-heading-lg text-primary">No plan yet</h2>
+      <p class="mx-auto mt-2 mb-6 max-w-[360px] text-sm leading-[1.6] text-secondary">
+        Complete the assessment to generate your first posture-aware training plan.
+      </p>
+      <a
+        routerLink="/onboarding"
+        class="pc-btn-brand h-11 px-6 text-[0.9375rem] rounded-xl shadow-[0_4px_16px_rgb(99_102_241/0.4)]"
+      >
+        Start assessment →
+      </a>
+    </section>
+  }
+
+  <!-- ===== ACTIVE SESSION BANNER ===== -->
+  @if (sessionStore.activeSession$ | async; as session) {
+    <section
+      class="pc-alert pc-alert-success flex flex-wrap items-center justify-between gap-4 rounded-[14px]"
+    >
+      <div>
+        <p class="text-sm font-bold">⚡ Workout in progress</p>
+        <p class="mt-0.5 text-[0.8125rem] opacity-85">
+          {{ session.progress.completedSets }} / {{ session.progress.totalSets }} sets completed
+        </p>
+      </div>
+      <a
+        routerLink="/session"
+        class="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-success-icon px-4 text-sm font-bold text-white no-underline whitespace-nowrap"
+      >
+        Resume workout
+      </a>
+    </section>
+  }
+
+  <!-- ===== RECENT SESSIONS ===== -->
+  <section class="pc-card rounded-[18px]">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-[1.0625rem] font-bold tracking-[-0.01em] text-primary">Recent sessions</h2>
+      <a
+        routerLink="/progress"
+        class="text-[0.8125rem] font-semibold text-brand-500 no-underline hover:text-brand-600"
+      >
+        View all →
+      </a>
+    </div>
+
+    @if (sessionStore.recentSessions$ | async; as recentSessions) {
+      @if (recentSessions.length) {
+        <div class="mt-4 grid gap-2">
+          @for (session of recentSessions; track session.id) {
+            <div
+              class="flex items-center justify-between gap-4 rounded-xl border border-surface-border bg-surface-muted px-4 py-3.5"
+            >
+              <div class="flex min-w-0 items-center gap-3">
+                <!-- Icon box -->
+                <span
+                  class="flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-brand-200 bg-gradient-to-br from-brand-50 to-brand-100 text-base"
+                >
+                  🏋️
+                </span>
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold text-primary">
+                    {{ session.scheduledDate }}
+                  </p>
+                  <p class="text-xs text-muted">{{ session.progress.completedSets }} sets logged</p>
+                </div>
+              </div>
+              <span class="pc-badge pc-badge-success shrink-0">Done</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="mt-6 py-6 text-center">
+          <p class="text-[2rem]">🏁</p>
+          <p class="mt-2 text-sm text-muted">
+            Completed workouts will appear here after your first logged session.
+          </p>
+        </div>
+      }
+    }
+  </section>
+
+  <pc-disclaimer />
+</div>

@@ -1,0 +1,18 @@
+if command -v pnpm >/dev/null 2>&1; then
+  PM="pnpm"
+elif command -v corepack >/dev/null 2>&1; then
+  PM="corepack pnpm"
+else
+  echo "pnpm not found. Install with: corepack enable && corepack prepare pnpm@11.2.2 --activate"
+  exit 1
+fi
+
+set -e
+${PM} run sync:envs
+
+if [ -n "$(git status --short -- .dev.vars .prod.vars 2>/dev/null || true)" ]; then
+  echo "pre-push warning: env files changed during sync:envs."
+  echo "Please commit these env updates before pushing."
+  git diff -- .dev.vars .prod.vars
+  exit 1
+fi

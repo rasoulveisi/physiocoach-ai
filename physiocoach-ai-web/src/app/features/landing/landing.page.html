@@ -1,0 +1,428 @@
+<main class="min-h-dvh overflow-x-hidden bg-surface-bg text-primary">
+  <!-- ===================== STICKY NAV (scroll-aware) ===================== -->
+  <nav
+    class="sticky top-0 z-50 pc-glass border-b transition-[box-shadow,backdrop-filter] duration-300"
+    [class.border-transparent]="!scrolled()"
+    [class.shadow-md]="scrolled()"
+    [class.backdrop-blur-lg]="scrolled()"
+    [class.backdrop-blur-md]="!scrolled()"
+  >
+    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
+      <!-- Logo -->
+      <a routerLink="/" class="flex items-center gap-2.5 no-underline text-primary">
+        <span
+          class="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-brand-600 to-violet-600 shadow-brand"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+            <line x1="6" y1="1" x2="6" y2="4" />
+            <line x1="10" y1="1" x2="10" y2="4" />
+            <line x1="14" y1="1" x2="14" y2="4" />
+          </svg>
+        </span>
+        <span class="hidden text-[1.0625rem] font-extrabold tracking-[-0.01em] sm:block">
+          PhysioCoach <span class="pc-gradient-text">AI</span>
+        </span>
+      </a>
+
+      <!-- Nav CTA -->
+      <div class="flex items-center gap-3">
+        <a
+          routerLink="/dashboard"
+          class="hidden text-sm font-medium no-underline text-secondary transition-colors hover:text-primary sm:block"
+        >
+          Dashboard
+        </a>
+        <a routerLink="/auth" class="pc-btn-brand h-[38px] px-[1.125rem] text-sm rounded-[10px]">
+          Get started free →
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===================== HERO ===================== -->
+  <section #heroSection class="pc-hero-bg relative overflow-hidden py-[clamp(80px,12vw,140px)]">
+    <!-- Glow blobs (decorative only, parallax-driven) -->
+    <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      <div
+        class="absolute -top-1/5 left-[10%] h-[120%] w-3/5 transition-transform duration-200 ease-out bg-[radial-gradient(ellipse_at_50%_40%,rgb(99_102_241/0.18),transparent_70%)]"
+        [style.transform]="'translate(' + parallax().x + 'px,' + parallax().y + 'px)'"
+      ></div>
+      <div
+        class="absolute top-1/5 -right-[10%] h-4/5 w-1/2 transition-transform duration-300 ease-out bg-[radial-gradient(ellipse_at_50%_50%,rgb(124_58_237/0.12),transparent_70%)]"
+        [style.transform]="'translate(' + -parallax().x + 'px,' + -parallax().y + 'px)'"
+      ></div>
+      <!-- Grid pattern -->
+      <div class="absolute inset-0 pc-grid-pattern"></div>
+    </div>
+
+    <div
+      class="relative mx-auto grid max-w-7xl items-center gap-12 px-4 md:grid-cols-2 md:gap-16 md:px-6"
+    >
+      <!-- Left: copy -->
+      <div class="animate-fade-up">
+        <!-- Floating badge -->
+        <div
+          class="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/15 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.04em] text-brand-300"
+        >
+          <span
+            class="size-1.5 rounded-full bg-brand-500 animate-glow-pulse shadow-[0_0_6px_theme(colors.brand.500)]"
+          ></span>
+          AI-Powered · Posture-Aware
+        </div>
+
+        <h1
+          class="mb-5 text-[clamp(2.25rem,5vw,3.75rem)] font-extrabold leading-[1.1] tracking-[-0.03em] text-white"
+        >
+          Build a safer<br />
+          <span class="pc-gradient-text">strength plan</span><br />
+          in minutes.
+        </h1>
+
+        <p class="mb-8 max-w-[480px] text-[clamp(1rem,2vw,1.125rem)] leading-[1.7] text-slate-400">
+          PhysioCoach AI turns your goals, posture flags, equipment, and history into a progressive
+          weekly plan with built-in safety guardrails — powered by AI trained on physiotherapy
+          principles.
+        </p>
+
+        <!-- CTAs -->
+        <div class="mb-10 flex flex-wrap gap-3">
+          <a
+            routerLink="/auth"
+            class="pc-btn-brand h-[52px] px-7 text-base rounded-[14px] shadow-[0_6px_24px_rgb(99_102_241/0.45)] hover:shadow-[0_10px_32px_rgb(99_102_241/0.55)]"
+          >
+            Start free assessment
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </a>
+          <a routerLink="/dashboard" class="pc-btn-ghost h-[52px] px-7 text-base rounded-[14px]">
+            View dashboard
+          </a>
+        </div>
+
+        <!-- Trust signals -->
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="flex">
+            @for (i of [1, 2, 3, 4]; track i) {
+              <div
+                class="flex size-8 items-center justify-center rounded-full border-2 border-brand-950 bg-gradient-to-br from-brand-500 to-violet-500 text-[0.6875rem] font-bold text-white -ml-2 first:ml-0"
+              >
+                {{ i }}
+              </div>
+            }
+          </div>
+          <span class="text-[0.8125rem] text-slate-500">
+            Trusted by <strong class="text-slate-400">2,000+</strong> users for safer training
+          </span>
+        </div>
+      </div>
+
+      <!-- Right: live preview card with auto-cycling carousel -->
+      <div class="animate-fade-up-delayed">
+        <div
+          class="relative overflow-hidden rounded-[20px] border border-brand-500/20 bg-gradient-to-br from-[#1a2236] to-slate-900 p-6 shadow-[0_24px_64px_-12px_rgb(0_0_0/0.7),0_0_0_1px_rgb(255_255_255/0.05)]"
+        >
+          <!-- Inner glow -->
+          <div
+            class="pointer-events-none absolute -top-1/2 left-1/5 h-4/5 w-3/5 bg-[radial-gradient(ellipse,rgb(99_102_241/0.08),transparent_70%)]"
+            aria-hidden="true"
+          ></div>
+
+          <!-- Card header -->
+          <div class="mb-5 flex items-center justify-between border-b border-white/[0.07] pb-4">
+            <div>
+              <p class="pc-kicker mb-1 text-brand-400">Today's Session</p>
+              <p class="text-lg font-bold text-slate-100">Upper Body Strength</p>
+            </div>
+            <span
+              class="rounded-full border border-brand-500/30 bg-brand-500/15 px-3 py-1 text-xs font-semibold text-brand-300"
+            >
+              42 min
+            </span>
+          </div>
+
+          <!-- Exercises (all visible; active one is highlighted with a progress bar) -->
+          <div class="grid gap-3">
+            @for (exercise of previewExercises; track exercise.name; let i = $index) {
+              <button
+                type="button"
+                (click)="selectExercise(i)"
+                class="group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border px-4 py-3.5 text-left transition-[border-color,background,transform] duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                [class.border-brand-500/45]="activeExercise() === i"
+                [class.border-white/5]="activeExercise() !== i"
+                [class.bg-brand-500/12]="activeExercise() === i"
+                [class.bg-white/5]="activeExercise() !== i"
+                [class.scale-[1.015]]="activeExercise() === i"
+                [class.scale-100]="activeExercise() !== i"
+              >
+                <div class="min-w-0">
+                  <p class="truncate text-[0.9375rem] font-semibold text-slate-100">
+                    {{ exercise.name }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-slate-500">
+                    {{ exercise.sets }} · {{ exercise.reps }}
+                  </p>
+                </div>
+                <span
+                  class="shrink-0 rounded-full px-2.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em]"
+                  [class]="exercise.badgeClass"
+                >
+                  {{ exercise.tag }}
+                </span>
+
+                <!-- Active progress bar -->
+                @if (activeExercise() === i) {
+                  <span class="pc-carousel-progress absolute bottom-0 left-0 h-0.5 w-full"></span>
+                }
+              </button>
+            }
+          </div>
+
+          <!-- AI insight -->
+          <div
+            class="mt-5 flex items-start gap-2.5 rounded-xl border border-brand-500/20 bg-brand-500/[0.08] px-4 py-3.5"
+          >
+            <span class="text-lg">🤖</span>
+            <p class="text-[0.8125rem] leading-[1.4] text-slate-400">
+              Plan adapted for <strong class="text-brand-300">rounded shoulders</strong> — pressing
+              volume balanced with posterior chain work.
+            </p>
+          </div>
+
+          <!-- Carousel dots -->
+          <div class="mt-4 flex items-center justify-center gap-1.5">
+            @for (exercise of previewExercises; track exercise.name; let i = $index) {
+              <button
+                type="button"
+                (click)="selectExercise(i)"
+                class="h-1.5 rounded-full transition-all duration-300"
+                [class.w-5]="activeExercise() === i"
+                [class.w-1.5]="activeExercise() !== i"
+                [class.bg-brand-400]="activeExercise() === i"
+                [class.bg-white/20]="activeExercise() !== i"
+                [attr.aria-label]="'Show exercise ' + (i + 1)"
+              ></button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SOCIAL PROOF BAR (count-up) ===================== -->
+  <section
+    class="border-y border-surface-border bg-surface-0 py-6"
+    pcIntersect
+    (intersected)="animateStats()"
+  >
+    <div class="mx-auto max-w-7xl px-4 md:px-6">
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-4 text-center">
+        @for (stat of stats; track stat.label; let i = $index) {
+          <div>
+            <p class="text-2xl font-extrabold tracking-[-0.03em] text-primary tabular-nums">
+              {{ animatedStats()[i] }}
+            </p>
+            <p class="mt-0.5 text-xs font-medium uppercase tracking-[0.04em] text-muted">
+              {{ stat.label }}
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FEATURES GRID ===================== -->
+  <section class="py-[clamp(60px,8vw,100px)]">
+    <div class="mx-auto max-w-7xl px-4 md:px-6">
+      <div class="reveal mb-14 text-center" pcIntersect>
+        <p class="pc-kicker mb-3">Why PhysioCoach AI</p>
+        <h2 class="pc-heading-xl mb-4 text-primary">Training that's actually safe.</h2>
+        <p class="mx-auto max-w-[520px] text-[1.0625rem] leading-[1.7] text-secondary">
+          Most fitness apps ignore your body's unique constraints. We don't.
+        </p>
+      </div>
+
+      <div class="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+        @for (feature of features; track feature.title; let i = $index) {
+          <div
+            class="reveal pc-card pc-card-hover rounded-[18px] p-7"
+            pcIntersect
+            [intersectDelay]="(i % 3) * 120"
+            [style.transition-delay.ms]="(i % 3) * 120"
+          >
+            <div
+              class="mb-5 flex size-12 items-center justify-center rounded-[14px] text-2xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110"
+              [class]="feature.iconBg"
+            >
+              {{ feature.icon }}
+            </div>
+            <h3 class="mb-2 text-[1.0625rem] font-bold tracking-[-0.01em] text-primary">
+              {{ feature.title }}
+            </h3>
+            <p class="text-sm leading-[1.65] text-secondary">{{ feature.description }}</p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section class="border-y border-surface-border bg-surface-0 py-[clamp(60px,8vw,100px)]">
+    <div class="mx-auto max-w-7xl px-4 md:px-6">
+      <div class="reveal mb-14 text-center" pcIntersect>
+        <p class="pc-kicker mb-3">Simple process</p>
+        <h2 class="pc-heading-xl text-primary">Your plan in 3 steps.</h2>
+      </div>
+
+      <div class="grid gap-8 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+        @for (step of steps; track step.number; let i = $index) {
+          <div
+            class="reveal text-center"
+            pcIntersect
+            [intersectDelay]="i * 150"
+            [style.transition-delay.ms]="i * 150"
+          >
+            <div
+              class="relative mx-auto mb-5 flex size-16 items-center justify-center rounded-[18px] border border-brand-200 bg-gradient-to-br from-brand-50 to-brand-100 text-[1.75rem]"
+            >
+              {{ step.icon }}
+              <span
+                class="absolute -top-2 -right-2 flex size-[22px] items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-violet-600 text-[0.6875rem] font-extrabold text-white shadow-brand"
+              >
+                {{ step.number }}
+              </span>
+            </div>
+            <h3 class="mb-2 text-[1.0625rem] font-bold tracking-[-0.01em] text-primary">
+              {{ step.title }}
+            </h3>
+            <p class="mx-auto max-w-[220px] text-sm leading-[1.65] text-secondary">
+              {{ step.description }}
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FAQ ===================== -->
+  <section class="py-[clamp(60px,8vw,100px)]">
+    <div class="mx-auto max-w-3xl px-4 md:px-6">
+      <div class="reveal mb-12 text-center" pcIntersect>
+        <p class="pc-kicker mb-3">FAQ</p>
+        <h2 class="pc-heading-xl text-primary">Questions, answered.</h2>
+      </div>
+
+      <div class="grid gap-3">
+        @for (faq of faqs; track faq.q; let i = $index) {
+          <div
+            class="reveal pc-card overflow-hidden rounded-2xl p-0"
+            pcIntersect
+            [intersectDelay]="i * 60"
+            [style.transition-delay.ms]="i * 60"
+          >
+            <button
+              type="button"
+              (click)="toggleFaq(i)"
+              class="flex w-full items-center justify-between gap-4 px-5 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              [attr.aria-expanded]="openFaq() === i"
+            >
+              <span class="text-[1.0625rem] font-semibold text-primary">{{ faq.q }}</span>
+              <svg
+                class="size-5 shrink-0 text-muted transition-transform duration-300"
+                [class.rotate-180]="openFaq() === i"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <div
+              class="grid transition-[grid-template-rows] duration-300 ease-out"
+              [style.grid-template-rows]="openFaq() === i ? '1fr' : '0fr'"
+            >
+              <div class="overflow-hidden">
+                <p class="px-5 pb-5 text-sm leading-[1.7] text-secondary">{{ faq.a }}</p>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FINAL CTA ===================== -->
+  <section class="py-[clamp(60px,8vw,100px)]">
+    <div class="mx-auto max-w-3xl px-4 text-center md:px-6">
+      <div
+        class="reveal relative overflow-hidden rounded-4xl bg-gradient-to-br from-brand-950 to-brand-800 px-8 py-[clamp(2.5rem,5vw,4rem)] shadow-brand-xl"
+        pcIntersect
+      >
+        <!-- Grid overlay -->
+        <div
+          class="pointer-events-none absolute inset-0 pc-grid-pattern-dense"
+          aria-hidden="true"
+        ></div>
+
+        <p class="pc-kicker mb-4 text-brand-300">Start today · Free</p>
+        <h2 class="pc-heading-xl mb-4 text-white">
+          Your body. Your limits.<br />Your smarter plan.
+        </h2>
+        <p class="mx-auto mb-8 max-w-[400px] text-base leading-[1.7] text-slate-400">
+          Join thousands training with AI guidance that respects how your body actually moves.
+        </p>
+        <a
+          routerLink="/auth"
+          class="pc-btn-brand h-14 px-9 text-[1.0625rem] rounded-2xl shadow-[0_8px_32px_rgb(99_102_241/0.5)] hover:shadow-[0_12px_40px_rgb(99_102_241/0.65)]"
+        >
+          Begin my assessment
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <polyline points="12 5 19 12 12 19" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="border-t border-surface-border px-4 py-6 text-center">
+    <p class="text-[0.8125rem] text-muted">
+      © 2025 PhysioCoach AI · Not a substitute for medical advice. Always consult a qualified
+      physiotherapist.
+    </p>
+  </footer>
+</main>

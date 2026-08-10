@@ -1,0 +1,17 @@
+node_modules
+.idea/
+.wrangler
+.dev.vars
+.env
+.env.*
+# Keep deployment-target env snapshots in repo for reproducible deploy tooling
+!.env.example
+!.env.dev.example
+!.env.production.example
+.prod.vars
+env.dev.vars
+dist
+coverage
+*.log
+seed-output/
+seed-input/
