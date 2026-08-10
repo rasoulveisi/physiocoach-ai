@@ -28,21 +28,21 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
+export const DEFAULT_WORKOUT_MODEL = 'google/gemma-2-9b-it:free';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 180_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
 export const ALLOWED_WORKOUT_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'nvidia/nemotron-3-nano-30b-a3b:free',
   'google/gemma-2-9b-it:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'qwen/qwen-2.5-72b-instruct:free',
+  'meta-llama/llama-3-8b-instruct:free',
   'mistralai/mistral-7b-instruct:free',
+  'qwen/qwen-2.5-7b-instruct:free',
+  'openrouter/auto',
 ] as const;
 export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
-  'google/gemma-2-9b-it:free',
-  'qwen/qwen-2.5-72b-instruct:free',
+  'meta-llama/llama-3-8b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
+  'openrouter/auto',
 ] as const;
 export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([
   ...ALLOWED_WORKOUT_MODELS,
