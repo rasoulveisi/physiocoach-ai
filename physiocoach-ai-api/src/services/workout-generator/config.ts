@@ -28,19 +28,24 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'nvidia/nemotron-3-nano-30b-a3b:free';
+export const DEFAULT_WORKOUT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 180_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
 export const ALLOWED_WORKOUT_MODELS = [
+  'meta-llama/llama-3.3-70b-instruct:free',
   'nvidia/nemotron-3-nano-30b-a3b:free',
+  'google/gemma-2-9b-it:free',
   'google/gemma-4-26b-a4b-it:free',
-  'openrouter/owl-alpha',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
 ] as const;
-export const DEFAULT_WORKOUT_FALLBACK_MODELS = ['openrouter/owl-alpha'] as const;
+export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
+  'google/gemma-2-9b-it:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+] as const;
 export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([
-  'nvidia/nemotron-3-nano-30b-a3b:free',
-  'google/gemma-4-26b-a4b-it:free',
+  ...ALLOWED_WORKOUT_MODELS,
   LOCAL_WORKOUT_MODEL,
 ]);
 export const WORKOUT_MODEL_ALLOWLIST = new Set<string>(ALLOWED_WORKOUT_MODELS);
@@ -180,7 +185,7 @@ function createOpenRouterDirectProvider(config: {
         const payload = request.schema.parse(
           parseOpenRouterJsonPayload(response.choices?.[0]?.message?.content),
         ) as T;
-        const metadata: NonNullable<AIStructuredResponse<T>['metadata']> = {
+        const metadata: NonNullable<AIStructuredResponse<T>>['metadata'] = {
           attempts: retry + 1,
           providerRawResponse: response,
         };
