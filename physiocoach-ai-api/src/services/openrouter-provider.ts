@@ -220,9 +220,6 @@ export class OpenRouterProvider implements AIProvider {
               }),
           temperature: 0.2,
           max_tokens: 2000,
-          reasoning: {
-            max_tokens: 0,
-          },
           stream: false,
         }),
         ...(controller ? { signal: controller.signal } : {}),
