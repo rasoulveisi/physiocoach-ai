@@ -28,7 +28,7 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+export const DEFAULT_WORKOUT_MODEL = 'google/gemma-2-9b-it:free';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 180_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
@@ -291,7 +291,7 @@ async function fetchOpenRouterJson(input: {
         ],
         ...(input.model.includes('nemotron') ? {} : { response_format: { type: 'json_object' } }),
         temperature: 0.2,
-        max_tokens: 2000,
+        max_tokens: 6000,
         stream: false,
       }),
       ...(controller ? { signal: controller.signal } : {}),
