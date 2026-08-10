@@ -28,20 +28,23 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'google/gemma-2-9b-it:free';
+export const DEFAULT_WORKOUT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 180_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
 export const ALLOWED_WORKOUT_MODELS = [
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'poolside/laguna-s-2.1:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
   'google/gemma-2-9b-it:free',
   'meta-llama/llama-3-8b-instruct:free',
   'mistralai/mistral-7b-instruct:free',
-  'qwen/qwen-2.5-7b-instruct:free',
   'openrouter/auto',
 ] as const;
 export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
-  'meta-llama/llama-3-8b-instruct:free',
-  'mistralai/mistral-7b-instruct:free',
+  'poolside/laguna-s-2.1:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'google/gemma-2-9b-it:free',
   'openrouter/auto',
 ] as const;
 export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([
