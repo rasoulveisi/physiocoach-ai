@@ -285,7 +285,6 @@ async function fetchOpenRouterJson(input: {
         temperature: 0.2,
         max_tokens: 2000,
         reasoning: {
-          effort: 'none',
           max_tokens: 0,
         },
         stream: false,
