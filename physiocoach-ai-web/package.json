@@ -1,6 +1,8 @@
 {
   "name": "physiocoach-ai-web",
   "version": "0.0.0",
+  "private": true,
+  "packageManager": "npm@11.9.0",
   "scripts": {
     "ng": "ng",
     "dev": "ng serve --port 4300",
@@ -21,7 +23,6 @@
     "smoke:web:dev": "node scripts/smoke.mjs --target=dev",
     "smoke:web:prod": "node scripts/smoke.mjs --target=prod"
   },
-  "private": true,
   "dependencies": {
     "@angular/animations": "^21.2.15",
     "@angular/common": "^21.2.0",
