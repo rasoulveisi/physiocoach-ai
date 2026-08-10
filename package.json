@@ -2,11 +2,14 @@
   "name": "physiocoach-ai-monorepo",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "physiocoach-ai-api",
+    "physiocoach-ai-web"
+  ],
   "scripts": {
-    "dev:api": "pnpm --filter physiocoach-ai-api dev",
-    "dev:web": "pnpm --filter physiocoach-ai-web start",
-    "build": "pnpm --recursive run build",
-    "test": "pnpm --recursive run test",
-    "typecheck": "pnpm --recursive run typecheck"
+    "dev:api": "npm --workspace=physiocoach-ai-api run dev",
+    "dev:web": "npm --workspace=physiocoach-ai-web run start",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
   }
 }
