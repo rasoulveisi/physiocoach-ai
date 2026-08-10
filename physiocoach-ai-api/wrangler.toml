@@ -16,69 +16,13 @@ WORKOUT_MODEL_PRIMARY = "nvidia/nemotron-3-nano-30b-a3b:free"
 WORKOUT_MODEL_FALLBACKS = "openrouter/owl-alpha"
 OPENROUTER_TIMEOUT_MS = "180000"
 OPENROUTER_MAX_RETRIES = "0"
-CORS_ORIGIN = "https://physiocoach.otconnect.ir"
+CORS_ORIGIN = "https://physiocoach.otconnect.ir,http://localhost:4200,http://localhost:8787"
 
 [observability.logs]
 enabled = false
 invocation_logs = true
 
 [[d1_databases]]
-binding = "DB"
-database_name = "physiocoach_prod"
-database_id = "14b1f6b3-a0c3-400f-9b12-7d50c265eb52"
-migrations_dir = "src/db/migrations"
-
-[env.dev]
-name = "physiocoach-ai-api-dev"
-workers_dev = true
-routes = [
-  { pattern = "physiocoach-ai-api-dev.otconnect.ir", custom_domain = true }
-]
-
-[env.dev.observability.logs]
-enabled = false
-invocation_logs = true
-
-[env.dev.vars]
-APP_ENV = "dev"
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_REFERER = "https://dev.physiocoach-ai-web.pages.dev/"
-OPENROUTER_TITLE = "PhysioCoach AI Dev"
-WORKOUT_MODEL_PRIMARY = "nvidia/nemotron-3-nano-30b-a3b:free"
-WORKOUT_MODEL_FALLBACKS = "google/gemma-4-26b-a4b-it:free"
-OPENROUTER_TIMEOUT_MS = "180000"
-OPENROUTER_MAX_RETRIES = "0"
-CORS_ORIGIN = "https://dev.physiocoach-ai-web.pages.dev,http://localhost:4200,http://localhost:8787,https://localhost:4200,https://localhost:8787,http://127.0.0.1:4200,http://127.0.0.1:8787,https://127.0.0.1:4200,https://127.0.0.1:8787"
-
-[[env.dev.d1_databases]]
-binding = "DB"
-database_name = "physiocoach_dev"
-database_id = "ba80efbd-655f-47e2-b261-1ce76f1c94f4"
-migrations_dir = "src/db/migrations"
-
-[env.production]
-name = "physiocoach-ai-api"
-workers_dev = true
-routes = [
-  { pattern = "physiocoach-ai-api.otconnect.ir", custom_domain = true }
-]
-
-[env.production.observability.logs]
-enabled = false
-invocation_logs = true
-
-[env.production.vars]
-APP_ENV = "production"
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_REFERER = "https://physiocoach.otconnect.ir"
-OPENROUTER_TITLE = "PhysioCoach AI"
-WORKOUT_MODEL_PRIMARY = "nvidia/nemotron-3-nano-30b-a3b:free"
-WORKOUT_MODEL_FALLBACKS = "openrouter/owl-alpha"
-OPENROUTER_TIMEOUT_MS = "180000"
-OPENROUTER_MAX_RETRIES = "0"
-CORS_ORIGIN = "https://physiocoach.otconnect.ir"
-
-[[env.production.d1_databases]]
 binding = "DB"
 database_name = "physiocoach_prod"
 database_id = "14b1f6b3-a0c3-400f-9b12-7d50c265eb52"
