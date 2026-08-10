@@ -36,13 +36,11 @@ export const ALLOWED_WORKOUT_MODELS = [
   'google/gemma-2-9b-it:free',
   'meta-llama/llama-3-8b-instruct:free',
   'mistralai/mistral-7b-instruct:free',
-  'qwen/qwen-2.5-7b-instruct:free',
   'nvidia/nemotron-3-super-120b-a12b:free',
 ] as const;
 export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
   'meta-llama/llama-3-8b-instruct:free',
   'mistralai/mistral-7b-instruct:free',
-  'qwen/qwen-2.5-7b-instruct:free',
 ] as const;
 export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([
   ...ALLOWED_WORKOUT_MODELS,
