@@ -171,7 +171,7 @@ export function buildWorkoutPlanPrompt(
     `Build a science-based ${getExperiencePlanGuidance(input.experienceLevel)} plan from the available profile`,
   );
   rules.push(
-    'Choose the exercise count per day from experience level, goals, weekly frequency, limitations, day focus, setup burden, and recovery',
+    'CRITICAL: Every day MUST contain between 4 and 6 exercises (target 4-6 distinct exercises per day). NEVER output only 1 or 2 exercises per day.',
   );
   rules.push(
     'Candidate count is choice breadth, not target workout size; do not output every candidate or pad with redundant variations',

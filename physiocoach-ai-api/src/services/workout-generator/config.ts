@@ -28,7 +28,7 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'google/gemma-2-9b-it:free';
+export const DEFAULT_WORKOUT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 180_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
@@ -62,8 +62,8 @@ export const WORKOUT_MODEL_ALLOWLIST = new Set<string>(ALLOWED_WORKOUT_MODELS);
 const WORKOUT_MAX_RETRIES_CAP = 0;
 
 export const WORKOUT_PLAN_SYSTEM_PROMPT = `Act as a licensed physiotherapist and elite strength and conditioning coach designing safe, evidence-informed training plans. Return strict JSON only.
-EXACT JSON SCHEMA: {"days": [{"dayNumber": 1, "name": "Day 1", "focus": "Focus", "exercises": [{"name": "Exercise Name", "sets": 3, "reps": "8-12", "restSeconds": 60, "notes": "Note"}]}]}.
-Top-level object may contain only "days". Do not include muscle groups, movement patterns, warnings, rationale, instructions, markdown, or prose. Do not include introductory text, or trailing markdown syntax blocks (like \`\`\`json). Output must initiate with '{' and terminate with '}'.`;
+EXACT JSON SCHEMA: {"days": [{"dayNumber": 1, "name": "Day 1", "focus": "Focus", "exercises": [{"name": "Exercise Name", "masterExerciseId": "catalog_id", "sets": 3, "reps": "8-12", "restSeconds": 60, "notes": "Note"}]}]}.
+Each day MUST contain 4 to 6 distinct exercises covering main and accessory movements. Top-level object may contain only "days". Do not include muscle groups, movement patterns, warnings, rationale, instructions, markdown, or prose. Do not include introductory text, or trailing markdown syntax blocks (like \`\`\`json). Output must initiate with '{' and terminate with '}'.`;
 
 function parseIntegerConfig(value: ConfigNumericValue, fallback: number): number {
   const parsed = Number.parseInt(String(value ?? fallback), 10);

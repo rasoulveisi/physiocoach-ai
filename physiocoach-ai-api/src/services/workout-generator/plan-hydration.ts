@@ -402,7 +402,8 @@ export function hydratePlanFromCatalog(
         }
 
         if (
-          (typeof exercise.name === 'string' && exercise.name !== candidate.name) ||
+          (typeof exercise.name === 'string' &&
+            exercise.name.trim().toLowerCase() !== candidate.name.trim().toLowerCase()) ||
           (typeof exercise.movementPattern === 'string' &&
             exercise.movementPattern !== candidate.movementPattern) ||
           (typeof exercise.muscleGroup === 'string' &&
