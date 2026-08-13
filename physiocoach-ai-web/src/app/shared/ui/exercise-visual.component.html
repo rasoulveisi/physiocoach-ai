@@ -1,10 +1,10 @@
 <figure data-exercise-visual class="grid min-w-0 gap-2" [class.h-full]="compact()">
   <div
-    class="relative grid min-w-0 place-items-center overflow-hidden rounded-lg border border-surface-border bg-surface-muted"
+    class="relative grid min-w-0 place-items-center overflow-hidden rounded-xl bg-white p-2 shadow-xs border border-slate-200 dark:border-slate-700/80"
     [class]="stageClasses()"
   >
     @if (loading()) {
-      <div data-exercise-visual-loading class="absolute inset-0 grid place-items-center bg-surface-muted" aria-label="Loading exercise visual">
+      <div data-exercise-visual-loading class="absolute inset-0 grid place-items-center bg-white" aria-label="Loading exercise visual">
         <span class="pc-skeleton h-full w-full rounded-none"></span>
       </div>
     }
@@ -13,7 +13,7 @@
     @if (currentVisual.kind === 'media') {
       <img
         data-exercise-image
-        class="h-full w-full object-contain"
+        class="h-full max-h-64 sm:max-h-72 w-full object-contain mx-auto"
         [src]="currentVisual.url"
         [alt]="name() ? 'Exercise image: ' + name() : 'Exercise image'"
         loading="lazy"
