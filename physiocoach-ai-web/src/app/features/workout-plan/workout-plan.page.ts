@@ -9,7 +9,6 @@ import {
   untracked,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ButtonModule } from 'primeng/button';
 import { catchError, EMPTY, take } from 'rxjs';
 import { MessageService } from 'primeng/api';
 
@@ -17,7 +16,6 @@ import { WorkoutPlanStore } from './workout-plan.store';
 import { type WorkoutExerciseView } from './workout-plan.model';
 import { ExerciseCatalogApiService } from '../exercise-catalog/exercise-catalog-api.service';
 import { type ExerciseCatalogMediaDto } from '../exercise-catalog/exercise-catalog.model';
-import { MetricTileComponent } from '../../shared/ui/metric-tile.component';
 import { PageStateComponent } from '../../shared/ui/page-state.component';
 import { SkeletonBlockComponent } from '../../shared/ui/skeleton-block.component';
 import { resolveExerciseSafetyNotes } from '../../shared/ui/exercise-safety-notes';
@@ -30,9 +28,7 @@ type ExerciseOpenKey = `${number}-${number}`;
   standalone: true,
   imports: [
     AsyncPipe,
-    ButtonModule,
     RouterLink,
-    MetricTileComponent,
     PageStateComponent,
     SkeletonBlockComponent,
     ExerciseVisualComponent,

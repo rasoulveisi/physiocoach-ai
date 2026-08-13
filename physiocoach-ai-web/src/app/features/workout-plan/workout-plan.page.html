@@ -1,56 +1,50 @@
-<div class="grid min-w-0 max-w-full gap-4 overflow-hidden break-words">
+<div class="grid min-w-0 max-w-full gap-5 overflow-hidden break-words sm:gap-6">
   @if (planStore.loading()) {
-    <section
-      class="grid min-w-0 max-w-full gap-4 rounded-lg border border-slate-200 bg-white p-5 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
-    >
-      <div class="flex flex-col items-center justify-center py-12 text-center">
+    <section class="rounded-3xl border border-surface-border bg-surface-0 p-6 shadow-card sm:p-8">
+      <div class="flex flex-col items-center justify-center py-6 text-center">
         <!-- Spinner -->
         <div class="relative flex h-16 w-16 items-center justify-center">
           <span
-            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75"
+            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400/40"
           ></span>
-          <span class="relative inline-flex h-10 w-10 rounded-full bg-indigo-500"></span>
+          <span class="relative inline-flex h-12 w-12 rounded-full bg-brand-500"></span>
         </div>
         <pc-skeleton-block
           ariaLabel="Generating workout plan skeleton content"
           [count]="4"
           height="2.75rem"
-          containerClass="mt-5 grid min-w-0 gap-3 lg:grid-cols-2"
+          containerClass="mt-6 grid min-w-0 w-full max-w-md gap-3 sm:grid-cols-2"
           skeletonClass="w-full rounded-lg"
         />
-        <h2 class="mt-6 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+        <h2 class="mt-6 text-xl font-bold tracking-tight text-primary sm:text-2xl">
           Generating Your Workout Plan
         </h2>
-        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400 max-w-md">
+        <p class="mt-2 max-w-md text-sm leading-relaxed text-secondary">
           Our AI coach is crafting a personalized, safe, and progressive routine tailored
           specifically to your metrics and posture flags.
         </p>
-        <p class="mt-4 text-xs text-slate-400 dark:text-slate-500 animate-pulse">
+        <p class="mt-4 text-xs text-muted animate-pulse">
           This may take up to a minute. Please don't close this page...
         </p>
       </div>
     </section>
   } @else if (planStore.jobError()) {
     <section
-      class="grid min-w-0 max-w-full gap-4 rounded-lg border border-red-200 bg-red-50 p-5 text-red-900 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100"
+      class="rounded-3xl border border-rose-200 bg-rose-50 p-6 shadow-card dark:border-rose-900/60 dark:bg-rose-950/40 sm:p-8"
     >
       <div class="flex items-start gap-3">
-        <div class="mt-0.5 shrink-0 text-red-500">
-          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </div>
-        <div>
-          <h2 class="text-sm font-semibold">Generation Failed</h2>
-          <p class="mt-1 text-xs text-red-700 dark:text-red-300 leading-normal">
+        <span
+          class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-300"
+        >
+          <i class="pi pi-exclamation-circle text-sm" aria-hidden="true"></i>
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold text-rose-900 dark:text-rose-100">Generation Failed</h2>
+          <p class="mt-1 text-sm leading-normal text-rose-700 dark:text-rose-300">
             {{ planStore.jobError() }}
           </p>
           <a
-            class="mt-3 inline-flex items-center justify-center rounded px-3 py-1.5 text-xs font-semibold bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-900 dark:text-red-100 transition"
+            class="mt-4 inline-flex items-center justify-center rounded-lg bg-rose-600 px-3.5 py-2 text-xs font-semibold text-white no-underline transition-colors duration-150 hover:bg-rose-500"
             routerLink="/onboarding"
             >Retry Onboarding</a
           >
@@ -58,274 +52,516 @@
       </div>
     </section>
   } @else if (planStore.currentPlan$ | async; as current) {
-    <section
-      class="grid min-w-0 max-w-full gap-4 rounded-lg border border-slate-200 bg-white p-5 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
-    >
-      <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="pc-kicker">Training plan</p>
-          <h1 class="mt-2 text-2xl font-semibold leading-tight">Your Workout Plan</h1>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-            {{
-              current.source === 'fallback'
-                ? 'A balanced plan was generated from your latest profile and preferences.'
-                : 'Your personalized training plan is ready. Start with the first scheduled day and adjust intensity as needed.'
-            }}
+    <!-- ===== HERO HEADER ===== -->
+    <section class="relative overflow-hidden rounded-3xl border border-slate-800 shadow-2xl">
+      <div
+        class="absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900"
+        aria-hidden="true"
+      ></div>
+      <div
+        class="absolute -right-20 -top-20 size-72 rounded-full bg-indigo-600/25 blur-3xl"
+        aria-hidden="true"
+      ></div>
+      <div
+        class="absolute -bottom-24 -left-16 size-72 rounded-full bg-violet-600/20 blur-3xl"
+        aria-hidden="true"
+      ></div>
+
+      <div class="relative p-6 sm:p-8">
+        <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div class="min-w-0">
+            <p
+              class="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-indigo-300"
+            >
+              <span class="size-1.5 rounded-full bg-indigo-400" aria-hidden="true"></span>
+              Physio-Coach AI Routine
+            </p>
+            <h1 class="mt-4 text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl">
+              Your Workout Plan
+            </h1>
+            <p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">
+              {{
+                current.source === 'fallback'
+                  ? 'A balanced plan was generated from your latest profile and preferences.'
+                  : 'Your personalized training plan is ready. Start with the first scheduled day and adjust intensity as needed.'
+              }}
+            </p>
+          </div>
+          <a
+            routerLink="/session"
+            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3.5 text-sm font-semibold text-white no-underline shadow-brand-lg transition-all duration-200 hover:-translate-y-0.5 hover:from-indigo-400 hover:to-violet-400 hover:shadow-brand-xl"
+          >
+            <i class="pi pi-play text-xs" aria-hidden="true"></i>
+            Start Session
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== OVERVIEW METRICS ===== -->
+    <div class="grid min-w-0 gap-3 sm:grid-cols-3 sm:gap-4">
+      <article
+        class="group relative overflow-hidden rounded-2xl border border-surface-border bg-surface-0 p-5 shadow-card transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-card-md"
+      >
+        <div
+          class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-500 to-violet-500"
+          aria-hidden="true"
+        ></div>
+        <div class="flex items-center gap-2.5">
+          <span
+            class="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300"
+          >
+            <i class="pi pi-calendar text-sm" aria-hidden="true"></i>
+          </span>
+          <p class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-muted">
+            Training Frequency
           </p>
         </div>
-        <a class="w-full justify-center sm:w-auto" pButton routerLink="/session">Start session</a>
-      </div>
+        <p class="mt-4 text-3xl font-extrabold leading-none tracking-tight text-primary">
+          {{ current.plan.days.length
+          }}<span class="ml-1.5 text-sm font-semibold text-secondary">days</span>
+        </p>
+        <p class="mt-2 text-xs leading-relaxed text-secondary">
+          Planned training days each week.
+        </p>
+      </article>
 
-      <div class="grid min-w-0 gap-3 sm:grid-cols-3">
-        <pc-metric-tile
-          label="Frequency"
-          [value]="current.plan.days.length + ' days'"
-          caption="Planned training days each week."
-        />
-        <pc-metric-tile
-          label="Exercises"
-          [value]="totalExercises(current)"
-          caption="Total exercises in this plan."
-        />
-        <pc-metric-tile
-          label="Est. session"
-          [value]="estimatedMinutes(current) + ' min'"
-          caption="Approximate time for one training day."
-        />
-      </div>
-
-      @if (current.plan.progression.progressionRule) {
-        <section
-          class="grid min-w-0 gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950"
-        >
-          <p class="font-medium text-emerald-950 dark:text-emerald-100">Progression rules</p>
-          <p class="text-sm text-emerald-950 dark:text-emerald-100">
-            {{ current.plan.progression.progressionRule }}
-          </p>
-          @if (current.plan.progression.conditions.length) {
-            <ul class="list-disc pl-4 text-sm text-emerald-950 dark:text-emerald-100 mt-1">
-              @for (condition of current.plan.progression.conditions; track condition) {
-                <li>{{ condition }}</li>
-              }
-            </ul>
-          }
-        </section>
-      }
-
-      <div class="grid min-w-0 gap-3">
-        @for (day of current.plan.days; let dayIndex = $index; track dayIndex) {
-          <article
-            class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
+      <article
+        class="group relative overflow-hidden rounded-2xl border border-surface-border bg-surface-0 p-5 shadow-card transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-card-md"
+      >
+        <div
+          class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-500 to-teal-500"
+          aria-hidden="true"
+        ></div>
+        <div class="flex items-center gap-2.5">
+          <span
+            class="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
           >
-            <button
-              type="button"
-              data-day-toggle
-              class="w-full text-left"
-              [attr.aria-expanded]="isDayExpanded(dayIndex)"
-              (click)="toggleDay(dayIndex)"
-            >
-              <p class="text-sm font-medium text-slate-500 dark:text-slate-300">
-                Day {{ day.dayNumber }}
-              </p>
-              <h2 class="text-lg font-semibold break-words">{{ day.name }} ({{ day.focus }})</h2>
-            </button>
-            @if (isDayExpanded(dayIndex)) {
-              <div class="mt-3 grid min-w-0 gap-3">
-                @for (exercise of day.exercises; track exercise.id || exercise.masterExerciseId || $index; let exerciseIndex = $index) {
-                  <button
-                    data-exercise-block
-                    data-exercise-toggle
-                    type="button"
-                    class="min-w-0 cursor-pointer rounded-xl border border-surface-border bg-surface-0 p-2.5 shadow-card sm:p-3"
-                    [attr.aria-expanded]="isExerciseExpanded(dayIndex, exerciseIndex)"
-                    (click)="toggleExercise(dayIndex, exerciseIndex)"
-                    (keydown)="onExerciseCardKeydown($event, dayIndex, exerciseIndex)"
+            <i class="pi pi-bolt text-sm" aria-hidden="true"></i>
+          </span>
+          <p class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-muted">
+            Total Exercises
+          </p>
+        </div>
+        <p class="mt-4 text-3xl font-extrabold leading-none tracking-tight text-primary">
+          {{ totalExercises(current)
+          }}<span class="ml-1.5 text-sm font-semibold text-secondary">exercises</span>
+        </p>
+        <p class="mt-2 text-xs leading-relaxed text-secondary">Total exercises in this plan.</p>
+      </article>
+
+      <article
+        class="group relative overflow-hidden rounded-2xl border border-surface-border bg-surface-0 p-5 shadow-card transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-card-md"
+      >
+        <div
+          class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-500 to-orange-500"
+          aria-hidden="true"
+        ></div>
+        <div class="flex items-center gap-2.5">
+          <span
+            class="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
+          >
+            <i class="pi pi-clock text-sm" aria-hidden="true"></i>
+          </span>
+          <p class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-muted">
+            Est. Session Duration
+          </p>
+        </div>
+        <p class="mt-4 text-3xl font-extrabold leading-none tracking-tight text-primary">
+          {{ estimatedMinutes(current)
+          }}<span class="ml-1.5 text-sm font-semibold text-secondary">min</span>
+        </p>
+        <p class="mt-2 text-xs leading-relaxed text-secondary">
+          Approximate time for one training day.
+        </p>
+      </article>
+    </div>
+
+    <!-- ===== PROGRESSION RULES ===== -->
+    @if (current.plan.progression.progressionRule) {
+      <section
+        class="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/40"
+      >
+        <div class="flex items-start gap-3">
+          <span
+            class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+          >
+            <i class="pi pi-chart-line text-sm" aria-hidden="true"></i>
+          </span>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+              Progression rules
+            </p>
+            <p class="mt-1.5 text-sm leading-relaxed text-emerald-800 dark:text-emerald-200">
+              {{ current.plan.progression.progressionRule }}
+            </p>
+            @if (current.plan.progression.conditions.length) {
+              <ul class="mt-3 grid min-w-0 gap-1.5">
+                @for (condition of current.plan.progression.conditions; track condition) {
+                  <li
+                    class="flex items-start gap-2 text-sm leading-relaxed text-emerald-800 dark:text-emerald-200"
                   >
-                    <div
-                      data-exercise-card-content
-                      class="flex min-w-0 gap-3"
-                      [class.flex-col]="isExerciseExpanded(dayIndex, exerciseIndex)"
-                      [class.items-stretch]="isExerciseExpanded(dayIndex, exerciseIndex)"
-                      [class.items-center]="!isExerciseExpanded(dayIndex, exerciseIndex)"
+                    <i
+                      class="pi pi-check-circle mt-0.5 shrink-0 text-xs text-emerald-500"
+                      aria-hidden="true"
+                    ></i>
+                    <span>{{ condition }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- ===== SAFETY NOTES & WARNINGS ===== -->
+    @if (current.plan.safetyNotes.length || current.plan.warnings.length) {
+      <div class="grid min-w-0 gap-3 lg:grid-cols-2 lg:gap-4">
+        @if (current.plan.safetyNotes.length) {
+          <section
+            class="rounded-2xl border border-amber-200/70 bg-amber-50/60 p-5 dark:border-amber-900/60 dark:bg-amber-950/40"
+          >
+            <div class="flex items-start gap-3">
+              <span
+                class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-300"
+              >
+                <i class="pi pi-shield text-sm" aria-hidden="true"></i>
+              </span>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-amber-900 dark:text-amber-100">Safety notes</p>
+                <ul class="mt-2 grid min-w-0 gap-1.5">
+                  @for (note of current.plan.safetyNotes; track note) {
+                    <li
+                      class="flex items-start gap-2 text-sm leading-relaxed text-amber-800 dark:text-amber-200"
                     >
-                      <div
-                        data-exercise-image-frame
-                        class="relative shrink-0 overflow-hidden rounded-xl bg-white"
-                        [class.h-14]="!isExerciseExpanded(dayIndex, exerciseIndex)"
-                        [class.w-14]="!isExerciseExpanded(dayIndex, exerciseIndex)"
-                        [class.w-full]="isExerciseExpanded(dayIndex, exerciseIndex)"
-                      >
-                        <pc-exercise-visual
-                          [name]="exercise.name"
-                          [masterExerciseId]="exercise.masterExerciseId"
-                          [movementPattern]="exercise.movementPattern"
-                          [muscleGroup]="exercise.muscleGroup"
-                          [media]="exerciseMediaFor(exercise)"
-                          [loading]="isExerciseImageLoading(exercise)"
-                          [compact]="!isExerciseExpanded(dayIndex, exerciseIndex)"
-                        />
-                      </div>
-                      <div class="min-w-0 flex-1">
-                        <div class="flex min-w-0 items-start justify-between gap-2">
-                          <p class="text-base font-semibold break-words leading-tight sm:text-lg">
-                            {{ exercise.name }}
-                          </p>
+                      <span
+                        class="mt-2 size-1.5 shrink-0 rounded-full bg-amber-500"
+                        aria-hidden="true"
+                      ></span>
+                      <span>{{ note }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            </div>
+          </section>
+        }
+        @if (current.plan.warnings.length) {
+          <section
+            class="rounded-2xl border border-rose-200/70 bg-rose-50/60 p-5 dark:border-rose-900/60 dark:bg-rose-950/40"
+          >
+            <div class="flex items-start gap-3">
+              <span
+                class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-300"
+              >
+                <i class="pi pi-exclamation-triangle text-sm" aria-hidden="true"></i>
+              </span>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-rose-900 dark:text-rose-100">Safety warnings</p>
+                <ul class="mt-2 grid min-w-0 gap-1.5">
+                  @for (warning of current.plan.warnings; track warning) {
+                    <li
+                      class="flex items-start gap-2 text-sm leading-relaxed text-rose-800 dark:text-rose-200"
+                    >
+                      <i
+                        class="pi pi-exclamation-circle mt-0.5 shrink-0 text-xs text-rose-500"
+                        aria-hidden="true"
+                      ></i>
+                      <span>{{ warning }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            </div>
+          </section>
+        }
+      </div>
+    }
+
+    <!-- ===== DAY & EXERCISE CARDS ===== -->
+    <div class="grid min-w-0 gap-4">
+      <div class="flex min-w-0 items-center justify-between gap-3">
+        <h2 class="text-sm font-bold uppercase tracking-[0.08em] text-secondary">
+          Weekly schedule
+        </h2>
+        <span class="shrink-0 text-xs font-medium text-muted">
+          {{ current.plan.days.length }} {{ current.plan.days.length === 1 ? 'day' : 'days' }}
+        </span>
+      </div>
+
+      @for (day of current.plan.days; let dayIndex = $index; track dayIndex) {
+        @let dayExpanded = isDayExpanded(dayIndex);
+        <article
+          class="overflow-hidden rounded-2xl border border-surface-border bg-surface-0 shadow-card"
+        >
+          <button
+            type="button"
+            class="flex w-full min-w-0 items-center gap-4 p-4 text-left sm:p-5"
+            [attr.aria-expanded]="dayExpanded"
+            (click)="toggleDay(dayIndex)"
+          >
+            <span
+              class="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 text-sm font-extrabold text-white shadow-brand"
+            >
+              Day {{ day.dayNumber }}
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-base font-semibold text-primary sm:text-lg">
+                {{ day.name }}
+              </span>
+              <span class="mt-0.5 block truncate text-xs font-medium uppercase tracking-wide text-brand-500">
+                {{ day.focus }}
+              </span>
+            </span>
+            <span
+              class="hidden shrink-0 items-center gap-1.5 rounded-full border border-surface-border bg-surface-muted px-2.5 py-1 text-xs font-semibold text-secondary sm:inline-flex"
+            >
+              <i class="pi pi-bolt text-[0.6875rem]" aria-hidden="true"></i>
+              {{ day.exercises.length }} {{ day.exercises.length === 1 ? 'exercise' : 'exercises' }}
+            </span>
+            <i
+              class="pi pi-chevron-down shrink-0 text-sm text-muted transition-transform duration-200"
+              [class.rotate-180]="dayExpanded"
+              aria-hidden="true"
+            ></i>
+          </button>
+
+          @if (dayExpanded) {
+            <div
+              class="grid min-w-0 gap-3 border-t border-surface-border bg-slate-50 p-3 dark:bg-slate-800/40 sm:p-4"
+            >
+              @for (
+                exercise of day.exercises;
+                track exercise.id || exercise.masterExerciseId || $index;
+                let exerciseIndex = $index
+              ) {
+                @let expanded = isExerciseExpanded(dayIndex, exerciseIndex);
+                <button
+                  type="button"
+                  class="group w-full min-w-0 cursor-pointer rounded-2xl border border-surface-border bg-surface-0 p-3 text-left shadow-card transition-all duration-200 hover:border-brand-400/50 hover:shadow-card-md sm:p-4"
+                  [class.border-brand-400/60]="expanded"
+                  [attr.aria-expanded]="expanded"
+                  (click)="toggleExercise(dayIndex, exerciseIndex)"
+                  (keydown)="onExerciseCardKeydown($event, dayIndex, exerciseIndex)"
+                >
+                  <div
+                    class="flex min-w-0 gap-3 sm:gap-4"
+                    [class.flex-col]="expanded"
+                    [class.items-stretch]="expanded"
+                    [class.items-center]="!expanded"
+                  >
+                    <!-- Exercise visual -->
+                    <div class="shrink-0" [class.w-full]="expanded">
+                      <pc-exercise-visual
+                        [name]="exercise.name"
+                        [masterExerciseId]="exercise.masterExerciseId"
+                        [movementPattern]="exercise.movementPattern"
+                        [muscleGroup]="exercise.muscleGroup"
+                        [media]="exerciseMediaFor(exercise)"
+                        [loading]="isExerciseImageLoading(exercise)"
+                        [compact]="!expanded"
+                      />
+                    </div>
+
+                    <!-- Exercise body -->
+                    <div class="min-w-0 flex-1">
+                      <div class="flex min-w-0 items-center gap-2">
+                        <p
+                          class="min-w-0 flex-1 break-words text-base font-semibold leading-snug text-primary sm:text-lg"
+                        >
+                          {{ exercise.name }}
+                        </p>
+                        <div class="flex shrink-0 items-center gap-2">
                           @if (exercise.rpe) {
                             <span
-                              data-exercise-rpe-badge
-                              class="pc-badge"
-                              [class.pc-badge-danger]="isHighRpe(exercise.rpe)"
-                              [class.pc-badge-success]="!isHighRpe(exercise.rpe)"
+                              class="inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[0.6875rem] font-bold"
+                              [class]="
+                                isHighRpe(exercise.rpe)
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30'
+                              "
                             >
                               {{ rpeLabel(exercise.rpe) }}
                             </span>
                           }
-                        </div>
-
-                        <div data-exercise-metadata class="mt-2 flex min-w-0 flex-wrap gap-1.5">
-                          <span class="pc-badge pc-badge-info">sets {{ exercise.sets }}</span>
-                          <span class="pc-badge pc-badge-info">reps {{ exercise.reps }}</span>
-                          @if (exercise.restSeconds !== undefined) {
-                            <span class="pc-badge pc-badge-brand"
-                              >rest {{ exercise.restSeconds }}s</span
-                            >
-                          }
-                          <span
-                            class="pc-badge pc-badge-brand"
-                            [class.hidden]="isExerciseExpanded(dayIndex, exerciseIndex)"
-                            >{{ formatSetRepLabel(exercise.sets, exercise.reps) }}</span
-                          >
-                        </div>
-
-                        <div data-exercise-tags class="mt-2 flex min-w-0 flex-wrap gap-1.5">
-                          @if (hasMuscleGroup(exercise.muscleGroup)) {
-                            <span class="pc-badge pc-badge-success">{{ exercise.muscleGroup }}</span>
-                          }
-                          @if (hasMovementPattern(exercise.movementPattern)) {
-                            <span class="pc-badge pc-badge-brand"
-                              >{{ exercise.movementPattern }}</span
-                            >
-                          }
-                        </div>
-
-                        <p
-                          data-exercise-summary
-                          class="mt-2 text-sm text-secondary"
-                          [class.hidden]="!isExerciseExpanded(dayIndex, exerciseIndex)"
-                        >
-                          <span class="inline-flex min-w-0 flex-wrap gap-1 text-xs text-secondary">
-                            {{ formatSetRepLabel(exercise.sets, exercise.reps) }}
-                            @if (exercise.restSeconds !== undefined) {
-                              · Rest {{ exercise.restSeconds }}s
-                            }
-                          </span>
-                        </p>
-                        @if (exercise.rpe) {
-                          <div data-exercise-rpe-ring class="mt-2 flex items-center gap-2">
-                            <div
-                              class="relative h-8 w-8 rounded-full"
-                              [style.background]="rpeRingGradient(exercise.rpe)"
-                            >
-                              <div
-                                class="absolute inset-[2px] rounded-full bg-surface-0 text-xs font-bold text-primary flex items-center justify-center"
-                              >
-                                {{ rpeValue(exercise.rpe) }}
-                              </div>
-                            </div>
-                            <span class="text-xs font-medium text-secondary">
-                              Intensity target
-                            </span>
-                          </div>
-                        }
-                        <div
-                          data-exercise-details
-                          [hidden]="!isExerciseExpanded(dayIndex, exerciseIndex)"
-                        >
-                          <p class="mt-2 text-sm font-medium">How to do safely</p>
-                          <ul
-                            class="mt-1 list-disc pl-4 text-xs text-slate-600 dark:text-slate-300"
-                          >
-                            @for (tip of exerciseSafetyTips(exercise.name); track tip) {
-                              <li>{{ tip }}</li>
-                            }
-                          </ul>
-                          @if (exercise.notes) {
-                            <p class="mt-2 text-xs italic text-slate-600 dark:text-slate-300">
-                              Notes: {{ exercise.notes }}
-                            </p>
-                          }
+                          <i
+                            class="pi pi-chevron-down text-sm text-muted transition-transform duration-200"
+                            [class.rotate-180]="expanded"
+                            aria-hidden="true"
+                          ></i>
                         </div>
                       </div>
+
+                      @if (!expanded) {
+                        <div class="mt-2.5 flex min-w-0 flex-wrap items-center gap-1.5">
+                          <span
+                            class="inline-flex items-center rounded-full border border-brand-200 bg-brand-50 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300"
+                          >
+                            {{ formatSetRepLabel(exercise.sets, exercise.reps) }}
+                          </span>
+                          @if (hasMuscleGroup(exercise.muscleGroup)) {
+                            <span
+                              class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                            >
+                              {{ exercise.muscleGroup }}
+                            </span>
+                          }
+                          @if (hasMovementPattern(exercise.movementPattern)) {
+                            <span
+                              class="inline-flex items-center rounded-full border border-surface-border bg-slate-100 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-secondary dark:bg-slate-800 dark:text-slate-300"
+                            >
+                              {{ exercise.movementPattern }}
+                            </span>
+                          }
+                          @if (exercise.restSeconds !== undefined) {
+                            <span
+                              class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                            >
+                              rest {{ exercise.restSeconds }}s
+                            </span>
+                          }
+                        </div>
+                      } @else {
+                        <!-- Exercise detail grid -->
+                        <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                          <div
+                            class="rounded-xl border border-surface-border bg-slate-50 p-3 dark:bg-slate-800/50"
+                          >
+                            <p class="text-[0.6875rem] font-bold uppercase tracking-wide text-muted">
+                              Sets
+                            </p>
+                            <p class="mt-1 text-xl font-bold text-primary">{{ exercise.sets }}</p>
+                          </div>
+                          <div
+                            class="rounded-xl border border-surface-border bg-slate-50 p-3 dark:bg-slate-800/50"
+                          >
+                            <p class="text-[0.6875rem] font-bold uppercase tracking-wide text-muted">
+                              Reps
+                            </p>
+                            <p class="mt-1 text-xl font-bold text-primary">{{ exercise.reps }}</p>
+                          </div>
+                          @if (exercise.restSeconds !== undefined) {
+                            <div
+                              class="rounded-xl border border-surface-border bg-slate-50 p-3 dark:bg-slate-800/50"
+                            >
+                              <p class="text-[0.6875rem] font-bold uppercase tracking-wide text-muted">
+                                Rest
+                              </p>
+                              <p class="mt-1 text-xl font-bold text-primary">
+                                {{ exercise.restSeconds
+                                }}<span class="ml-0.5 text-xs font-semibold text-secondary">s</span>
+                              </p>
+                            </div>
+                          }
+                          @if (exercise.rpe) {
+                            <div
+                              class="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-surface-border bg-slate-50 p-3 dark:bg-slate-800/50"
+                            >
+                              <div
+                                class="relative grid size-12 place-items-center rounded-full"
+                                [style.background]="rpeRingGradient(exercise.rpe)"
+                              >
+                                <div
+                                  class="absolute inset-[3px] grid place-items-center rounded-full bg-surface-0"
+                                >
+                                  <span class="text-sm font-bold text-primary">
+                                    {{ rpeValue(exercise.rpe) }}
+                                  </span>
+                                </div>
+                              </div>
+                              <p class="text-[0.6875rem] font-bold uppercase tracking-wide text-muted">
+                                RPE
+                              </p>
+                            </div>
+                          }
+                        </div>
+
+                        <!-- Safety tips -->
+                        <div
+                          class="mt-4 rounded-xl border border-surface-border bg-slate-50 p-3.5 dark:bg-slate-800/50 sm:p-4"
+                        >
+                          <p class="flex items-center gap-1.5 text-sm font-semibold text-primary">
+                            <i class="pi pi-shield text-xs text-emerald-500" aria-hidden="true"></i>
+                            How to do safely
+                          </p>
+                          <ul class="mt-2 grid min-w-0 gap-1.5">
+                            @for (tip of exerciseSafetyTips(exercise.name); track tip) {
+                              <li
+                                class="flex items-start gap-2 text-sm leading-relaxed text-secondary"
+                              >
+                                <i
+                                  class="pi pi-check-circle mt-1 shrink-0 text-xs text-emerald-500"
+                                  aria-hidden="true"
+                                ></i>
+                                <span>{{ tip }}</span>
+                              </li>
+                            }
+                          </ul>
+                        </div>
+
+                        @if (exercise.notes) {
+                          <p
+                            class="mt-3 rounded-lg border-l-2 border-brand-400 bg-brand-50/50 px-3 py-2 text-xs italic leading-relaxed text-secondary dark:bg-brand-500/5"
+                          >
+                            Notes: {{ exercise.notes }}
+                          </p>
+                        }
+                      }
                     </div>
-                  </button>
-                }
-              </div>
-            }
-          </article>
-        }
-      </div>
-
-      @if (current.plan.safetyNotes.length) {
-        <section
-          class="grid min-w-0 gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
-        >
-          <p class="font-medium">Safety notes</p>
-          <ul class="list-disc pl-4 text-sm leading-6">
-            @for (note of current.plan.safetyNotes; track note) {
-              <li>{{ note }}</li>
-            }
-          </ul>
-        </section>
+                  </div>
+                </button>
+              }
+            </div>
+          }
+        </article>
       }
+    </div>
 
-      @if (current.plan.warnings.length) {
-        <section
-          class="grid min-w-0 gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-950 dark:border-red-900 dark:bg-red-950 dark:text-red-100"
-        >
-          <p class="font-medium">Safety warnings</p>
-          <ul class="list-disc pl-4 text-sm leading-6">
-            @for (warning of current.plan.warnings; track warning) {
-              <li>{{ warning }}</li>
+    <!-- ===== PLAN FEEDBACK & MANAGEMENT ===== -->
+    @if (planStore.deleteError()) {
+      <p
+        class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
+      >
+        {{ planStore.deleteError() }}
+      </p>
+    }
+
+    <section
+      class="rounded-2xl border border-surface-border bg-surface-0 p-5 shadow-card sm:p-6"
+    >
+      <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-primary">Plan feedback</p>
+          <p class="mt-1 text-xs text-secondary">Share what this plan looked like in practice.</p>
+          <div class="mt-3 flex min-w-0 flex-wrap gap-2">
+            @for (item of feedbackOptions; track item.value) {
+              <button
+                type="button"
+                class="inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold transition-all duration-150"
+                [class]="
+                  planFeedback() === item.value
+                    ? 'border-brand-500 bg-brand-500 text-white shadow-brand'
+                    : 'border-surface-border bg-surface-0 text-secondary hover:border-brand-400/60 hover:text-primary'
+                "
+                (click)="recordFeedback(item.value)"
+              >
+                {{ item.label }}
+              </button>
             }
-          </ul>
-        </section>
-      }
-
-      @if (planStore.deleteError()) {
-        <p class="text-sm text-red-600">{{ planStore.deleteError() }}</p>
-      }
-
-      <div class="grid min-w-0 gap-2">
-        <p class="text-sm font-medium">Plan feedback</p>
-        <p class="text-xs text-slate-600 dark:text-slate-300">
-          Share what this plan looked like in practice.
-        </p>
-        <div class="flex flex-wrap gap-2 min-w-0 sm:justify-start">
-          @for (item of feedbackOptions; track item.value) {
-            <button
-              pButton
-              type="button"
-              class="min-w-0 max-w-full justify-center whitespace-normal"
-              [severity]="planFeedback() === item.value ? 'success' : undefined"
-              (click)="recordFeedback(item.value)"
-            >
-              {{ item.label }}
-            </button>
+          </div>
+          @if (planFeedback()) {
+            <p class="mt-3 text-xs text-secondary">Saved feedback: {{ planFeedback() }}.</p>
           }
         </div>
-        @if (planFeedback()) {
-          <p class="text-xs text-slate-600 dark:text-slate-300">
-            Saved feedback: {{ planFeedback() }}.
-          </p>
-        }
+
         <button
-          pButton
           type="button"
-          severity="danger"
-          class="mt-2 w-full max-w-full justify-center sm:w-auto"
+          class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors duration-150 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/50"
           [disabled]="planStore.deleting()"
           (click)="deleteCurrentPlan()"
         >
+          <i class="pi pi-trash text-xs" aria-hidden="true"></i>
           {{ planStore.deleting() ? 'Deleting...' : 'Delete current plan' }}
         </button>
       </div>
@@ -336,8 +572,12 @@
       title="No plan yet"
       message="Complete the onboarding flow to generate your first plan."
     />
-    <a class="mt-2 w-full justify-center sm:w-fit" pButton routerLink="/onboarding"
-      >Start assessment</a
+    <a
+      class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3 text-sm font-semibold text-white no-underline shadow-brand-lg transition-all duration-200 hover:-translate-y-0.5 hover:from-indigo-400 hover:to-violet-400 hover:shadow-brand-xl sm:w-fit"
+      routerLink="/onboarding"
     >
+      <i class="pi pi-pencil text-xs" aria-hidden="true"></i>
+      Start assessment
+    </a>
   }
 </div>
