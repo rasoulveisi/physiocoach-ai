@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { catchError, defer, finalize, from, of } from 'rxjs';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -9,6 +9,7 @@ import { DisclaimerComponent } from '../../shared/ui/disclaimer.component';
 import { AuthService } from '../auth/auth.service';
 import { AuthStore } from '../auth/auth.store';
 import { CurrentUserService } from '../auth/current-user.service';
+import { WorkoutSessionStore } from '../../features/workout-session/workout-session.store';
 
 @Component({
   selector: 'app-shell',
@@ -66,10 +67,21 @@ export class AppShellComponent {
   };
 
   protected readonly currentUser = inject(CurrentUserService);
+  protected readonly workoutSessionStore = inject(WorkoutSessionStore);
+
+  protected readonly activeWorkout = computed(() => {
+    const session = this.workoutSessionStore.activeSession();
+    if (!session || session.status !== 'active') {
+      return null;
+    }
+
+    return session;
+  });
 
   constructor() {
     if (this.isAuthenticated()) {
       this.currentUser.loadCurrentUser().subscribe();
+      this.workoutSessionStore.ensureActiveSession();
     }
   }
 

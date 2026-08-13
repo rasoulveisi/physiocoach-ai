@@ -430,6 +430,18 @@ export function createOpenApiDocument() {
           },
         },
       },
+      '/api/v1/workout-sessions/{id}/swap-exercise': {
+        post: {
+          summary: 'Swap an exercise in a workout session',
+          tags: ['Workout Sessions'],
+          parameters: [idPathParameter],
+          requestBody: requestBodyFromSchema('SwapExerciseInput'),
+          responses: {
+            '200': dataEnvelopeResponse,
+            '404': errorResponse,
+          },
+        },
+      },
       '/api/v1/exercise-logs': {
         post: {
           summary: 'Create an exercise log',
@@ -554,6 +566,24 @@ export function createOpenApiDocument() {
           tags: ['Progress'],
           responses: {
             '200': dataEnvelopeWithSchema('ProgressSummary'),
+          },
+        },
+      },
+      '/api/v1/progress/prs': {
+        get: {
+          summary: 'Get personal records grouped by exercise',
+          tags: ['Progress'],
+          responses: {
+            '200': dataEnvelopeResponse,
+          },
+        },
+      },
+      '/api/v1/progress/muscle-volume': {
+        get: {
+          summary: 'Get total training volume by muscle group over the last 30 days',
+          tags: ['Progress'],
+          responses: {
+            '200': dataEnvelopeResponse,
           },
         },
       },
@@ -1171,6 +1201,10 @@ export function createOpenApiDocument() {
             rpe: { type: 'number', minimum: 1, maximum: 10 },
             completed: { type: 'boolean' },
             notes: { type: 'string' },
+            setType: {
+              type: 'string',
+              enum: ['warmup', 'working', 'drop', 'failure'],
+            },
           },
           additionalProperties: false,
         },
@@ -1183,6 +1217,34 @@ export function createOpenApiDocument() {
             rpe: { type: 'number', minimum: 1, maximum: 10 },
             completed: { type: 'boolean' },
             notes: { type: 'string' },
+            setType: {
+              type: 'string',
+              enum: ['warmup', 'working', 'drop', 'failure'],
+            },
+          },
+          additionalProperties: false,
+        },
+        SwapExerciseInput: {
+          type: 'object',
+          required: [
+            'logGroupKey',
+            'newMasterExerciseId',
+            'newExerciseName',
+            'newMovementPattern',
+            'newMuscleGroups',
+          ],
+          properties: {
+            logGroupKey: { type: 'string' },
+            newMasterExerciseId: { type: 'string' },
+            newExerciseName: { type: 'string' },
+            newMovementPattern: {
+              type: 'string',
+              enum: ['squat', 'hinge', 'push', 'pull', 'lunge', 'carry', 'core', 'mobility'],
+            },
+            newMuscleGroups: {
+              type: 'array',
+              items: { type: 'string' },
+            },
           },
           additionalProperties: false,
         },
@@ -1226,6 +1288,17 @@ export function createOpenApiDocument() {
               enum: ['byExercise', 'byDay', 'byPlan'],
             },
             remindersEnabled: {
+              type: 'boolean',
+            },
+            restTimerSeconds: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 3600,
+            },
+            autoStartRestTimer: {
+              type: 'boolean',
+            },
+            restTimerSoundEnabled: {
               type: 'boolean',
             },
           },

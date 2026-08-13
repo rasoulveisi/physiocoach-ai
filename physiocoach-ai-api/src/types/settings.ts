@@ -5,6 +5,9 @@ export const SETTINGS_DEFAULTS = {
   unitSystem: 'metric',
   defaultWorkoutView: 'byExercise',
   remindersEnabled: false,
+  restTimerSeconds: 90,
+  autoStartRestTimer: true,
+  restTimerSoundEnabled: true,
 } as const;
 
 export const userSettingsSchema = z.object({
@@ -12,6 +15,9 @@ export const userSettingsSchema = z.object({
   unitSystem: z.enum(['metric', 'imperial']),
   defaultWorkoutView: z.enum(['byExercise', 'byDay', 'byPlan']),
   remindersEnabled: z.boolean(),
+  restTimerSeconds: z.number().int().min(1).max(3600),
+  autoStartRestTimer: z.boolean(),
+  restTimerSoundEnabled: z.boolean(),
 });
 
 export const userSettingsPatchSchema = userSettingsSchema.partial().strict();
@@ -25,6 +31,9 @@ export interface UserSettingsDto {
   unitSystem: UserSettingsInput['unitSystem'];
   defaultWorkoutView: UserSettingsInput['defaultWorkoutView'];
   remindersEnabled: boolean;
+  restTimerSeconds: number;
+  autoStartRestTimer: boolean;
+  restTimerSoundEnabled: boolean;
 }
 
 type UserSettingsInputWithUndefined = {
@@ -32,6 +41,9 @@ type UserSettingsInputWithUndefined = {
   unitSystem?: UserSettingsInput['unitSystem'] | undefined;
   defaultWorkoutView?: UserSettingsInput['defaultWorkoutView'] | undefined;
   remindersEnabled?: UserSettingsInput['remindersEnabled'] | undefined;
+  restTimerSeconds?: UserSettingsInput['restTimerSeconds'] | undefined;
+  autoStartRestTimer?: UserSettingsInput['autoStartRestTimer'] | undefined;
+  restTimerSoundEnabled?: UserSettingsInput['restTimerSoundEnabled'] | undefined;
 };
 
 export function mergeWithDefaults(
@@ -42,6 +54,9 @@ export function mergeWithDefaults(
     unitSystem: input?.unitSystem ?? SETTINGS_DEFAULTS.unitSystem,
     defaultWorkoutView: input?.defaultWorkoutView ?? SETTINGS_DEFAULTS.defaultWorkoutView,
     remindersEnabled: input?.remindersEnabled ?? SETTINGS_DEFAULTS.remindersEnabled,
+    restTimerSeconds: input?.restTimerSeconds ?? SETTINGS_DEFAULTS.restTimerSeconds,
+    autoStartRestTimer: input?.autoStartRestTimer ?? SETTINGS_DEFAULTS.autoStartRestTimer,
+    restTimerSoundEnabled: input?.restTimerSoundEnabled ?? SETTINGS_DEFAULTS.restTimerSoundEnabled,
   };
 }
 
@@ -54,5 +69,8 @@ export function applySettingsPatch(
     unitSystem: patch.unitSystem ?? current?.unitSystem,
     defaultWorkoutView: patch.defaultWorkoutView ?? current?.defaultWorkoutView,
     remindersEnabled: patch.remindersEnabled ?? current?.remindersEnabled,
+    restTimerSeconds: patch.restTimerSeconds ?? current?.restTimerSeconds,
+    autoStartRestTimer: patch.autoStartRestTimer ?? current?.autoStartRestTimer,
+    restTimerSoundEnabled: patch.restTimerSoundEnabled ?? current?.restTimerSoundEnabled,
   });
 }

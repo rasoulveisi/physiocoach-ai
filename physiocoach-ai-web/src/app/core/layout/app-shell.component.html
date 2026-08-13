@@ -2,6 +2,34 @@
             bg-surface-bg text-primary">
   <p-toast position="top-right" />
 
+  <!-- ===== ACTIVE WORKOUT BAR ===== -->
+  @if (activeWorkout(); as session) {
+    <div class="pointer-events-none fixed inset-x-0 bottom-16 z-40 px-3 md:bottom-6 md:px-4">
+      <div
+        class="pointer-events-auto mx-auto flex w-full max-w-6xl items-center gap-3 rounded-2xl border border-brand-400/40 bg-brand-600 px-4 py-3 text-white shadow-brand-lg animate-fade-up"
+      >
+        <span
+          class="grid size-9 shrink-0 place-items-center rounded-full bg-white/15"
+          aria-hidden="true"
+        >
+          <i class="pi pi-play text-sm"></i>
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold leading-tight">Workout in Progress</p>
+          <p class="text-xs text-white/80">
+            {{ session.progress.completedSets }}/{{ session.progress.totalSets }} sets completed
+          </p>
+        </div>
+        <a
+          routerLink="/session"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-brand-700 no-underline transition-colors duration-150 hover:bg-brand-50"
+        >
+          Continue Session
+        </a>
+      </div>
+    </div>
+  }
+
   <!-- ===== HEADER ===== -->
   <header class="shrink-0 border-b border-surface-border bg-surface-0 shadow-xs">
     <div class="mx-auto flex min-h-12 w-full max-w-6xl items-center gap-3 px-4 py-1.5 md:min-h-14 md:py-2">

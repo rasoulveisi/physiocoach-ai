@@ -203,6 +203,8 @@ export const exerciseLogs = sqliteTable('exercise_logs', {
   rpe: real('rpe'),
   completed: integer('completed').notNull().default(0),
   notes: text('notes'),
+  exerciseType: text('exercise_type').notNull().default('working'),
+  previousPerformanceJson: text('previous_performance_json'),
 });
 
 export const userSettings = sqliteTable(
@@ -216,11 +218,30 @@ export const userSettings = sqliteTable(
     unitSystem: text('unit_system').notNull(),
     defaultWorkoutView: text('default_workout_view').notNull(),
     remindersEnabled: integer('reminders_enabled').notNull().default(0),
+    restTimerSeconds: integer('rest_timer_seconds').notNull().default(90),
+    autoStartRestTimer: integer('auto_start_rest_timer').notNull().default(1),
+    restTimerSoundEnabled: integer('rest_timer_sound_enabled').notNull().default(1),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
   (table) => [uniqueIndex('user_settings_user_id_unique').on(table.userId)],
 );
+
+export const personalRecords = sqliteTable('personal_records', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  masterExerciseId: text('master_exercise_id'),
+  exerciseName: text('exercise_name').notNull(),
+  recordType: text('record_type').notNull(),
+  value: real('value').notNull(),
+  reps: integer('reps'),
+  weightKg: real('weight_kg'),
+  workoutSessionId: text('workout_session_id'),
+  achievedAt: text('achieved_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
 
 export const bodyMeasurements = sqliteTable('body_measurements', {
   id: text('id').primaryKey(),

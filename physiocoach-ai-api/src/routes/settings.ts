@@ -37,6 +37,9 @@ export function createSettingsRoutes() {
           unitSystem: row.unitSystem,
           defaultWorkoutView: row.defaultWorkoutView,
           remindersEnabled: row.remindersEnabled === 1,
+          restTimerSeconds: row.restTimerSeconds,
+          autoStartRestTimer: row.autoStartRestTimer === 1,
+          restTimerSoundEnabled: row.restTimerSoundEnabled === 1,
         },
       });
     } catch (error) {
@@ -63,6 +66,9 @@ export function createSettingsRoutes() {
             defaultWorkoutView:
               current.defaultWorkoutView as UserSettingsInput['defaultWorkoutView'],
             remindersEnabled: current.remindersEnabled === 1,
+            restTimerSeconds: current.restTimerSeconds,
+            autoStartRestTimer: current.autoStartRestTimer === 1,
+            restTimerSoundEnabled: current.restTimerSoundEnabled === 1,
           }
         : undefined;
       const merged = applySettingsPatch(currentSettings, parsed.data);
@@ -74,6 +80,9 @@ export function createSettingsRoutes() {
         unitSystem: merged.unitSystem,
         defaultWorkoutView: merged.defaultWorkoutView,
         remindersEnabled: merged.remindersEnabled ? 1 : 0,
+        restTimerSeconds: merged.restTimerSeconds,
+        autoStartRestTimer: merged.autoStartRestTimer ? 1 : 0,
+        restTimerSoundEnabled: merged.restTimerSoundEnabled ? 1 : 0,
         createdAt: current?.createdAt ?? now,
         updatedAt: now,
       });
@@ -88,6 +97,9 @@ export function createSettingsRoutes() {
           unitSystem: updated.unitSystem,
           defaultWorkoutView: updated.defaultWorkoutView,
           remindersEnabled: updated.remindersEnabled === 1,
+          restTimerSeconds: updated.restTimerSeconds,
+          autoStartRestTimer: updated.autoStartRestTimer === 1,
+          restTimerSoundEnabled: updated.restTimerSoundEnabled === 1,
         },
       });
     } catch (error) {
@@ -124,6 +136,9 @@ async function upsertUserSettings(db: DbClient, payload: SettingsRow): Promise<S
       unitSystem: payload.unitSystem,
       defaultWorkoutView: payload.defaultWorkoutView,
       remindersEnabled: payload.remindersEnabled,
+      restTimerSeconds: payload.restTimerSeconds,
+      autoStartRestTimer: payload.autoStartRestTimer,
+      restTimerSoundEnabled: payload.restTimerSoundEnabled,
       updatedAt: payload.updatedAt,
     })
     .where(and(eq(userSettings.id, existing.id), eq(userSettings.userId, payload.userId)));

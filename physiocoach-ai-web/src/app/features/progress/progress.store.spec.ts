@@ -31,6 +31,14 @@ class FakeProgressApiService {
       } as BodyMeasurement,
     ]);
   }
+
+  getPersonalRecords() {
+    return of([]);
+  }
+
+  getMuscleVolume() {
+    return of([]);
+  }
 }
 
 describe('ProgressStore', () => {
@@ -55,6 +63,14 @@ describe('ProgressStore', () => {
 
       listBodyMeasurements() {
         return throwError(() => new Error('measurement unavailable'));
+      }
+
+      getPersonalRecords() {
+        return of([]);
+      }
+
+      getMuscleVolume() {
+        return of([]);
       }
     }
 
@@ -91,6 +107,14 @@ describe('ProgressStore', () => {
             waistCm: 82,
           } as BodyMeasurement,
         ]);
+      }
+
+      getPersonalRecords() {
+        return of([]);
+      }
+
+      getMuscleVolume() {
+        return of([]);
       }
     }
 

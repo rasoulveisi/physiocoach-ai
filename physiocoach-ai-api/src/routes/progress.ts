@@ -2,11 +2,12 @@ import { and, desc, eq, gte, inArray, isNotNull, lte } from 'drizzle-orm';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
 
-import { exerciseLogs, workoutSessions } from '../db/schema';
+import { exerciseLogs, personalRecords, workoutSessions } from '../db/schema';
 import type { WorkerBindings } from '../env';
 import { handleRouteError } from '../shared/errors/api';
 import { getApiRouteContext } from './context';
 import { getFallbackProgressSummary, getProgressSummary } from '../services/progress-calculator';
+import { parseMuscleGroups } from '../services/workout-session';
 
 type DbClient = ReturnType<typeof import('../db/client').createDb>;
 
@@ -26,6 +27,22 @@ export function createProgressRoutes() {
       return await getProgressSummaryHandler(c);
     } catch (error) {
       return handleRouteError(c, error, 'Failed to fetch progress summary.');
+    }
+  });
+
+  route.get('/progress/prs', async (c) => {
+    try {
+      return await getPersonalRecordsHandler(c);
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to fetch personal records.');
+    }
+  });
+
+  route.get('/progress/muscle-volume', async (c) => {
+    try {
+      return await getMuscleVolumeHandler(c);
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to fetch muscle volume.');
     }
   });
 
@@ -112,6 +129,8 @@ async function findExerciseLogsForSessionIds(
       rpe: exerciseLogs.rpe,
       completed: exerciseLogs.completed,
       notes: exerciseLogs.notes,
+      exerciseType: exerciseLogs.exerciseType,
+      previousPerformanceJson: exerciseLogs.previousPerformanceJson,
       sessionCompletedAt: workoutSessions.completedAt,
       sessionScheduledDate: workoutSessions.scheduledDate,
     })
@@ -119,4 +138,113 @@ async function findExerciseLogsForSessionIds(
     .innerJoin(workoutSessions, eq(exerciseLogs.workoutSessionId, workoutSessions.id))
     .where(inArray(exerciseLogs.workoutSessionId, sessionIds))
     .orderBy(desc(workoutSessions.completedAt), exerciseLogs.exerciseName, exerciseLogs.setIndex);
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+type PersonalRecordRow = typeof personalRecords.$inferSelect;
+
+interface PersonalRecordGroup {
+  exerciseName: string;
+  masterExerciseId: string | null;
+  records: Array<{
+    recordType: string;
+    value: number;
+    reps: number | null;
+    weightKg: number | null;
+    achievedAt: string;
+  }>;
+}
+
+async function getPersonalRecordsHandler(c: Context<{ Bindings: WorkerBindings }>) {
+  const { user, db } = getApiRouteContext(c);
+  if (!db) {
+    return c.json({ data: [] });
+  }
+
+  const rows = await db
+    .select()
+    .from(personalRecords)
+    .where(eq(personalRecords.userId, user.id))
+    .orderBy(desc(personalRecords.achievedAt));
+
+  return c.json({ data: groupPersonalRecordsByExercise(rows) });
+}
+
+function groupPersonalRecordsByExercise(rows: PersonalRecordRow[]): PersonalRecordGroup[] {
+  const grouped = new Map<string, PersonalRecordGroup>();
+
+  for (const row of rows) {
+    const key = (row.masterExerciseId ?? row.exerciseName).trim().toLowerCase();
+    const record = {
+      recordType: row.recordType,
+      value: row.value,
+      reps: row.reps,
+      weightKg: row.weightKg,
+      achievedAt: row.achievedAt,
+    };
+
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.records.push(record);
+    } else {
+      grouped.set(key, {
+        exerciseName: row.exerciseName,
+        masterExerciseId: row.masterExerciseId,
+        records: [record],
+      });
+    }
+  }
+
+  return Array.from(grouped.values());
+}
+
+async function getMuscleVolumeHandler(c: Context<{ Bindings: WorkerBindings }>) {
+  const { user, db } = getApiRouteContext(c);
+  if (!db) {
+    return c.json({ data: [] });
+  }
+
+  const fromIso = new Date(Date.now() - 30 * MS_PER_DAY).toISOString();
+  const rows = await findCompletedLogsWithSessionDates(db, user.id);
+
+  const volumeByMuscle = new Map<string, number>();
+  for (const row of rows) {
+    if (row.completed !== 1 || row.weight <= 0 || row.reps <= 0) continue;
+
+    const sessionDate =
+      toComparableIso(row.sessionCompletedAt) ?? toComparableIso(row.sessionScheduledDate);
+    if (!sessionDate || sessionDate < fromIso) continue;
+
+    const volume = row.weight * row.reps;
+    for (const group of parseMuscleGroups(row.muscleGroupsJson)) {
+      volumeByMuscle.set(group, (volumeByMuscle.get(group) ?? 0) + volume);
+    }
+  }
+
+  const data = Array.from(volumeByMuscle.entries())
+    .map(([muscleGroup, volume]) => ({ muscleGroup, volume }))
+    .sort((a, b) => b.volume - a.volume);
+
+  return c.json({ data });
+}
+
+async function findCompletedLogsWithSessionDates(db: DbClient, userId: string) {
+  return db
+    .select({
+      muscleGroupsJson: exerciseLogs.muscleGroupsJson,
+      weight: exerciseLogs.weight,
+      reps: exerciseLogs.reps,
+      completed: exerciseLogs.completed,
+      sessionCompletedAt: workoutSessions.completedAt,
+      sessionScheduledDate: workoutSessions.scheduledDate,
+    })
+    .from(exerciseLogs)
+    .innerJoin(workoutSessions, eq(exerciseLogs.workoutSessionId, workoutSessions.id))
+    .where(and(eq(exerciseLogs.userId, userId), eq(exerciseLogs.completed, 1)));
+}
+
+function toComparableIso(value: string | null): string | null {
+  if (!value) return null;
+  return value.length >= 20 ? value : `${value}T00:00:00.000Z`;
 }

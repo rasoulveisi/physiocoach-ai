@@ -201,6 +201,21 @@ const expectedRoutes = [
     runtimePath: '/api/v1/settings',
     openApiPath: '/api/v1/settings',
   },
+  {
+    method: 'POST',
+    runtimePath: '/api/v1/workout-sessions/session-1/swap-exercise',
+    openApiPath: '/api/v1/workout-sessions/{id}/swap-exercise',
+  },
+  {
+    method: 'GET',
+    runtimePath: '/api/v1/progress/prs',
+    openApiPath: '/api/v1/progress/prs',
+  },
+  {
+    method: 'GET',
+    runtimePath: '/api/v1/progress/muscle-volume',
+    openApiPath: '/api/v1/progress/muscle-volume',
+  },
 ] as const;
 
 type OpenApiDocument = {

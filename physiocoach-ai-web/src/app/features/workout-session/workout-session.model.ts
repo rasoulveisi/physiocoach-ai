@@ -1,3 +1,11 @@
+export type ExerciseSetType = 'warmup' | 'working' | 'drop' | 'failure';
+
+export interface PreviousPerformance {
+  weight: number;
+  reps: number;
+  date: string;
+}
+
 export interface ExerciseLogDto {
   id: string;
   exerciseName: string;
@@ -11,6 +19,8 @@ export interface ExerciseLogDto {
   rpe?: number | null;
   completed: boolean;
   notes?: string | null;
+  setType?: ExerciseSetType | null;
+  previousPerformance?: PreviousPerformance | null;
 }
 
 export interface ExerciseLogGroup {
@@ -21,6 +31,7 @@ export interface ExerciseLogGroup {
   muscleGroups: string[];
   targetReps?: string | null;
   notes?: string | null;
+  previousPerformance?: PreviousPerformance | null;
   logs: ExerciseLogDto[];
 }
 
@@ -52,4 +63,13 @@ export interface SaveSetLogPayload {
   rpe?: number;
   completed: boolean;
   notes?: string;
+  setType?: ExerciseSetType;
+}
+
+export interface SwapExercisePayload {
+  logGroupKey: string;
+  newMasterExerciseId: string;
+  newExerciseName: string;
+  newMovementPattern: string;
+  newMuscleGroups: string[];
 }

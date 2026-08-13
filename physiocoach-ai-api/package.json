@@ -16,7 +16,7 @@
     "format": "prettier --write src tests scripts package.json README.md docs",
     "format:check": "prettier --check src tests scripts package.json README.md docs",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply physiocoach_local --config ./wrangler.toml --local",
+    "db:migrate:local": "wrangler d1 migrations apply physiocoach_prod --config ./wrangler.toml --local",
     "db:migrate:remote": "wrangler d1 migrations apply physiocoach_prod --config ./wrangler.toml --remote",
     "deploy": "wrangler deploy --config ./wrangler.toml",
     "openapi": "wrangler dev --test-scheduled=false",

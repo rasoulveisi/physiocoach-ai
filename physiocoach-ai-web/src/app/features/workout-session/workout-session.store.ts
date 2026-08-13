@@ -5,6 +5,7 @@ import { WorkoutSessionApiService } from './workout-session-api.service';
 import {
   type CreateSessionPayload,
   type SaveSetLogPayload,
+  type SwapExercisePayload,
   type WorkoutSessionDto,
 } from './workout-session.model';
 
@@ -142,6 +143,24 @@ export class WorkoutSessionStore {
         }),
         catchError((error) => {
           this.error.set(error instanceof Error ? error.message : 'Could not save set log.');
+          return EMPTY;
+        }),
+      )
+      .subscribe();
+  }
+
+  swapExercise(sessionId: string, payload: SwapExercisePayload): void {
+    this.error.set(null);
+
+    this.api
+      .swapExercise(sessionId, payload)
+      .pipe(
+        take(1),
+        tap((session) => {
+          this.activeSession.set(session);
+        }),
+        catchError((error) => {
+          this.error.set(error instanceof Error ? error.message : 'Could not swap exercise.');
           return EMPTY;
         }),
       )

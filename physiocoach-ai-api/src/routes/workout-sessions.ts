@@ -21,6 +21,7 @@ import {
   findLogsForSessionId,
   findLogsForSessionIds,
   findPlanForUserById,
+  findPreviousPerformanceByExercises,
   findSessionByIdempotencyKey,
   findSessionForUserById,
   findRecentSessionsForUser,
@@ -28,7 +29,10 @@ import {
   insertExerciseLog,
   patchExerciseLog,
   setSessionCompleted,
+  swapExerciseInSession,
+  swapExerciseSchema,
   updateSessionNotes,
+  upsertPersonalRecords,
   type WorkoutSessionDto,
   workoutSessionCreateSchema,
   workoutSessionPatchSchema,
@@ -56,7 +60,13 @@ export function createWorkoutSessionRoutes() {
         }
 
         const logs = await findLogsForSessionId(db, activeSession.id);
-        const dtoResult = buildSessionDto(activeSession, logs);
+        const previousPerformance = await findPreviousPerformanceByExercises(
+          db,
+          user.id,
+          logs.map((log) => log.masterExerciseId ?? ''),
+          activeSession.id,
+        );
+        const dtoResult = buildSessionDto(activeSession, logs, previousPerformance);
         if (!dtoResult.ok) {
           return createApiError(c, 'invalid_session_data', dtoResult.error.message, {
             status: 500,
@@ -128,7 +138,13 @@ export function createWorkoutSessionRoutes() {
       );
       if (existingSession) {
         const existingRows = await findLogsForSessionId(db, existingSession.id);
-        const existingDtoResult = buildSessionDto(existingSession, existingRows);
+        const previousPerformance = await findPreviousPerformanceByExercises(
+          db,
+          user.id,
+          existingRows.map((log) => log.masterExerciseId ?? ''),
+          existingSession.id,
+        );
+        const existingDtoResult = buildSessionDto(existingSession, existingRows, previousPerformance);
         if (!existingDtoResult.ok) {
           return createApiError(c, 'invalid_session_data', existingDtoResult.error.message, {
             status: 500,
@@ -161,12 +177,22 @@ export function createWorkoutSessionRoutes() {
       const sessionId = crypto.randomUUID();
       const now = new Date().toISOString();
 
+      const masterExerciseIds = selectedDay.exercises
+        .map((exercise) => exercise.masterExerciseId ?? '')
+        .filter((id) => id.trim().length > 0);
+      const previousPerformanceByExercise = await findPreviousPerformanceByExercises(
+        db,
+        user.id,
+        masterExerciseIds,
+      );
+
       let exerciseLogsToInsert: Parameters<typeof createSessionWithLogs>[2];
       try {
         const generatedLogs = buildDefaultExerciseLogs({
           userId: user.id,
           workoutSessionId: sessionId,
           day: selectedDay,
+          previousPerformanceByExercise,
         });
 
         exerciseLogsToInsert = generatedLogs.map((log) => ({
@@ -184,6 +210,7 @@ export function createWorkoutSessionRoutes() {
           rpe: log.rpe,
           completed: log.completed,
           notes: log.notes,
+          previousPerformanceJson: log.previousPerformanceJson,
         }));
       } catch (error) {
         if (error instanceof Error && error.message === MISSING_MASTER_EXERCISE_ID_ERROR_MESSAGE) {
@@ -342,6 +369,51 @@ export function createWorkoutSessionRoutes() {
     }
   });
 
+  route.post('/workout-sessions/:sessionId/swap-exercise', async (c) => {
+    try {
+      const parsed = await parseJsonPayload(c, swapExerciseSchema);
+      if (!parsed.success) return parsed.response;
+
+      const { user, db } = getApiRouteContext(c);
+      if (!db) {
+        return c.json({
+          data: {
+            sessionId: c.req.param('sessionId'),
+            ...parsed.data,
+            updatedLogs: 0,
+          },
+        });
+      }
+
+      const sessionId = c.req.param('sessionId');
+      const session = await findSessionForUserById(db, user.id, sessionId);
+      if (!session) return c.json({ data: null }, 404);
+
+      const updatedLogs = await swapExerciseInSession(db, sessionId, parsed.data);
+      if (updatedLogs === 0) {
+        return createApiError(
+          c,
+          'not_found',
+          'No set logs matched the provided exercise group key.',
+          { status: 404 },
+        );
+      }
+
+      const logs = await findLogsForSessionId(db, sessionId);
+      const dtoResult = buildSessionDto(session, logs);
+      if (!dtoResult.ok) {
+        return createApiError(c, 'invalid_session_data', dtoResult.error.message, { status: 500 });
+      }
+
+      return c.json({ data: dtoResult.dto });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Missing or invalid authenticated user context.') {
+        return unauthorized(c, error.message);
+      }
+      return internalServerError(c, 'Failed to swap exercise.');
+    }
+  });
+
   route.post('/exercise-logs', async (c) => {
     try {
       const parsed = await parseJsonPayload(c, exerciseLogInputSchema);
@@ -377,6 +449,8 @@ export function createWorkoutSessionRoutes() {
       }
 
       const exerciseLogId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const exerciseType = parsed.data.setType ?? 'working';
       await insertExerciseLog(db, {
         id: exerciseLogId,
         userId: user.id,
@@ -396,7 +470,20 @@ export function createWorkoutSessionRoutes() {
         rpe: parsed.data.rpe ?? null,
         completed: parsed.data.completed ? 1 : 0,
         notes: parsed.data.notes ?? null,
+        exerciseType,
       });
+
+      if (parsed.data.completed && parsed.data.weightKg > 0 && parsed.data.reps > 0) {
+        await upsertPersonalRecords(db, {
+          userId: user.id,
+          masterExerciseId: canonicalExercise.masterExerciseId,
+          exerciseName: canonicalExercise.exerciseName,
+          weight: parsed.data.weightKg,
+          reps: parsed.data.reps,
+          workoutSessionId: parsed.data.workoutSessionId,
+          achievedAt: now,
+        });
+      }
 
       const row = await findExerciseLogById(db, exerciseLogId);
       if (!row) return c.json({ data: null }, 500);
@@ -415,7 +502,7 @@ export function createWorkoutSessionRoutes() {
       const parsed = await parseJsonPayload(c, exerciseLogPatchSchema);
       if (!parsed.success) return parsed.response;
 
-      const { db } = getApiRouteContext(c);
+      const { user, db } = getApiRouteContext(c);
       if (!db) return c.json({ data: { id: c.req.param('exerciseLogId'), ...parsed.data } });
 
       const exerciseLogId = c.req.param('exerciseLogId');
@@ -425,10 +512,23 @@ export function createWorkoutSessionRoutes() {
         rpe: parsed.data.rpe ?? null,
         completed: parsed.data.completed ? 1 : 0,
         notes: parsed.data.notes ?? null,
+        ...(parsed.data.setType === undefined ? {} : { exerciseType: parsed.data.setType }),
       });
 
       const row = await findExerciseLogById(db, exerciseLogId);
       if (!row) return c.json({ data: null }, 404);
+
+      if (row.completed === 1 && row.weight > 0 && row.reps > 0) {
+        await upsertPersonalRecords(db, {
+          userId: user.id,
+          masterExerciseId: row.masterExerciseId,
+          exerciseName: row.exerciseName,
+          weight: row.weight,
+          reps: row.reps,
+          workoutSessionId: row.workoutSessionId,
+          achievedAt: new Date().toISOString(),
+        });
+      }
 
       return c.json({ data: buildExerciseLogDto(row) });
     } catch (error) {

@@ -8,6 +8,7 @@ import {
   type WorkoutSessionDto,
   type CreateSessionPayload,
   type SaveSetLogPayload,
+  type SwapExercisePayload,
 } from './workout-session.model';
 
 interface ApiResponse<T> {
@@ -48,6 +49,18 @@ export class WorkoutSessionApiService {
   saveSetLog(logId: string, payload: SaveSetLogPayload): Observable<ExerciseLogDto> {
     return this.api
       .patch<ApiResponse<ExerciseLogDto>, SaveSetLogPayload>(`/exercise-logs/${logId}`, payload)
+      .pipe(map((response) => response.data));
+  }
+
+  swapExercise(
+    sessionId: string,
+    payload: SwapExercisePayload,
+  ): Observable<WorkoutSessionDto> {
+    return this.api
+      .post<ApiResponse<WorkoutSessionDto>, SwapExercisePayload>(
+        `/workout-sessions/${sessionId}/swap-exercise`,
+        payload,
+      )
       .pipe(map((response) => response.data));
   }
 

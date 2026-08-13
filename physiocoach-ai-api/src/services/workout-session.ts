@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { createDb } from '../db/client';
 import {
@@ -6,6 +6,7 @@ import {
   exerciseMuscles,
   masterExercises,
   masterMuscles,
+  personalRecords,
   workoutPlans,
   workoutSessions,
 } from '../db/schema';
@@ -27,6 +28,7 @@ export interface DefaultLogInput {
   userId: string;
   workoutSessionId: string;
   day: WorkoutDay;
+  previousPerformanceByExercise?: Map<string, PreviousPerformance>;
 }
 
 export interface ExerciseLogRecord {
@@ -43,6 +45,7 @@ export interface ExerciseLogRecord {
   rpe: number | null;
   completed: number;
   notes: string | null;
+  previousPerformanceJson: string | null;
 }
 
 export interface ExerciseLogPatchUpdate {
@@ -51,6 +54,15 @@ export interface ExerciseLogPatchUpdate {
   rpe: number;
   completed: boolean;
   notes: string;
+}
+
+export const SET_TYPE_VALUES = ['warmup', 'working', 'drop', 'failure'] as const;
+export type ExerciseSetType = (typeof SET_TYPE_VALUES)[number];
+
+export interface PreviousPerformance {
+  weight: number;
+  reps: number;
+  date: string;
 }
 
 export const workoutSessionCreateSchema = z
@@ -74,8 +86,21 @@ export const exerciseLogPatchSchema = z
     rpe: z.number().min(1).max(10).optional(),
     completed: z.boolean(),
     notes: z.string().min(1).optional(),
+    setType: z.enum(SET_TYPE_VALUES).optional(),
   })
   .strict();
+
+export const swapExerciseSchema = z
+  .object({
+    logGroupKey: z.string().min(1),
+    newMasterExerciseId: z.string().min(1),
+    newExerciseName: z.string().min(1),
+    newMovementPattern: MovementPatternSchema,
+    newMuscleGroups: z.array(z.string().min(1)).min(1),
+  })
+  .strict();
+
+export type SwapExerciseInput = z.infer<typeof swapExerciseSchema>;
 
 export const exerciseLogInputSchema = z
   .object({
@@ -91,6 +116,7 @@ export const exerciseLogInputSchema = z
     rpe: z.number().min(1).max(10).optional(),
     completed: z.boolean().default(false),
     notes: z.string().min(1).optional(),
+    setType: z.enum(SET_TYPE_VALUES).optional(),
   })
   .strict();
 
@@ -112,6 +138,7 @@ const DefaultLogSchema = z.object({
   rpe: z.number().nullable(),
   completed: z.number().int().min(0).max(1),
   notes: z.string().nullable(),
+  previousPerformanceJson: z.string().nullable(),
 });
 
 const DefaultLogBatchSchema = z.array(DefaultLogSchema).nonempty();
@@ -151,6 +178,8 @@ export interface WorkoutSessionDto {
     completed: boolean;
     masterExerciseId?: string | null;
     notes: string | null;
+    setType?: string | null;
+    previousPerformance?: PreviousPerformance | null;
   }>;
 }
 
@@ -172,22 +201,34 @@ export interface CanonicalExerciseForLog {
   muscleGroups: string[];
 }
 
-export function buildSessionDto(session: SessionRow, logs: ExerciseLogRow[]): SessionBuildResult {
+export function buildSessionDto(
+  session: SessionRow,
+  logs: ExerciseLogRow[],
+  previousPerformanceByExercise?: Map<string, PreviousPerformance>,
+): SessionBuildResult {
   try {
-    const mappedLogs = logs.map((log) => ({
-      id: log.id,
-      exerciseName: log.exerciseName,
-      masterExerciseId: log.masterExerciseId,
-      movementPattern: log.movementPattern,
-      muscleGroups: parseMuscleGroups(log.muscleGroupsJson),
-      setIndex: log.setIndex,
-      targetReps: log.targetReps,
-      reps: log.reps,
-      weightKg: log.weight,
-      rpe: log.rpe,
-      completed: log.completed === 1,
-      notes: log.notes,
-    }));
+    const mappedLogs = logs.map((log) => {
+      const storedPrevious = parsePreviousPerformance(log.previousPerformanceJson);
+      const previousPerformance =
+        storedPrevious ?? previousPerformanceByExercise?.get(log.masterExerciseId ?? '') ?? null;
+
+      return {
+        id: log.id,
+        exerciseName: log.exerciseName,
+        masterExerciseId: log.masterExerciseId,
+        movementPattern: log.movementPattern,
+        muscleGroups: parseMuscleGroups(log.muscleGroupsJson),
+        setIndex: log.setIndex,
+        targetReps: log.targetReps,
+        reps: log.reps,
+        weightKg: log.weight,
+        rpe: log.rpe,
+        setType: log.exerciseType,
+        completed: log.completed === 1,
+        notes: log.notes,
+        previousPerformance,
+      };
+    });
 
     return {
       ok: true,
@@ -229,8 +270,10 @@ export function buildExerciseLogDto(row: ExerciseLogRow) {
     reps: row.reps,
     weightKg: row.weight,
     rpe: row.rpe,
+    setType: row.exerciseType,
     completed: row.completed === 1,
     notes: row.notes,
+    previousPerformance: parsePreviousPerformance(row.previousPerformanceJson),
   };
 }
 
@@ -238,12 +281,18 @@ export function buildDefaultExerciseLogs({
   userId,
   workoutSessionId,
   day,
+  previousPerformanceByExercise,
 }: DefaultLogInput): ExerciseLogRecord[] {
   return DefaultLogBatchSchema.parse(
     day.exercises.flatMap((exercise) => {
       if (!exercise.masterExerciseId || exercise.masterExerciseId.trim().length === 0) {
         throw new Error(MISSING_MASTER_EXERCISE_ID_ERROR_MESSAGE);
       }
+
+      const previousPerformance = previousPerformanceByExercise?.get(exercise.masterExerciseId);
+      const previousPerformanceJson = previousPerformance
+        ? JSON.stringify(previousPerformance)
+        : null;
 
       return Array.from({ length: exercise.sets }, (_, index) => ({
         userId,
@@ -259,6 +308,7 @@ export function buildDefaultExerciseLogs({
         rpe: exercise.rpe ?? null,
         completed: 0,
         notes: null,
+        previousPerformanceJson,
       }));
     }),
   );
@@ -489,6 +539,7 @@ export async function patchExerciseLog(
     rpe?: number | null;
     completed: number;
     notes?: string | null;
+    exerciseType?: string;
   },
 ): Promise<void> {
   await db.update(exerciseLogs).set(patch).where(eq(exerciseLogs.id, exerciseLogId));
@@ -538,6 +589,188 @@ export function parseMuscleGroups(raw: string): string[] {
   } catch {
     return [];
   }
+}
+
+export function parsePreviousPerformance(raw: string | null): PreviousPerformance | null {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+
+    const candidate = parsed as Record<string, unknown>;
+    const weight = typeof candidate.weight === 'number' ? candidate.weight : null;
+    const reps = typeof candidate.reps === 'number' ? candidate.reps : null;
+    const date = typeof candidate.date === 'string' ? candidate.date : null;
+    if (weight === null || reps === null || date === null) return null;
+
+    return { weight, reps, date };
+  } catch {
+    return null;
+  }
+}
+
+export function computeEpleyOneRepMax(weight: number, reps: number): number {
+  return weight * (1 + reps / 30);
+}
+
+export async function findPreviousPerformanceByExercises(
+  db: DbClient,
+  userId: string,
+  masterExerciseIds: string[],
+  excludeSessionId?: string,
+): Promise<Map<string, PreviousPerformance>> {
+  const result = new Map<string, PreviousPerformance>();
+  const uniqueIds = Array.from(new Set(masterExerciseIds.filter((id) => id.trim().length > 0)));
+  if (uniqueIds.length === 0) return result;
+
+  const rows = await db
+    .select({
+      masterExerciseId: exerciseLogs.masterExerciseId,
+      weight: exerciseLogs.weight,
+      reps: exerciseLogs.reps,
+      completedAt: workoutSessions.completedAt,
+      scheduledDate: workoutSessions.scheduledDate,
+    })
+    .from(exerciseLogs)
+    .innerJoin(workoutSessions, eq(exerciseLogs.workoutSessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(exerciseLogs.userId, userId),
+        eq(exerciseLogs.completed, 1),
+        inArray(exerciseLogs.masterExerciseId, uniqueIds),
+        ...(excludeSessionId ? [ne(exerciseLogs.workoutSessionId, excludeSessionId)] : []),
+      ),
+    )
+    .orderBy(
+      desc(workoutSessions.completedAt),
+      desc(workoutSessions.scheduledDate),
+      desc(exerciseLogs.setIndex),
+    );
+
+  for (const row of rows) {
+    if (!row.masterExerciseId || result.has(row.masterExerciseId)) continue;
+    if (row.weight <= 0 && row.reps <= 0) continue;
+
+    result.set(row.masterExerciseId, {
+      weight: row.weight,
+      reps: row.reps,
+      date: (row.completedAt ?? row.scheduledDate).slice(0, 10),
+    });
+  }
+
+  return result;
+}
+
+export interface PersonalRecordUpsertInput {
+  userId: string;
+  masterExerciseId: string | null;
+  exerciseName: string;
+  weight: number;
+  reps: number;
+  workoutSessionId: string | null;
+  achievedAt: string;
+}
+
+export async function upsertPersonalRecords(
+  db: DbClient,
+  input: PersonalRecordUpsertInput,
+): Promise<void> {
+  const candidates: Array<{ type: string; value: number }> = [
+    { type: 'max_weight', value: input.weight },
+    { type: 'max_volume', value: input.weight * input.reps },
+    { type: 'epley_1rm', value: computeEpleyOneRepMax(input.weight, input.reps) },
+  ];
+
+  for (const candidate of candidates) {
+    await upsertPersonalRecord(db, input, candidate.type, candidate.value);
+  }
+}
+
+async function upsertPersonalRecord(
+  db: DbClient,
+  input: PersonalRecordUpsertInput,
+  recordType: string,
+  value: number,
+): Promise<void> {
+  const base = [
+    eq(personalRecords.userId, input.userId),
+    eq(personalRecords.recordType, recordType),
+  ];
+  const key = input.masterExerciseId
+    ? [...base, eq(personalRecords.masterExerciseId, input.masterExerciseId)]
+    : [
+        ...base,
+        isNull(personalRecords.masterExerciseId),
+        eq(personalRecords.exerciseName, input.exerciseName),
+      ];
+
+  const existingRows = await db.select().from(personalRecords).where(and(...key)).limit(1);
+  const existing = existingRows[0];
+
+  if (!existing) {
+    await db.insert(personalRecords).values({
+      id: crypto.randomUUID(),
+      userId: input.userId,
+      masterExerciseId: input.masterExerciseId,
+      exerciseName: input.exerciseName,
+      recordType,
+      value,
+      reps: input.reps,
+      weightKg: input.weight,
+      workoutSessionId: input.workoutSessionId,
+      achievedAt: input.achievedAt,
+      createdAt: input.achievedAt,
+    });
+    return;
+  }
+
+  if (value > existing.value) {
+    await db
+      .update(personalRecords)
+      .set({
+        value,
+        reps: input.reps,
+        weightKg: input.weight,
+        workoutSessionId: input.workoutSessionId,
+        achievedAt: input.achievedAt,
+      })
+      .where(eq(personalRecords.id, existing.id));
+  }
+}
+
+export async function swapExerciseInSession(
+  db: DbClient,
+  sessionId: string,
+  input: SwapExerciseInput,
+): Promise<number> {
+  const logs = await findLogsForSessionId(db, sessionId);
+  const key = input.logGroupKey.trim().toLowerCase();
+
+  const matchingIds = logs
+    .filter((log) => {
+      const masterMatch =
+        log.masterExerciseId !== null && log.masterExerciseId.toLowerCase() === key;
+      const nameMatch = log.exerciseName.trim().toLowerCase() === key;
+      return masterMatch || nameMatch;
+    })
+    .map((log) => log.id);
+
+  if (matchingIds.length === 0) {
+    return 0;
+  }
+
+  await db
+    .update(exerciseLogs)
+    .set({
+      masterExerciseId: input.newMasterExerciseId,
+      exerciseName: input.newExerciseName,
+      movementPattern: input.newMovementPattern,
+      muscleGroupsJson: JSON.stringify(input.newMuscleGroups),
+    })
+    .where(inArray(exerciseLogs.id, matchingIds));
+
+  return matchingIds.length;
 }
 
 function withTransactionFallback<T>(

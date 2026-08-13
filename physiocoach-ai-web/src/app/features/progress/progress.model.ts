@@ -28,3 +28,24 @@ export interface BodyMeasurement {
   calfRightCm?: number | null;
   notes?: string | null;
 }
+
+export type PersonalRecordType = 'max_weight' | 'max_volume' | 'epley_1rm';
+
+export interface PersonalRecord {
+  recordType: string;
+  value: number;
+  reps: number | null;
+  weightKg: number | null;
+  achievedAt: string;
+}
+
+export interface PersonalRecordGroup {
+  exerciseName: string;
+  masterExerciseId: string | null;
+  records: PersonalRecord[];
+}
+
+export interface MuscleVolumeEntry {
+  muscleGroup: string;
+  volume: number;
+}

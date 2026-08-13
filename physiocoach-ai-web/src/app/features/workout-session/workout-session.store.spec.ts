@@ -5,6 +5,7 @@ import { Observable, of } from 'rxjs';
 import type {
   CreateSessionPayload,
   SaveSetLogPayload,
+  SwapExercisePayload,
   WorkoutSessionDto,
 } from './workout-session.model';
 
@@ -47,6 +48,23 @@ class FakeWorkoutSessionApiService {
       weightKg: 30,
       rpe: 7,
       completed: true,
+    });
+  }
+
+  swapExercise(sessionId: string, payload: SwapExercisePayload) {
+    void sessionId;
+    void payload;
+    return of({
+      id: 'session_1',
+      workoutPlanId: 'plan_1',
+      dayIndex: 0,
+      status: 'active',
+      scheduledDate: '2026-06-01',
+      startedAt: '2026-06-01T10:00:00.000Z',
+      completedAt: null,
+      notes: null,
+      progress: { completedSets: 0, totalSets: 1 },
+      logs: [],
     });
   }
 

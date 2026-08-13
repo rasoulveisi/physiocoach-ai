@@ -119,6 +119,9 @@ describe('settings patch merge behavior', () => {
       unitSystem: 'metric',
       defaultWorkoutView: 'byDay',
       remindersEnabled: true,
+      restTimerSeconds: 90,
+      autoStartRestTimer: true,
+      restTimerSoundEnabled: true,
     });
   });
 
@@ -130,6 +133,9 @@ describe('settings patch merge behavior', () => {
       unitSystem: 'metric',
       defaultWorkoutView: 'byExercise',
       remindersEnabled: true,
+      restTimerSeconds: 90,
+      autoStartRestTimer: true,
+      restTimerSoundEnabled: true,
     });
   });
 });

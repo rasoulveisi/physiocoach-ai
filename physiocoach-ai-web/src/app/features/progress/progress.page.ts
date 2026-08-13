@@ -19,6 +19,7 @@ import type { Chart, ChartConfiguration, ChartData } from 'chart.js';
 import { DisclaimerComponent } from '../../shared/ui/disclaimer.component';
 import { MetricTileComponent } from '../../shared/ui/metric-tile.component';
 import { SkeletonBlockComponent } from '../../shared/ui/skeleton-block.component';
+import type { PersonalRecord, PersonalRecordType } from './progress.model';
 import { ProgressStore } from './progress.store';
 
 interface WeeklyVolumeBucket {
@@ -35,6 +36,81 @@ interface BodyWeightPoint {
   dateLabel: string;
   weight: number;
 }
+
+interface PrMetric {
+  recordType: PersonalRecordType;
+  label: string;
+  value: number;
+  valueLabel: string;
+  detail: string | null;
+  achievedLabel: string;
+}
+
+interface PrShowcaseEntry {
+  exerciseName: string;
+  metrics: PrMetric[];
+}
+
+interface MuscleVolumeBucket {
+  label: string;
+  volume: number;
+  pct: number;
+  barColorClass: string;
+}
+
+interface MuscleGroupCategory {
+  label: string;
+  aliases: string[];
+  barColorClass: string;
+}
+
+const PR_METRIC_ORDER: PersonalRecordType[] = ['epley_1rm', 'max_weight', 'max_volume'];
+
+const MUSCLE_GROUP_CATEGORIES: MuscleGroupCategory[] = [
+  { label: 'Chest', aliases: ['chest', 'pec', 'pectoral'], barColorClass: 'bg-rose-500' },
+  {
+    label: 'Back',
+    aliases: ['back', 'latissimus', 'lats', 'dorsi', 'rhomboid', 'trap', 'teres', 'infraspinatus'],
+    barColorClass: 'bg-sky-500',
+  },
+  {
+    label: 'Quads',
+    aliases: ['quad', 'vastus', 'rectus femoris', 'sartorius'],
+    barColorClass: 'bg-brand-500',
+  },
+  {
+    label: 'Hamstrings',
+    aliases: [
+      'hamstring',
+      'biceps femoris',
+      'semitendinosus',
+      'semimembranosus',
+      'glute',
+      'adductor',
+    ],
+    barColorClass: 'bg-violet-500',
+  },
+  {
+    label: 'Shoulders',
+    aliases: ['shoulder', 'delt', 'deltoid', 'rotator cuff'],
+    barColorClass: 'bg-amber-500',
+  },
+  {
+    label: 'Arms',
+    aliases: ['bicep', 'tricep', 'brachii', 'brachialis', 'forearm', 'brachioradialis'],
+    barColorClass: 'bg-emerald-500',
+  },
+  {
+    label: 'Core',
+    aliases: ['core', 'abdom', 'abs', 'oblique', 'transversus', 'erector', 'lower back'],
+    barColorClass: 'bg-fuchsia-500',
+  },
+  {
+    label: 'Calves',
+    aliases: ['calf', 'calv', 'gastrocnemius', 'soleus', 'tibialis'],
+    barColorClass: 'bg-cyan-500',
+  },
+];
 
 @Component({
   standalone: true,
@@ -73,6 +149,35 @@ export class ProgressPage implements OnInit, AfterViewInit, OnDestroy {
       weight: Number(latest.bodyWeightKg.toFixed(1)),
     } satisfies BodyWeightPoint;
   });
+
+  protected readonly prShowcase = computed<PrShowcaseEntry[]>(() =>
+    this.progress
+      .personalRecords()
+      .map((group) => ({
+        exerciseName: group.exerciseName,
+        metrics: this.buildPrMetrics(group.records),
+      }))
+      .filter((entry) => entry.metrics.length > 0)
+      .sort((a, b) => {
+        const aOneRm = a.metrics.find((metric) => metric.recordType === 'epley_1rm')?.value ?? -1;
+        const bOneRm = b.metrics.find((metric) => metric.recordType === 'epley_1rm')?.value ?? -1;
+        return bOneRm - aOneRm || a.exerciseName.localeCompare(b.exerciseName);
+      }),
+  );
+
+  protected readonly muscleVolumeBuckets = computed<MuscleVolumeBucket[]>(() =>
+    this.buildMuscleVolumeBuckets(this.progress.muscleVolume()),
+  );
+
+  protected readonly muscleVolumeTotal = computed(() =>
+    this.muscleVolumeBuckets().reduce((sum, bucket) => sum + bucket.volume, 0),
+  );
+
+  protected readonly hasMuscleVolumeData = computed(() => this.muscleVolumeTotal() > 0);
+
+  protected readonly muscleVolumeInsights = computed<string[]>(() =>
+    this.buildMuscleBalanceInsights(this.muscleVolumeBuckets()),
+  );
 
   constructor() {
     effect(() => {
@@ -136,6 +241,193 @@ export class ProgressPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected readonly weeklyVolumeBucketCount = computed(() => this.weeklyVolumeBuckets().length);
+
+  private buildPrMetrics(records: PersonalRecord[]): PrMetric[] {
+    const bestByType = new Map<string, PersonalRecord>();
+    for (const record of records) {
+      const existing = bestByType.get(record.recordType);
+      if (!existing || Number(record.value) > Number(existing.value)) {
+        bestByType.set(record.recordType, record);
+      }
+    }
+
+    return PR_METRIC_ORDER.flatMap((type) => {
+      const record = bestByType.get(type);
+      if (!record || !Number.isFinite(Number(record.value))) {
+        return [];
+      }
+
+      return [
+        {
+          recordType: type,
+          label: this.prMetricLabel(type),
+          value: Number(record.value),
+          valueLabel: this.prMetricValueLabel(record),
+          detail: this.prMetricDetail(type, record),
+          achievedLabel: this.toAchievementDate(record.achievedAt),
+        } satisfies PrMetric,
+      ];
+    });
+  }
+
+  private prMetricLabel(type: PersonalRecordType): string {
+    switch (type) {
+      case 'epley_1rm':
+        return 'Est. 1RM (Epley)';
+      case 'max_weight':
+        return 'Max weight';
+      case 'max_volume':
+        return 'Max volume';
+      default:
+        return 'Record';
+    }
+  }
+
+  private prMetricValueLabel(record: PersonalRecord): string {
+    return `${this.formatNumber(Number(record.value))} kg`;
+  }
+
+  private prMetricDetail(type: PersonalRecordType, record: PersonalRecord): string | null {
+    const weight = record.weightKg;
+    const reps = record.reps;
+    const hasWeight = weight !== null && weight !== undefined && Number.isFinite(Number(weight));
+    const hasReps = reps !== null && reps !== undefined && Number.isFinite(Number(reps));
+
+    if (type === 'max_weight') {
+      return hasReps ? `${reps} reps` : null;
+    }
+
+    if (type === 'epley_1rm' || type === 'max_volume') {
+      if (hasWeight && hasReps) {
+        return `${this.formatNumber(Number(weight))} kg × ${reps} reps`;
+      }
+    }
+
+    return null;
+  }
+
+  private buildMuscleVolumeBuckets(
+    entries: { muscleGroup: string; volume: number }[],
+  ): MuscleVolumeBucket[] {
+    const totals = new Map<string, number>();
+    let otherVolume = 0;
+
+    for (const entry of entries) {
+      const volume = Number(entry.volume);
+      if (!Number.isFinite(volume) || volume <= 0) {
+        continue;
+      }
+
+      const label = this.normalizeMuscleGroup(entry.muscleGroup);
+      if (label) {
+        totals.set(label, (totals.get(label) ?? 0) + volume);
+      } else {
+        otherVolume += volume;
+      }
+    }
+
+    const total = Array.from(totals.values()).reduce((sum, value) => sum + value, 0) + otherVolume;
+
+    const buckets = MUSCLE_GROUP_CATEGORIES.map((category) => {
+      const volume = totals.get(category.label) ?? 0;
+      return {
+        label: category.label,
+        volume,
+        pct: total > 0 ? (volume / total) * 100 : 0,
+        barColorClass: category.barColorClass,
+      };
+    });
+
+    if (otherVolume > 0) {
+      buckets.push({
+        label: 'Other',
+        volume: otherVolume,
+        pct: total > 0 ? (otherVolume / total) * 100 : 0,
+        barColorClass: 'bg-slate-400',
+      });
+    }
+
+    return buckets;
+  }
+
+  private normalizeMuscleGroup(raw: string): string | null {
+    const normalized = raw.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+
+    for (const category of MUSCLE_GROUP_CATEGORIES) {
+      if (category.aliases.some((alias) => normalized.includes(alias))) {
+        return category.label;
+      }
+    }
+
+    return null;
+  }
+
+  private buildMuscleBalanceInsights(buckets: MuscleVolumeBucket[]): string[] {
+    const trained = buckets.filter((bucket) => bucket.volume > 0);
+    if (trained.length === 0) {
+      return [];
+    }
+
+    const insights: string[] = [];
+    const dominant = trained.reduce((top, bucket) => (bucket.volume > top.volume ? bucket : top));
+
+    insights.push(
+      `${dominant.label} leads your training at ${dominant.pct.toFixed(0)}% of total volume.`,
+    );
+
+    const weakest = trained.reduce((bottom, bucket) =>
+      bucket.volume < bottom.volume ? bucket : bottom,
+    );
+
+    if (weakest.label !== dominant.label && dominant.pct >= weakest.pct * 2) {
+      insights.push(
+        `${weakest.label} trails at ${weakest.pct.toFixed(0)}% — consider adding more volume there.`,
+      );
+    }
+
+    const pushVolume =
+      this.sumMuscleVolume(buckets, ['Chest', 'Shoulders', 'Quads']);
+    const pullVolume =
+      this.sumMuscleVolume(buckets, ['Back', 'Hamstrings']);
+    if (pushVolume > 0 && pullVolume > 0 && pushVolume >= pullVolume * 1.5) {
+      insights.push('Pushing volume noticeably outpaces pulling — add rows, pulls, or hinge work.');
+    } else if (pullVolume > 0 && pushVolume > 0 && pullVolume >= pushVolume * 1.5) {
+      insights.push('Pulling volume noticeably outpaces pushing — balance with presses and squats.');
+    }
+
+    return insights;
+  }
+
+  private sumMuscleVolume(buckets: MuscleVolumeBucket[], labels: string[]): number {
+    return buckets
+      .filter((bucket) => labels.includes(bucket.label))
+      .reduce((sum, bucket) => sum + bucket.volume, 0);
+  }
+
+  protected formatNumber(value: number): string {
+    if (!Number.isFinite(value)) {
+      return '0';
+    }
+
+    const rounded = Math.round(value * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  }
+
+  private toAchievementDate(value: string): string {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return 'Recorded';
+    }
+
+    return parsed.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
 
   private async renderCharts(weeklyVolumeBuckets: WeeklyVolumeBucket[]): Promise<void> {
     const module = await this.getChartLibrary();

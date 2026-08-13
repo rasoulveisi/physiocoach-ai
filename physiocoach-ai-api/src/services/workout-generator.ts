@@ -40,7 +40,6 @@ import {
 import {
   buildCandidateExerciseSet,
   loadCatalogCandidatesFromDb,
-  type CandidateBuildResult,
 } from './workout-generator/candidates';
 import { buildWorkoutPlanPrompt, getPromptCandidateTargets } from './workout-generator/prompt-builder';
 import {
