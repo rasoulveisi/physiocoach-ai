@@ -27,8 +27,8 @@ export class ExerciseVisualComponent {
   protected readonly mediaFailed = signal(false);
   protected readonly stageClasses = computed(() =>
     this.compact()
-      ? 'h-14 w-14 bg-white'
-      : 'w-full max-h-72 sm:max-h-80 aspect-[16/10] p-3 sm:p-4 bg-white dark:bg-white rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs',
+      ? 'h-14 w-14 p-1 bg-white rounded-lg border border-slate-200'
+      : 'w-full max-w-2xl mx-auto h-64 sm:h-72 p-3 sm:p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center',
   );
 
   protected readonly visual = computed<ExerciseVisualResult>(() => {
