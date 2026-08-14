@@ -8,18 +8,13 @@ import { authMiddleware } from './middleware/auth';
 import { DEFAULT_CORS_ORIGIN, isCorsOriginAllowed } from './middleware/cors';
 import { createApiError, internalServerError, invalidRequest, unauthorized, type ErrorStatusCode } from './shared/errors/api';
 import { createAdminRoutes } from './routes/admin';
-import { createAdminCatalogRoutes } from './routes/admin-catalog';
 import { createAssessmentRoutes } from './routes/assessments';
-import { createConsiderationRoutes } from './routes/considerations';
 import { createAuthRoutes } from './routes/auth';
-import { createBodyMeasurementRoutes } from './routes/body-measurements';
 import { createExerciseCatalogRoutes } from './routes/exercise-catalog';
 import { createHealthRoutes } from './routes/health';
 import { createProfileRoutes } from './routes/profiles';
-import { createProgressRoutes } from './routes/progress';
 import { createSettingsRoutes } from './routes/settings';
 import { createWorkoutPlanRoutes } from './routes/workout-plans';
-import { createWorkoutSessionRoutes } from './routes/workout-sessions';
 
 export function createApp() {
   const app = new Hono<{ Bindings: WorkerBindings; Variables: AppVariables }>();
@@ -120,13 +115,8 @@ export function createApp() {
   app.route('/api/v1', createExerciseCatalogRoutes());
   app.route('/api/v1', createProfileRoutes());
   app.route('/api/v1', createAssessmentRoutes());
-  app.route('/api/v1', createConsiderationRoutes());
   app.route('/api/v1', createAdminRoutes());
-  app.route('/api/v1', createAdminCatalogRoutes());
   app.route('/api/v1', createWorkoutPlanRoutes());
-  app.route('/api/v1', createWorkoutSessionRoutes());
-  app.route('/api/v1', createBodyMeasurementRoutes());
-  app.route('/api/v1', createProgressRoutes());
   app.route('/api/v1', createSettingsRoutes());
 
   return app;

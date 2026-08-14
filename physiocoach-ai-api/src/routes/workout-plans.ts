@@ -92,6 +92,7 @@ export function createWorkoutPlanRoutes() {
         );
       }
 
+      const traceId = crypto.randomUUID();
       const generationInput: GeneratePlanInput = {
         ...parsed.data,
         assessment: hasExplicitConsiderations(generatePayload.assessment)
@@ -108,6 +109,7 @@ export function createWorkoutPlanRoutes() {
         timeoutMs: modelConfig.timeoutMs,
         maxRetries: modelConfig.maxRetries,
         inputHash,
+        traceId,
       });
 
       if (hasDbClient(routeContext)) {
@@ -121,24 +123,36 @@ export function createWorkoutPlanRoutes() {
           buildWorkoutPlanContext(generationInput),
           modelConfig,
           inputHash,
-          { forceFresh: true, provisionalNoRuleCautions: env.APP_ENV === 'dev' },
+          {
+            forceFresh: true,
+            provisionalNoRuleCautions: env.APP_ENV === 'dev',
+            db,
+            userId: user.id,
+            traceId,
+            inputHash,
+          },
           db,
         );
       } catch (error) {
         if (error instanceof WorkoutPlanGenerationError) {
           return createApiError(c, 'workout_plan_generation_failed', error.message, {
             status: 409,
-            details: error.details,
+            details: {
+              traceId,
+              reason: error.details?.reason ?? 'workout_plan_generation_error',
+              issues: error.details?.issues ?? [error.message],
+            },
           });
         }
 
         return createApiError(
           c,
           'workout_plan_generation_failed',
-          'Workout plan generation failed.',
+          'Medical AI workout plan generation could not be safely completed.',
           {
             status: 409,
             details: {
+              traceId,
               reason: error instanceof Error ? error.message : 'Unknown generation failure.',
             },
           },

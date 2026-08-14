@@ -11,7 +11,7 @@ const handler: ExportedHandler<WorkerBindings> = {
         headers: corsHeaders,
       });
     }
-
+    console.log('INDEX_FETCH_PATH', request.url, new URL(request.url).pathname);
     if (new URL(request.url).pathname === '/api/v1/health') {
       return Response.json(
         {
@@ -51,6 +51,14 @@ const handler: ExportedHandler<WorkerBindings> = {
         },
         { status: 500, headers: corsHeaders },
       );
+    }
+  },
+  async scheduled(_controller, env, ctx) {
+    if (env.DB) {
+      const { createDb } = await import('./db/client');
+      const { deleteExpiredAuditLogs } = await import('./services/ai-audit-logger');
+      const db = createDb(env.DB);
+      ctx.waitUntil(deleteExpiredAuditLogs(db, 7));
     }
   },
 };

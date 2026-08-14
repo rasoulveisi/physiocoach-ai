@@ -160,10 +160,9 @@ export function buildWorkoutPlanPrompt(
   }
 
   rules.push(
-    'Important: Generate standard, clean, descriptive exercise names that include the equipment used (e.g. "Dumbbell Romanian Deadlift" instead of "RDL", "Barbell Back Squat" instead of "Squat", "Bodyweight Squat" if no weight, etc.) so they can be matched',
+    'CRITICAL MANDATE: For every exercise, masterExerciseId and name MUST be copied verbatim from the Approved green exercise ID map ({movement:{id:name}}). Do not rename exercises or invent exercises outside the map.',
   );
   rules.push(`prefer movements ${requiredMovementPatternText}`);
-  rules.push('Use catalog ID as masterExerciseId for every exercise');
   rules.push(
     'Prefer green candidates; use at most one amber candidate per day and include its required modification verbatim in notes',
   );
@@ -192,11 +191,31 @@ export function buildWorkoutPlanPrompt(
   const amberCandidates = formatAmberCandidates(promptCandidates);
   const providedApprovedOptionCount = countGroupedApprovedExercises(approvedExerciseMapByMovement);
 
-  return `Create JSON only.
+  return `You are a safety-first senior physiotherapist and strength coach.
+Generate a high-quality, customized workout plan in JSON format.
+
 Profile: goals ${orderedGoals.join(' > ')}; level ${input.experienceLevel}; ${input.frequencyDays} days/week; session duration ${formatSessionDuration(input.sessionMinutes)}; equipment ${formatList(input.equipment, 'bodyweight')}; limits ${formatList(input.limitations, 'none')}; posture ${formatList(postureFlags, 'none')}.
-Rules: ${rules.join('; ')}.
+
+STRICT GENERATION RULES:
+${rules.map((rule, idx) => `${idx + 1}. ${rule}`).join('\n')}
+
 Candidate pool breadth: minimum approved options ${minimumPromptCandidateCount}; preferred approved options ${preferredPromptCandidateCount}; provided approved options ${providedApprovedOptionCount}. This is not the number of exercises to output.
 Approved green exercise ID map by movement ({movement:{id:name}}): ${JSON.stringify(approvedExerciseMapByMovement)}.
 Amber candidates (at most one per day; include every required modification in notes): ${JSON.stringify(amberCandidates)}.
-Return exercises with "masterExerciseId" set to one selected green or amber id, plus "name", "sets", "reps", "restSeconds", and optional "notes".`;
+
+JSON OUTPUT SPECIFICATION:
+Return a JSON object containing a "days" array where each day object has:
+- "dayIndex": integer (1 to ${input.frequencyDays})
+- "name": string (e.g., "Day 1: Upper Body Focus")
+- "exercises": array of 4 to 6 exercise objects, each containing:
+  - "masterExerciseId": string (MUST match an exercise ID from the approved maps verbatim)
+  - "name": string (exercise name copied verbatim from the map)
+  - "movementPattern": string
+  - "sets": integer (e.g., 3)
+  - "reps": string (e.g., "8-12" or "30s")
+  - "restSeconds": integer (e.g., 60)
+  - "notes": optional string guidance (MUST include required amber modifications if amber exercise used)
+
+OUTPUT ONLY VALID JSON MATCHING THIS SPECIFICATION.`;
 }
+

@@ -69,15 +69,13 @@ export const routes: Routes = [
       },
       {
         path: 'progress',
-        loadComponent: () =>
-          import('./features/progress/progress.page').then((component) => component.ProgressPage),
+        redirectTo: 'dashboard',
+        pathMatch: 'full',
       },
       {
         path: 'posture-assessment',
-        loadComponent: () =>
-          import('./features/posture-assessment/posture-assessment.page').then(
-            (component) => component.PostureAssessmentPage,
-          ),
+        redirectTo: 'dashboard',
+        pathMatch: 'full',
       },
       {
         path: 'settings',
@@ -86,10 +84,8 @@ export const routes: Routes = [
       },
       {
         path: 'measurements',
-        loadComponent: () =>
-          import('./features/measurements/measurements.page').then(
-            (component) => component.MeasurementsPage,
-          ),
+        redirectTo: 'dashboard',
+        pathMatch: 'full',
       },
       {
         path: 'admin',

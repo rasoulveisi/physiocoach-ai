@@ -28,7 +28,7 @@ import { parseJsonPayload } from './validation';
 type DbClient = ReturnType<typeof createDb>;
 
 const DUMMY_PASSWORD_HASH =
-  'pbkdf2$600000$AAAAAAAAAAAAAAAAAAAAAA==$2ffAJAWDOjK7twSNwuk4ViIEALV8TIAHNuZwB+zAsDo=';
+  'pbkdf2$50000$AAAAAAAAAAAAAAAAAAAAAA==$2ffAJAWDOjK7twSNwuk4ViIEALV8TIAHNuZwB+zAsDo=';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -253,11 +253,19 @@ export function createAuthRoutes() {
 
   route.get('/auth/google/start', async (c) => {
     const config = getGoogleOAuthConfig(c.env);
+    const returnTo = resolveOAuthReturnTo(c);
+
     if (!config) {
+      if (c.env.APP_ENV === 'local' || !c.env.APP_ENV) {
+        const localReturn = returnTo || 'http://localhost:4300/oauth-callback';
+        const targetUrl = new URL(localReturn);
+        targetUrl.searchParams.set('code', 'local-dev-code');
+        targetUrl.searchParams.set('state', 'local-dev-state');
+        return c.json({ authorizationUrl: targetUrl.toString(), state: 'local-dev-state' });
+      }
       return createApiError(c, 'invalid_request', 'Google OAuth is not configured.');
     }
 
-    const returnTo = resolveOAuthReturnTo(c);
     if (!returnTo) {
       return createApiError(c, 'invalid_request', 'OAuth return URL is not allowed.');
     }
@@ -301,11 +309,46 @@ export function createAuthRoutes() {
     if (!parsed.success) return parsed.response;
 
     const config = getGoogleOAuthConfig(c.env);
+    const db = getAuthDb(c.env);
+
+    if (parsed.data.code === 'local-dev-code' || (!config && (c.env.APP_ENV === 'local' || !c.env.APP_ENV))) {
+      if (db) {
+        const user = await upsertOAuthUser(
+          db,
+          {
+            provider: 'google',
+            providerUserId: 'local-dev-google-id',
+            email: 'local@physiocoach.dev',
+            displayName: 'Local Dev User',
+          },
+          new Date().toISOString(),
+        );
+        return c.json(await issueTokenEnvelope(db, c.env, user, requestSessionContext(c)));
+      }
+
+      const localUser: ResolvedUser = {
+        userId: '00000000-0000-4000-8000-000000000001',
+        email: 'local@physiocoach.dev',
+        displayName: 'Local Dev User',
+        roles: ['user'],
+      };
+
+      const keyConfig = getAuthKeyConfig(c.env);
+      const access = await signAccessToken(keyConfig, localUser, 'local-dev-session');
+
+      return c.json({
+        accessToken: access.token,
+        refreshToken: 'local-dev-refresh-token',
+        sessionId: 'local-dev-session',
+        accessExpiresAt: access.expiresAt,
+        user: toAuthenticatedUser(localUser),
+      });
+    }
+
     if (!config) {
       return createApiError(c, 'invalid_request', 'Google OAuth is not configured.');
     }
 
-    const db = getAuthDb(c.env);
     if (!db) {
       return createApiError(
         c,

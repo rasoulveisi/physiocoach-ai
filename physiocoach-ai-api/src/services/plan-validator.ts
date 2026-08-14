@@ -37,9 +37,13 @@ export function validateCandidatePlan(
     }[];
   },
   candidates: readonly CatalogCandidate[],
+  candidateBuild?: { clusters: { green: readonly CatalogCandidate[] } },
 ): { ok: boolean; issues: string[] } {
   const candidatesById = new Map(
     candidates.map((candidate) => [candidate.masterExerciseId, candidate]),
+  );
+  const greenMovements = new Set(
+    candidateBuild?.clusters.green.map((c) => c.movementPattern) ?? [],
   );
   const issues: string[] = [];
 
@@ -55,7 +59,11 @@ export function validateCandidatePlan(
           `Day ${day.dayNumber ?? 'unknown'} selected excluded catalog exercise "${candidate.masterExerciseId}".`,
         );
       }
-      if (candidate.cluster === 'amber') amberCount += 1;
+      if (candidate.cluster === 'amber') {
+        if (!candidateBuild || greenMovements.has(candidate.movementPattern)) {
+          amberCount += 1;
+        }
+      }
     }
     if (amberCount > MAX_AMBER_PER_DAY) {
       issues.push(

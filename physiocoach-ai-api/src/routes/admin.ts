@@ -73,6 +73,33 @@ export function createAdminRoutes() {
 
   route.get('/admin/not-found', async (c) => notFound(c, 'Admin endpoint does not exist.'));
 
+  route.delete('/admin/audit-logs/purge', async (c) => {
+    try {
+      const { user, db } = getApiRouteContext(c);
+      if (!hasAdminRole(user)) {
+        return forbidden(c, 'Missing admin role for audit log purge route.');
+      }
+
+      const retentionDays = Number.parseInt(c.req.query('days') ?? '7', 10);
+      const { deleteExpiredAuditLogs } = await import('../services/ai-audit-logger');
+      const deletedCount = await deleteExpiredAuditLogs(
+        db,
+        Number.isNaN(retentionDays) ? 7 : retentionDays,
+      );
+
+      return c.json({
+        data: {
+          purged: true,
+          deletedCount,
+          retentionDays: Number.isNaN(retentionDays) ? 7 : retentionDays,
+          purgedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to purge AI audit logs.');
+    }
+  });
+
   return route;
 }
 

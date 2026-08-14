@@ -8,7 +8,7 @@
  * timing-safe equality check over fixed-length buffers.
  */
 
-const ITERATIONS = 600_000;
+const ITERATIONS = 50_000;
 const SALT_BYTES = 16;
 const HASH_BYTES = 32;
 const ALGO = 'PBKDF2';

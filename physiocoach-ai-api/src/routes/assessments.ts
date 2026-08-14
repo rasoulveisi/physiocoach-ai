@@ -183,9 +183,6 @@ export function createAssessmentRoutes() {
     }
   });
 
-  route.get('/posture-assessment/analysis', async (c) => loadLatestAssessment(c));
-  route.get('/posture-assessment', async (c) => loadLatestAssessment(c));
-
   return route;
 }
 

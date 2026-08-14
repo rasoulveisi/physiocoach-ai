@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  aiAuditLogs,
   assessments,
   authRefreshTokenHistory,
   bodyMeasurements,
@@ -30,6 +31,7 @@ import {
 describe('database schema', () => {
   it('exports all MVP tables', () => {
     expect(users).toBeDefined();
+    expect(aiAuditLogs).toBeDefined();
     expect(authRefreshTokenHistory).toBeDefined();
     expect(userSettings).toBeDefined();
     expect(profiles).toBeDefined();

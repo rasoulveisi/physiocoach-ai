@@ -4,2627 +4,1349 @@
  */
 
 export interface paths {
-  '/api/v1/auth/register': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Register with email and password */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['AuthRegisterInput'];
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Auth token envelope. */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['AuthTokenEnvelope'];
-          };
-        };
-        /** @description API error response. */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/auth/login': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Sign in with email and password */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['AuthLoginInput'];
-        };
-      };
-      responses: {
-        /** @description Auth token envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['AuthTokenEnvelope'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/auth/refresh': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Rotate a refresh token */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['AuthRefreshInput'];
-        };
-      };
-      responses: {
-        /** @description Auth token envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['AuthTokenEnvelope'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/auth/logout': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Revoke the active session */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Logout status. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['AuthLogoutResponse'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/auth/me': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get the authenticated auth user */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Authenticated user. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['AuthMeResponse'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/auth/oauth/exchange': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Exchange an OAuth authorization code */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['AuthOAuthExchangeInput'];
-        };
-      };
-      responses: {
-        /** @description Auth token envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['AuthTokenEnvelope'];
-          };
-        };
-        /** @description API error response. */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/auth/google/start': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Start Google OAuth sign-in */
-    get: {
-      parameters: {
-        query?: {
-          returnTo?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Google authorization URL. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['AuthOAuthStartResponse'];
-          };
-        };
-        /** @description API error response. */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/auth/google/callback': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Handle Google OAuth callback */
-    get: {
-      parameters: {
-        query: {
-          code: string;
-          state: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Redirects to the frontend OAuth callback. */
-        302: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description API error response. */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/health': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get API health status */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description API health status. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/me': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get the active user */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['ApiUser'];
-            } & {
-              [key: string]: unknown;
+        get?: never;
+        put?: never;
+        /** Register with email and password */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/profile': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get latest active profile */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['Profile'];
-            } & {
-              [key: string]: unknown;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AuthRegisterInput"];
+                };
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Update the active user profile */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['ProfileInput'];
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['Profile'];
-            } & {
-              [key: string]: unknown;
+            responses: {
+                /** @description Auth token envelope. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthTokenEnvelope"];
+                    };
+                };
+                /** @description API error response. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description API error response. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
             };
-          };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    trace?: never;
-  };
-  '/api/v1/measurement': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** List body measurements (alias) */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-    };
-    put?: never;
-    /** Create a body measurement (alias) */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['BodyMeasurementInput'];
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/assessments': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** List assessments */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['Assessment'][];
-            } & {
-              [key: string]: unknown;
+        get?: never;
+        put?: never;
+        /** Sign in with email and password */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    /** Create an assessment */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['AssessmentInput'];
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['AssessmentInput'];
-            } & {
-              [key: string]: unknown;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AuthLoginInput"];
+                };
             };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/assessments/latest': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get the latest assessment */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['Assessment'];
-            } & {
-              [key: string]: unknown;
+            responses: {
+                /** @description Auth token envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthTokenEnvelope"];
+                    };
+                };
+                /** @description API error response. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
             };
-          };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/considerations': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** List active body considerations */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['BodyConsideration'][];
-            } & {
-              [key: string]: unknown;
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate a refresh token */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/posture-assessment/analysis': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get posture assessment with analysis metadata */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['Assessment'];
-            } & {
-              [key: string]: unknown;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AuthRefreshInput"];
+                };
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/posture-assessment': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get latest posture assessment snapshot */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['Assessment'];
-            } & {
-              [key: string]: unknown;
+            responses: {
+                /** @description Auth token envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthTokenEnvelope"];
+                    };
+                };
+                /** @description API error response. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
             };
-          };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/workout-plans/generate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Generate a workout plan */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['GeneratePlanInput'];
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['WorkoutPlanResult'];
-            } & {
-              [key: string]: unknown;
+        get?: never;
+        put?: never;
+        /** Revoke the active session */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-        /** @description Generation or normalization failed. */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/workout-plans/current': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get the current workout plan */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['WorkoutPlanResult'];
-            } & {
-              [key: string]: unknown;
+            requestBody?: never;
+            responses: {
+                /** @description Logout status. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthLogoutResponse"];
+                    };
+                };
+                /** @description API error response. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
             };
-          };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    /** Delete the current workout plan */
-    delete: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['DeleteWorkoutPlanResult'];
-            } & {
-              [key: string]: unknown;
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the authenticated auth user */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-      };
-    };
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/workout-plans/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get a workout plan */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['WorkoutPlanResult'];
-            } & {
-              [key: string]: unknown;
+            requestBody?: never;
+            responses: {
+                /** @description Authenticated user. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthMeResponse"];
+                    };
+                };
+                /** @description API error response. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
             };
-          };
         };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/workout-sessions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** List workout sessions */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
+    "/api/v1/auth/oauth/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-    };
-    put?: never;
-    /** Create a workout session */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['WorkoutSessionCreateInput'];
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/workout-sessions/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get a workout session */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Update a workout session */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['WorkoutSessionPatchInput'];
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    trace?: never;
-  };
-  '/api/v1/workout-sessions/{id}/complete': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Complete a workout session */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/exercise-logs': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Create an exercise log */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['ExerciseLogInput'];
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/exercise-logs/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Delete an exercise log */
-    delete: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    options?: never;
-    head?: never;
-    /** Update an exercise log */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['ExerciseLogPatchInput'];
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    trace?: never;
-  };
-  '/api/v1/exercise-catalog/media': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get exercise catalog media */
-    get: {
-      parameters: {
-        query?: {
-          exerciseId?: string;
-          name?: string;
-          movementPattern?: string;
-          muscleGroup?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/exercise-catalog/media/batch': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Get exercise catalog media in batch */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            items: {
-              key: string;
-              exerciseId?: string;
-              name?: string;
-              movementPattern?: string;
-              muscleGroup?: string;
-            }[];
-          };
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/body-measurements': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** List body measurements */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    put?: never;
-    /** Create a body measurement */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['BodyMeasurementInput'];
-        };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/progress/summary': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get progress summary */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['ProgressSummary'];
-            } & {
-              [key: string]: unknown;
+        get?: never;
+        put?: never;
+        /** Exchange an OAuth authorization code */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/admin': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get admin dashboard summary */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['AdminSummary'];
-            } & {
-              [key: string]: unknown;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AuthOAuthExchangeInput"];
+                };
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/admin/health': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get admin health metrics */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: components['schemas']['AdminHealth'];
-            } & {
-              [key: string]: unknown;
+            responses: {
+                /** @description Auth token envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthTokenEnvelope"];
+                    };
+                };
+                /** @description API error response. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description API error response. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
             };
-          };
         };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/admin/catalogs/{id}/coverage': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/auth/google/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Start Google OAuth sign-in */
+        get: {
+            parameters: {
+                query?: {
+                    returnTo?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Google authorization URL. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthOAuthStartResponse"];
+                    };
+                };
+                /** @description API error response. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Evaluate substantive catalog safety coverage */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
+    "/api/v1/auth/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
+        /** Handle Google OAuth callback */
+        get: {
+            parameters: {
+                query: {
+                    code: string;
+                    state: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Redirects to the frontend OAuth callback. */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description API error response. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
         };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/admin/catalogs/{id}/red-exercises': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API health status */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description API health status. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List approved avoid exercises for a catalog safety condition */
-    get: {
-      parameters: {
-        query: {
-          consideration: string;
-          severity: 'mild' | 'moderate' | 'severe';
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        header?: never;
-        path: {
-          id: string;
+        /** Get the active user */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ApiUser"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-        /** @description API error response. */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/admin/catalogs/{id}/ready': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get latest active profile */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Profile"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the active user profile */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProfileInput"];
+                };
+            };
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Profile"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Mark a fully reviewed catalog ready for activation */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
+    "/api/v1/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
+        /** List assessments */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Assessment"][];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
         };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
+        put?: never;
+        /** Create an assessment */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssessmentInput"];
+                };
+            };
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AssessmentInput"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
         };
-        /** @description API error response. */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/admin/catalogs/{id}/duplicate-reviews': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/assessments/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the latest assessment */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Assessment"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List persisted duplicate-name review groups */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
+    "/api/v1/workout-plans/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
+        get?: never;
+        put?: never;
+        /** Generate a workout plan */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GeneratePlanInput"];
+                };
+            };
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WorkoutPlanResult"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description Generation or normalization failed. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
         };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/admin/catalogs/{id}/duplicate-reviews/{name}/resolve': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/workout-plans/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the current workout plan */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WorkoutPlanResult"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete the current workout plan */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["DeleteWorkoutPlanResult"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Resolve a duplicate-name group without merging source exercise IDs */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-          name: string;
+    "/api/v1/workout-plans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            reason: string;
-            /**
-             * @deprecated
-             * @description Ignored. The response records the authenticated actor.
-             */
-            reviewedBy?: string;
-          };
+        /** Get a workout plan */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WorkoutPlanResult"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
         };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-        /** @description API error response. */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/admin/exercises/{id}/safety': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/exercise-catalog/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get exercise catalog media */
+        get: {
+            parameters: {
+                query?: {
+                    exerciseId?: string;
+                    name?: string;
+                    movementPattern?: string;
+                    muscleGroup?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Apply a reviewed manual exercise safety override */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
+    "/api/v1/exercise-catalog/media/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            /** @enum {string} */
-            rating: 'recommended' | 'caution' | 'avoid';
-            reason: string;
-            /**
-             * @deprecated
-             * @description Ignored. The response records the authenticated actor.
-             */
-            reviewedBy?: string;
-            analysisVersion: string;
-          };
+        get?: never;
+        put?: never;
+        /** Get exercise catalog media in batch */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        items: {
+                            key: string;
+                            exerciseId?: string;
+                            name?: string;
+                            movementPattern?: string;
+                            muscleGroup?: string;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"];
+                    };
+                };
+            };
         };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-        /** @description API error response. */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    trace?: never;
-  };
-  '/api/v1/admin/exercises/{id}/catalog-metadata': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get admin dashboard summary */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AdminSummary"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Apply an audited manual catalog metadata override */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
+    "/api/v1/admin/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['CatalogMetadataOverrideInput'];
+        /** Get admin health metrics */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AdminHealth"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
         };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-        /** @description API error response. */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    trace?: never;
-  };
-  '/api/v1/admin/catalogs/{id}/activate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/audit-logs/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Purge expired AI audit logs */
+        delete: {
+            parameters: {
+                query?: {
+                    retentionDays?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Activate a reviewed catalog version */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
+        /** Get user settings */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"];
+                    };
+                };
+            };
         };
-        /** @description API error response. */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update user settings */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UserSettingsPatchInput"];
+                };
+            };
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"];
+                    };
+                };
+            };
         };
-        /** @description API error response. */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-        /** @description API error response. */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ErrorResponse'];
-          };
-        };
-      };
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/settings': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get user settings */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
+    "/api/v1/docs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Update user settings */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['UserSettingsPatchInput'];
+        /** Open Swagger UI docs */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Swagger UI HTML page. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
         };
-      };
-      responses: {
-        /** @description Stable MVP response envelope. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['DataEnvelope'];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    trace?: never;
-  };
-  '/api/v1/docs': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Open Swagger UI docs */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Swagger UI HTML page. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/openapi.json': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get OpenAPI specification */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OpenAPI JSON contract. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': Record<string, never>;
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    DataEnvelope: {
-      data: unknown;
+    schemas: {
+        DataEnvelope: {
+            data: Record<string, never>;
+        } & {
+            [key: string]: unknown;
+        };
+        AuthTokenEnvelope: {
+            accessToken: string;
+            refreshToken: string;
+            /** @enum {string} */
+            tokenType?: "Bearer";
+            user: {
+                id: string;
+                /** Format: email */
+                email: string;
+                /** @enum {string} */
+                role?: "user" | "admin";
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        AuthRegisterInput: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        AuthLoginInput: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        AuthRefreshInput: {
+            refreshToken: string;
+        };
+        AuthLogoutResponse: {
+            success: boolean;
+        };
+        AuthMeResponse: {
+            data: {
+                id: string;
+                /** Format: email */
+                email: string;
+                /** @enum {string} */
+                role?: "user" | "admin";
+                roles: string[];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        AuthOAuthExchangeInput: {
+            /** @enum {string} */
+            provider: "google";
+            code: string;
+            state?: string;
+        };
+        AuthOAuthStartResponse: {
+            authorizationUrl: string;
+            state: string;
+        };
+        ErrorResponse: {
+            error: {
+                code: string;
+                message: string;
+                traceId?: string;
+                auditLogId?: string;
+                details?: {
+                    [key: string]: unknown;
+                };
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        ApiUser: {
+            id: string;
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            role?: "user" | "admin";
+            roles: string[];
+        };
+        ProfileInput: {
+            age: number;
+            /** @enum {string} */
+            sex: "male" | "female" | "other" | "prefer_not_to_say";
+            heightCm: number;
+            weightKg: number;
+            bodyFatEstimate?: number;
+            /** @enum {string} */
+            lifestyle: "desk_job" | "standing_job" | "active";
+            /** @enum {string} */
+            experienceLevel: "beginner" | "intermediate" | "advanced";
+        };
+        Profile: components["schemas"]["ProfileInput"] & {
+            [key: string]: unknown;
+        };
+        AssessmentConsideration: {
+            code: string;
+            /** @enum {string} */
+            severity: "mild" | "moderate" | "severe";
+            /** @enum {string} */
+            side?: "left" | "right" | "bilateral" | "unspecified";
+            notes?: string;
+            inferred?: boolean;
+        };
+        AssessmentInput: {
+            goals: ("muscle_gain" | "fat_loss" | "posture_improvement" | "mobility" | "strength" | "aesthetics" | "recomposition")[];
+            frequencyDays: number;
+            equipment: ("full_gym" | "dumbbells_only" | "home_gym" | "resistance_bands")[];
+            considerations?: components["schemas"]["AssessmentConsideration"][];
+            limitations?: ("shoulder_pain" | "knee_pain" | "lower_back_pain" | "neck_pain")[];
+            postureFlags?: ("rounded_shoulders" | "forward_head" | "anterior_pelvic_tilt" | "tight_hips" | "lower_back_discomfort")[];
+        };
+        Assessment: components["schemas"]["AssessmentInput"] & {
+            id: string;
+            userId: string;
+            completedAt: string;
+        };
+        GeneratePlanInput: {
+            profile: components["schemas"]["ProfileInput"];
+            assessment: components["schemas"]["AssessmentInput"];
+        };
+        UserSettingsPatchInput: {
+            /** @enum {string} */
+            theme?: "light" | "dark" | "system";
+            /** @enum {string} */
+            unitSystem?: "metric" | "imperial";
+            /** @enum {string} */
+            defaultWorkoutView?: "byExercise" | "byDay" | "byPlan";
+            remindersEnabled?: boolean;
+            restTimerSeconds?: number;
+            autoStartRestTimer?: boolean;
+            restTimerSoundEnabled?: boolean;
+        };
+        DeleteWorkoutPlanResult: {
+            id: string;
+            deleted: boolean;
+        };
+        WorkoutExercise: {
+            name: string;
+            muscleGroup: string;
+            /** @enum {string} */
+            movementPattern: "squat" | "hinge" | "push" | "pull" | "lunge" | "carry" | "core" | "mobility";
+            sets: number;
+            reps: string;
+            rpe?: number;
+            notes?: string;
+            exerciseRationale?: string[];
+        };
+        WorkoutSection: {
+            label: string;
+            exercises: components["schemas"]["WorkoutExercise"][];
+        };
+        WorkoutDay: {
+            name: string;
+            focus?: string;
+            exercises: components["schemas"]["WorkoutExercise"][];
+        };
+        WorkoutPlanSafety: {
+            /** @enum {string} */
+            disclaimer: "Educational fitness recommendations only. Not medical advice.";
+            redFlags: string[];
+            guidance: string[];
+        };
+        WorkoutPlanProgression: {
+            /** @enum {string} */
+            baselineIntensity: "low-moderate";
+            progressionRule: string;
+            increasePercent?: number;
+            conditions?: string[];
+        };
+        WorkoutPlanLegacy: {
+            /** @enum {string} */
+            split: "full_body" | "upper_lower" | "push_pull_legs" | "custom";
+            frequencyDays: number;
+            weeklySetTargets: {
+                [key: string]: number;
+            };
+            days: components["schemas"]["WorkoutDay"][];
+            warnings: string[];
+            summary?: string;
+            progressionRules?: string[];
+        };
+        WorkoutPlanStrict: components["schemas"]["WorkoutPlanLegacy"] & {
+            warmup: components["schemas"]["WorkoutSection"][];
+            mainSet: components["schemas"]["WorkoutSection"][];
+            cooldown: components["schemas"]["WorkoutSection"][];
+            safety: components["schemas"]["WorkoutPlanSafety"];
+            progression: components["schemas"]["WorkoutPlanProgression"];
+        };
+        WorkoutPlan: components["schemas"]["WorkoutPlanLegacy"] | components["schemas"]["WorkoutPlanStrict"];
+        WorkoutPlanResult: {
+            id: string;
+            /** @enum {string} */
+            source: "ai" | "fallback";
+            model: string;
+            plan: components["schemas"]["WorkoutPlan"];
+            warnings: string[];
+            generation?: components["schemas"]["WorkoutPlanGenerationDiagnostics"];
+            createdAt: string;
+            inputHash: string;
+            cached: boolean;
+        };
+        WorkoutPlanGenerationDiagnostics: {
+            fallbackUsed: boolean;
+            /** @enum {string} */
+            errorCode?: "rate_limited" | "provider_timeout" | "provider_error" | "fallback_used";
+        };
+        AdminSummary: {
+            requestedAt: string;
+            userId: string;
+            canAccessInternalOps: boolean;
+            features: string[];
+            dataQuality: {
+                plateauDetectionEnabled: boolean;
+                trustSignalsTracked: boolean;
+                postureAnalysisAvailable: boolean;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        AdminHealth: {
+            ok: boolean;
+            route: string;
+            requestedAt: string;
+        } & {
+            [key: string]: unknown;
+        };
     };
-    ErrorResponse: {
-      error: {
-        code: string;
-        message: string;
-        details?: unknown;
-        requestId?: string;
-      };
-    };
-    ExerciseCatalogAttributes: {
-      /** @enum {string} */
-      movementPattern:
-        | 'squat'
-        | 'hinge'
-        | 'push'
-        | 'pull'
-        | 'lunge'
-        | 'carry'
-        | 'core'
-        | 'mobility';
-      loadedRegions: string[];
-      /** @enum {string} */
-      impactLevel: 'low' | 'moderate' | 'high';
-      /** @enum {string} */
-      spinalLoad: 'low' | 'moderate' | 'high';
-      /** @enum {string} */
-      balanceDemand: 'low' | 'moderate' | 'high';
-      /** @enum {string} */
-      technicalComplexity: 'beginner' | 'intermediate' | 'advanced';
-      overhead: boolean;
-      behindNeck: boolean;
-      deepFlexion: boolean;
-      explosive: boolean;
-      unilateral: boolean;
-      rotational: boolean;
-      inverted: boolean;
-    };
-    CatalogMetadataOverrideInput: {
-      catalogVersionId: string;
-      /** @enum {string} */
-      movementPattern:
-        | 'squat'
-        | 'hinge'
-        | 'push'
-        | 'pull'
-        | 'lunge'
-        | 'carry'
-        | 'core'
-        | 'mobility';
-      attributes: components['schemas']['ExerciseCatalogAttributes'];
-      reason: string;
-      /**
-       * @deprecated
-       * @description Ignored. The response records the authenticated actor.
-       */
-      reviewedBy?: string;
-    };
-    ApiUser: {
-      id: string;
-      email: string;
-      displayName?: string;
-      role?: string;
-      roles?: string[];
-    };
-    AuthRegisterInput: {
-      /** Format: email */
-      email: string;
-      password: string;
-      displayName?: string;
-    };
-    AuthLoginInput: {
-      /** Format: email */
-      email: string;
-      password: string;
-    };
-    AuthRefreshInput: {
-      refreshToken: string;
-    };
-    AuthOAuthExchangeInput: {
-      code: string;
-      state: string;
-    };
-    AuthOAuthStartResponse: {
-      /** Format: uri */
-      authorizationUrl: string;
-      state: string;
-    };
-    AuthTokenEnvelope: {
-      accessToken: string;
-      refreshToken: string;
-      sessionId: string;
-      /** Format: date-time */
-      accessExpiresAt: string;
-      user: components['schemas']['ApiUser'];
-    };
-    AuthLogoutResponse: {
-      success: boolean;
-    };
-    AuthMeResponse: {
-      user: components['schemas']['ApiUser'];
-    };
-    ProfileInput: {
-      age: number;
-      /** @enum {string} */
-      sex: 'male' | 'female' | 'other' | 'prefer_not_to_say';
-      heightCm: number;
-      weightKg: number;
-      bodyFatEstimate?: number;
-      /** @enum {string} */
-      lifestyle: 'desk_job' | 'standing_job' | 'active';
-      /** @enum {string} */
-      experienceLevel: 'beginner' | 'intermediate' | 'advanced';
-    };
-    Profile: components['schemas']['ProfileInput'] & {
-      [key: string]: unknown;
-    };
-    AssessmentInput: {
-      goals: (
-        | 'muscle_gain'
-        | 'fat_loss'
-        | 'posture_improvement'
-        | 'mobility'
-        | 'strength'
-        | 'aesthetics'
-        | 'recomposition'
-      )[];
-      frequencyDays: number;
-      equipment: ('full_gym' | 'dumbbells_only' | 'home_gym' | 'resistance_bands')[];
-      considerations?: components['schemas']['AssessmentConsideration'][];
-      limitations?: ('shoulder_pain' | 'knee_pain' | 'lower_back_pain' | 'neck_pain')[];
-      postureFlags?: (
-        | 'rounded_shoulders'
-        | 'forward_head'
-        | 'anterior_pelvic_tilt'
-        | 'tight_hips'
-        | 'lower_back_discomfort'
-      )[];
-    };
-    Assessment: {
-      goals: string[];
-      frequencyDays: number;
-      equipment: string[];
-      limitations: string[];
-      postureFlags: string[];
-      considerations: components['schemas']['AssessmentConsideration'][];
-      completedAt?: string;
-      inputHash?: string;
-    };
-    AssessmentConsideration: {
-      code: string;
-      /** @enum {string} */
-      severity: 'mild' | 'moderate' | 'severe';
-      /** @enum {string} */
-      side: 'left' | 'right' | 'bilateral' | 'unspecified';
-      notes?: string;
-      inferred: boolean;
-    };
-    BodyConsideration: {
-      code: string;
-      displayName: string;
-      groupCode: string;
-      bodyRegion: string;
-      kind: string;
-      severityEnabled: boolean;
-    };
-    GeneratePlanInput: {
-      profile?: components['schemas']['ProfileInput'];
-      assessment: components['schemas']['AssessmentInput'];
-    };
-    WorkoutSessionCreateInput: {
-      workoutPlanId: string;
-      dayIndex: number;
-      scheduledDate: string;
-    };
-    WorkoutSessionPatchInput: {
-      notes?: string;
-    };
-    ExerciseLogInput: {
-      workoutSessionId: string;
-      exerciseName: string;
-      masterExerciseId: string;
-      /** @enum {string} */
-      movementPattern:
-        | 'squat'
-        | 'hinge'
-        | 'push'
-        | 'pull'
-        | 'lunge'
-        | 'carry'
-        | 'core'
-        | 'mobility';
-      muscleGroups: string[];
-      setIndex: number;
-      targetReps?: string;
-      reps: number;
-      weightKg: number;
-      rpe?: number;
-      completed?: boolean;
-      notes?: string;
-    };
-    ExerciseLogPatchInput: {
-      reps: number;
-      weightKg: number;
-      rpe?: number;
-      completed: boolean;
-      notes?: string;
-    };
-    BodyMeasurementInput: {
-      /** Format: date-time */
-      measuredAt: string;
-      bodyWeightKg: number;
-      bodyFatEstimate?: number;
-      neckCm?: number;
-      shouldersCm?: number;
-      chestCm?: number;
-      waistCm?: number;
-      hipsCm?: number;
-      upperArmLeftCm?: number;
-      upperArmRightCm?: number;
-      forearmLeftCm?: number;
-      forearmRightCm?: number;
-      thighLeftCm?: number;
-      thighRightCm?: number;
-      calfLeftCm?: number;
-      calfRightCm?: number;
-      notes?: string;
-    };
-    UserSettingsPatchInput: {
-      /** @enum {string} */
-      theme?: 'light' | 'dark' | 'system';
-      /** @enum {string} */
-      unitSystem?: 'metric' | 'imperial';
-      /** @enum {string} */
-      defaultWorkoutView?: 'byExercise' | 'byDay' | 'byPlan';
-      remindersEnabled?: boolean;
-    };
-    DeleteWorkoutPlanResult: {
-      id: string;
-      deleted: boolean;
-    };
-    WorkoutExercise: {
-      name: string;
-      muscleGroup: string;
-      /** @enum {string} */
-      movementPattern:
-        | 'squat'
-        | 'hinge'
-        | 'push'
-        | 'pull'
-        | 'lunge'
-        | 'carry'
-        | 'core'
-        | 'mobility';
-      sets: number;
-      reps: string;
-      rpe?: number;
-      notes?: string;
-      exerciseRationale?: string[];
-    };
-    WorkoutSection: {
-      label: string;
-      exercises: components['schemas']['WorkoutExercise'][];
-    };
-    WorkoutDay: {
-      name: string;
-      focus?: string;
-      exercises: components['schemas']['WorkoutExercise'][];
-    };
-    WorkoutPlanSafety: {
-      /** @enum {string} */
-      disclaimer: 'Educational fitness recommendations only. Not medical advice.';
-      redFlags: string[];
-      guidance: string[];
-    };
-    WorkoutPlanProgression: {
-      /** @enum {string} */
-      baselineIntensity: 'low-moderate';
-      progressionRule: string;
-      increasePercent?: number;
-      conditions?: string[];
-    };
-    WorkoutPlanLegacy: {
-      /** @enum {string} */
-      split: 'full_body' | 'upper_lower' | 'push_pull_legs' | 'custom';
-      frequencyDays: number;
-      weeklySetTargets: {
-        [key: string]: number;
-      };
-      days: components['schemas']['WorkoutDay'][];
-      warnings: string[];
-      summary?: string;
-      progressionRules?: string[];
-    };
-    WorkoutPlanStrict: components['schemas']['WorkoutPlanLegacy'] & {
-      warmup: components['schemas']['WorkoutSection'][];
-      mainSet: components['schemas']['WorkoutSection'][];
-      cooldown: components['schemas']['WorkoutSection'][];
-      safety: components['schemas']['WorkoutPlanSafety'];
-      progression: components['schemas']['WorkoutPlanProgression'];
-    };
-    WorkoutPlan:
-      | components['schemas']['WorkoutPlanLegacy']
-      | components['schemas']['WorkoutPlanStrict'];
-    WorkoutPlanResult: {
-      id: string;
-      /** @enum {string} */
-      source: 'ai' | 'fallback';
-      model: string;
-      plan: components['schemas']['WorkoutPlan'];
-      warnings: string[];
-      generation?: components['schemas']['WorkoutPlanGenerationDiagnostics'];
-      createdAt: string;
-      inputHash: string;
-      cached: boolean;
-    };
-    WorkoutPlanGenerationDiagnostics: {
-      fallbackUsed: boolean;
-      /** @enum {string} */
-      errorCode?: 'rate_limited' | 'provider_timeout' | 'provider_error' | 'fallback_used';
-    };
-    ProgressSummary: {
-      workoutsCompletedThisWeek: number;
-      streakDays: number;
-      personalRecords: number;
-      totalVolumeThisWeek: number;
-      plateauDetected: boolean;
-      complianceScore: number;
-      warnings: string[];
-    } & {
-      [key: string]: unknown;
-    };
-    AdminSummary: {
-      requestedAt: string;
-      userId: string;
-      canAccessInternalOps: boolean;
-      features: string[];
-      dataQuality: {
-        plateauDetectionEnabled: boolean;
-        trustSignalsTracked: boolean;
-        postureAnalysisAvailable: boolean;
-      };
-    } & {
-      [key: string]: unknown;
-    };
-    AdminHealth: {
-      ok: boolean;
-      route: string;
-      requestedAt: string;
-    } & {
-      [key: string]: unknown;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

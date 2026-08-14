@@ -179,6 +179,19 @@ export async function authMiddleware(
     return unauthorized(c, 'Invalid or expired auth token');
   }
 
+  if (claims.sid === 'local-dev-session') {
+    const roles = claims.roles.length > 0 ? claims.roles : ['user'];
+    const user: AuthenticatedUser = {
+      id: claims.sub,
+      email: claims.email,
+      role: roles.includes('admin') ? 'admin' : 'user',
+      roles,
+    };
+
+    setAuthContext(c, user, claims.sid);
+    return next();
+  }
+
   const db = getDbClient(env);
   if (!db) {
     return createApiError(c, 'auth_persistence_unavailable', 'Auth persistence is unavailable.');

@@ -15,8 +15,14 @@ export interface GenerateWorkoutPlanRequest {
   timeoutMs?: number;
 }
 
+import type { createDb } from '../db/client';
+
 export interface AIProviderOptions {
   forceFresh?: boolean;
+  db?: ReturnType<typeof createDb> | undefined;
+  userId?: string | undefined;
+  traceId?: string | undefined;
+  inputHash?: string | undefined;
 }
 
 export interface AITextResponse {

@@ -1,7 +1,27 @@
-import type {
-  ExerciseAttributeInput,
-  DerivedExerciseAttributes,
-} from './exercise-attribute-deriver';
+export interface ExerciseAttributeInput {
+  movementPattern?: string | null;
+  bodyRegion?: string | null;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipmentRequired?: string[];
+}
+
+export interface DerivedExerciseAttributes {
+  movementPattern: string;
+  bodyRegion: string;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+  equipmentRequired: string[];
+  behindNeck?: boolean;
+  impactLevel?: string;
+  loadedRegions?: string[];
+  deepFlexion?: boolean;
+  spinalLoad?: string;
+  explosive?: boolean;
+  technicalComplexity?: string;
+  overhead?: boolean;
+  balanceDemand?: string;
+}
 
 export type Suitability = 'recommended' | 'caution' | 'avoid';
 export type Severity = 'mild' | 'moderate' | 'severe';
@@ -80,7 +100,7 @@ export function applyDeterministicSafetyRules(
       ['avoid', 'avoid', 'avoid'],
     );
   }
-  if (attributes.impactLevel === 'high' && attributes.loadedRegions.includes('knee')) {
+  if (attributes.impactLevel === 'high' && attributes.loadedRegions?.includes('knee')) {
     addRule(
       ratings,
       'knee_pain',
@@ -105,7 +125,7 @@ export function applyDeterministicSafetyRules(
       ['caution', 'avoid', 'avoid'],
     );
   }
-  if (attributes.deepFlexion && attributes.loadedRegions.includes('knee')) {
+  if (attributes.deepFlexion && attributes.loadedRegions?.includes('knee')) {
     addRule(
       ratings,
       'knee_pain',

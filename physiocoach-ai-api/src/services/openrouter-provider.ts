@@ -6,6 +6,7 @@ import type {
   GenerateWorkoutPlanRequest,
 } from '../types/ai';
 import { z } from 'zod';
+import { logAiAuditEntry } from './ai-audit-logger';
 
 interface OpenRouterProviderConfig {
   apiKey: string;
@@ -119,9 +120,54 @@ export class OpenRouterProvider implements AIProvider {
           request.timeoutMs,
           request.options?.forceFresh,
           request.responseFormat,
+          request.task,
+          request.options,
         );
-        const parsedPayload = this.parseJsonPayload(completion.text);
-        const payload = request.schema.parse(parsedPayload) as T;
+
+        let parsedPayload: unknown;
+        try {
+          parsedPayload = this.parseJsonPayload(completion.text);
+        } catch (parseError) {
+          await logAiAuditEntry(request.options?.db, {
+            traceId: request.options?.traceId ?? null,
+            userId: request.options?.userId ?? null,
+            task: request.task,
+            provider: 'openrouter',
+            model,
+            prompt: request.prompt,
+            completion: completion.text,
+            status: 'schema_rejected',
+            errorMessage: parseError instanceof Error ? parseError.message : String(parseError),
+            schemaIssuesJson: JSON.stringify([
+              parseError instanceof Error ? parseError.message : String(parseError),
+            ]),
+            inputHash: request.inputHash ?? null,
+            latencyMs: 0,
+          });
+          throw parseError;
+        }
+
+        const parseResult = request.schema.safeParse(parsedPayload);
+        if (!parseResult.success) {
+          const issues = parseResult.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+          await logAiAuditEntry(request.options?.db, {
+            traceId: request.options?.traceId ?? null,
+            userId: request.options?.userId ?? null,
+            task: request.task,
+            provider: 'openrouter',
+            model,
+            prompt: request.prompt,
+            completion: completion.text,
+            status: 'schema_rejected',
+            errorMessage: 'Zod schema validation failed.',
+            schemaIssuesJson: JSON.stringify(issues),
+            inputHash: request.inputHash ?? null,
+            latencyMs: 0,
+          });
+          throw new Error(`AI response failed schema validation: ${issues.join('; ')}`);
+        }
+
+        const payload = parseResult.data as T;
         console.info('openrouter.generate_structured.success', {
           task: request.task,
           attempt: attempts,
@@ -180,6 +226,8 @@ export class OpenRouterProvider implements AIProvider {
     timeoutMs?: number,
     forceFresh?: boolean,
     responseFormat?: GenerateStructuredRequest<unknown>['responseFormat'],
+    task = 'ai_task',
+    options?: GenerateStructuredRequest<unknown>['options'],
   ): Promise<{ text: string; metadata: OpenRouterChatCompletionResponse }> {
     const resolvedTimeoutMs = timeoutMs ?? this.defaultTimeoutMs;
     const controller = resolvedTimeoutMs > 0 ? new AbortController() : undefined;
@@ -261,6 +309,23 @@ export class OpenRouterProvider implements AIProvider {
         throw new Error('OpenRouter response did not include message content.');
       }
 
+      const elapsedMs = Date.now() - startedAt;
+      await logAiAuditEntry(options?.db, {
+        traceId: options?.traceId ?? null,
+        userId: options?.userId ?? null,
+        task,
+        provider: 'openrouter',
+        model,
+        prompt,
+        completion: text,
+        status: 'success',
+        promptTokens: data.usage?.prompt_tokens ?? null,
+        completionTokens: data.usage?.completion_tokens ?? null,
+        totalTokens: data.usage?.total_tokens ?? null,
+        inputHash: options?.inputHash ?? null,
+        latencyMs: elapsedMs,
+      });
+
       return {
         text,
         metadata: data,
@@ -281,6 +346,20 @@ export class OpenRouterProvider implements AIProvider {
         appTimeoutDisabled: resolvedTimeoutMs === 0,
         usedAbortSignal: Boolean(controller),
         ...describeErrorForLog(error),
+      });
+
+      await logAiAuditEntry(options?.db, {
+        traceId: options?.traceId ?? null,
+        userId: options?.userId ?? null,
+        task,
+        provider: 'openrouter',
+        model,
+        prompt,
+        completion: null,
+        status: 'error',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        inputHash: options?.inputHash ?? null,
+        latencyMs: elapsedMs,
       });
 
       throw error;

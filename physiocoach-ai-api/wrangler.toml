@@ -12,11 +12,11 @@ APP_ENV = "production"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_REFERER = "https://physiocoach.otconnect.ir"
 OPENROUTER_TITLE = "PhysioCoach AI"
-WORKOUT_MODEL_PRIMARY = "nvidia/nemotron-3-ultra-550b-a55b:free"
-WORKOUT_MODEL_FALLBACKS = "poolside/laguna-s-2.1:free,nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-26b-a4b-it:free,cohere/north-mini-code:free,poolside/laguna-xs-2.1:free,openai/gpt-oss-20b:free"
-OPENROUTER_TIMEOUT_MS = "180000"
+WORKOUT_MODEL_PRIMARY = "meta-llama/llama-3.1-8b-instruct"
+WORKOUT_MODEL_FALLBACKS = "meta-llama/llama-3.3-70b-instruct,gemini-3.5-flash-lite"
+OPENROUTER_TIMEOUT_MS = "15000"
 OPENROUTER_MAX_RETRIES = "0"
-CORS_ORIGIN = "https://physiocoach.otconnect.ir,http://localhost:4200,http://localhost:8787"
+CORS_ORIGIN = "https://physiocoach.otconnect.ir,http://localhost:4200,http://localhost:4300,http://localhost:8787"
 
 [observability.logs]
 enabled = false
@@ -27,3 +27,7 @@ binding = "DB"
 database_name = "physiocoach_prod"
 database_id = "14b1f6b3-a0c3-400f-9b12-7d50c265eb52"
 migrations_dir = "src/db/migrations"
+
+[triggers]
+crons = ["0 3 * * SUN"] # Run weekly at 03:00 UTC on Sunday
+

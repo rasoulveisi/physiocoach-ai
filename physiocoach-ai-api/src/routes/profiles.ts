@@ -65,11 +65,19 @@ export function createProfileRoutes() {
     }
 
     if (!hasDbClient(context)) {
-      return createApiError(
-        c,
-        'invalid_request',
-        'Profile persistence is unavailable in this environment.',
-      );
+      return c.json({
+        data: {
+          age: parsed.data.age,
+          sex: parsed.data.sex,
+          heightCm: parsed.data.heightCm,
+          weightKg: parsed.data.weightKg,
+          ...(parsed.data.bodyFatEstimate === undefined
+            ? {}
+            : { bodyFatEstimate: parsed.data.bodyFatEstimate }),
+          lifestyle: parsed.data.lifestyle,
+          experienceLevel: parsed.data.experienceLevel,
+        },
+      });
     }
 
     const now = new Date().toISOString();

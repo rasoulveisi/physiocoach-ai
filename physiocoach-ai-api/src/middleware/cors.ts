@@ -1,6 +1,6 @@
 const DEFAULT_LOCAL_HOSTS = ['localhost', '127.0.0.1'];
 export const DEFAULT_CORS_ORIGIN =
-  'http://localhost:4200,http://localhost:8787,https://localhost:4200,https://localhost:8787,http://127.0.0.1:4200,http://127.0.0.1:8787,https://127.0.0.1:4200,https://127.0.0.1:8787,https://physiocoach.otconnect.ir,https://dev.physiocoach-ai-web.pages.dev';
+  'http://localhost:4200,http://localhost:4300,http://localhost:8787,https://localhost:4200,https://localhost:4300,https://localhost:8787,http://127.0.0.1:4200,http://127.0.0.1:4300,http://127.0.0.1:8787,https://127.0.0.1:4200,https://127.0.0.1:4300,https://127.0.0.1:8787,https://physiocoach.otconnect.ir,https://dev.physiocoach-ai-web.pages.dev';
 
 export function resolveCorsOrigins(configuredOrigin: string): string[] {
   const origins = configuredOrigin
@@ -45,6 +45,11 @@ export function isCorsOriginAllowed(
   }
 
   const normalizedRequestOrigin = requestOrigin.replace(/\/$/, '');
+  const parsed = safeParseUrl(normalizedRequestOrigin);
+  if (parsed && DEFAULT_LOCAL_HOSTS.includes(parsed.hostname)) {
+    return true;
+  }
+
   const allowedOrigins = resolveCorsOrigins(configuredOrigin);
 
   return allowedOrigins.some((allowedOrigin) =>

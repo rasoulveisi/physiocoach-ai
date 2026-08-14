@@ -31,10 +31,7 @@ export class AppShellComponent {
     { label: 'Today', path: '/dashboard', exact: true, icon: 'pi pi-home' },
     { label: 'Plan', path: '/plan', exact: true, icon: 'pi pi-list' },
     { label: 'Session', path: '/session', exact: true, icon: 'pi pi-play' },
-    { label: 'Progress', path: '/progress', exact: true, icon: 'pi pi-chart-line' },
     { label: 'Assessment', path: '/onboarding', exact: true, icon: 'pi pi-id-card' },
-    { label: 'Posture', path: '/posture-assessment', exact: true, icon: 'pi pi-bullseye' },
-    { label: 'Measurements', path: '/measurements', exact: true, icon: 'pi pi-file-edit' },
     { label: 'Profile', path: '/settings', exact: true, icon: 'pi pi-user' },
   ];
 
@@ -42,14 +39,12 @@ export class AppShellComponent {
     { label: 'Today', path: '/dashboard', exact: true, icon: 'pi pi-home' },
     { label: 'Plan', path: '/plan', exact: true, icon: 'pi pi-list' },
     { label: 'Session', path: '/session', exact: true, icon: 'pi pi-play' },
-    { label: 'Progress', path: '/progress', exact: true, icon: 'pi pi-chart-line' },
+    { label: 'Profile', path: '/settings', exact: true, icon: 'pi pi-user' },
   ];
 
   protected readonly mobileMoreItems = [
     { label: 'Assessment', path: '/onboarding', exact: true, icon: 'pi pi-id-card' },
-    { label: 'Posture', path: '/posture-assessment', exact: true, icon: 'pi pi-bullseye' },
-    { label: 'Measurements', path: '/measurements', exact: true, icon: 'pi pi-file-edit' },
-    { label: 'Settings', path: '/settings', exact: true, icon: 'pi pi-cog' },
+    { label: 'Profile', path: '/settings', exact: true, icon: 'pi pi-cog' },
   ];
 
   protected readonly adminPathItem = {

@@ -511,3 +511,32 @@ export const exerciseAliases = sqliteTable('exercise_aliases', {
   ...sourceMetadataColumns,
   ...timestamps,
 });
+
+export const aiAuditLogs = sqliteTable(
+  'ai_audit_logs',
+  {
+    id: text('id').primaryKey(),
+    traceId: text('trace_id').notNull(),
+    userId: text('user_id'),
+    task: text('task').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    prompt: text('prompt').notNull(),
+    completion: text('completion'),
+    status: text('status').notNull(),
+    errorMessage: text('error_message'),
+    schemaIssuesJson: text('schema_issues_json'),
+    inputHash: text('input_hash'),
+    promptTokens: integer('prompt_tokens'),
+    completionTokens: integer('completion_tokens'),
+    totalTokens: integer('total_tokens'),
+    latencyMs: integer('latency_ms').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [
+    index('ai_audit_logs_created_at_idx').on(table.createdAt),
+    index('ai_audit_logs_trace_id_idx').on(table.traceId),
+    index('ai_audit_logs_user_id_idx').on(table.userId),
+  ],
+);
+

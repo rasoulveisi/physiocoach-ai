@@ -56,11 +56,12 @@ export function normalizeAiExerciseKeys(val: unknown): unknown {
     }
   }
 
-  // Coerce sets to number if it is string
-  if (obj.sets !== undefined) {
-    if (typeof obj.sets === 'string') {
-      const parsed = parseInt(obj.sets.replace(/\D/g, ''), 10);
-      obj.sets = isNaN(parsed) || parsed <= 0 ? 3 : parsed;
+  // Clean empty notes string
+  if (typeof obj.notes === 'string') {
+    if (obj.notes.trim() === '') {
+      delete obj.notes;
+    } else {
+      obj.notes = obj.notes.trim();
     }
   }
 
@@ -260,21 +261,43 @@ export function buildMinimalInvalidPlan(candidateBuild: CandidateBuildResult): W
 }
 
 export function buildLocalWorkoutPlan(candidateBuild: CandidateBuildResult, frequencyDays: number) {
-  const candidates = candidateBuild.candidates;
-  const greenCandidates = candidates.filter((candidate) => candidate.cluster === 'green');
-  const amberCandidates = candidates.filter((candidate) => candidate.cluster === 'amber');
+  const pool = candidateBuild.candidates.length > 0 ? candidateBuild.candidates : candidateBuild.allCandidates;
+
+  const byMovement = new Map<string, CatalogCandidate[]>();
+  for (const candidate of pool) {
+    const list = byMovement.get(candidate.movementPattern) ?? [];
+    list.push(candidate);
+    byMovement.set(candidate.movementPattern, list);
+  }
+
+  const movementPatterns = Array.from(byMovement.keys());
+
   const days = Array.from({ length: frequencyDays }, (_, dayIndex) => {
-    const selectedGreen = Array.from(
-      { length: Math.min(3, greenCandidates.length) },
-      (_, offset) => greenCandidates[(dayIndex * 3 + offset) % greenCandidates.length],
-    ).filter((candidate): candidate is CatalogCandidate => candidate !== undefined);
-    const selected = (
-      selectedGreen.length > 0
-        ? selectedGreen
-        : amberCandidates.length > 0
-          ? [amberCandidates[dayIndex % amberCandidates.length]]
-          : [candidates[dayIndex % candidates.length]]
-    ).filter((candidate): candidate is CatalogCandidate => candidate !== undefined);
+    const selected: CatalogCandidate[] = [];
+    const usedIds = new Set<string>();
+
+    // 1. Pick 1 exercise from distinct movement patterns rotated by dayIndex
+    for (let pIdx = 0; pIdx < movementPatterns.length; pIdx += 1) {
+      if (selected.length >= 5) break;
+      const pattern = movementPatterns[(pIdx + dayIndex) % movementPatterns.length];
+      const patternCandidates = pattern !== undefined ? (byMovement.get(pattern) ?? []) : [];
+      const candidate = patternCandidates[(dayIndex + pIdx) % patternCandidates.length];
+      if (candidate && (!usedIds.has(candidate.masterExerciseId) || selected.length < 3)) {
+        usedIds.add(candidate.masterExerciseId);
+        selected.push(candidate);
+      }
+    }
+
+    // 2. Fill remaining slots up to 5 exercises from general pool
+    for (let offset = 0; selected.length < 5 && offset < pool.length * 2; offset += 1) {
+      const candidateIndex = (dayIndex * 3 + offset) % pool.length;
+      const candidate = pool[candidateIndex];
+      if (candidate && (!usedIds.has(candidate.masterExerciseId) || selected.length < pool.length)) {
+        usedIds.add(candidate.masterExerciseId);
+        selected.push(candidate);
+      }
+    }
+
     return {
       dayNumber: dayIndex + 1,
       name: `Day ${dayIndex + 1}`,
@@ -291,6 +314,7 @@ export function buildLocalWorkoutPlan(candidateBuild: CandidateBuildResult, freq
       })),
     };
   });
+
   return { name: 'Development catalog plan', focus: 'Catalog-backed local plan', days };
 }
 
@@ -479,6 +503,85 @@ export function injectRequiredCandidateModifications(
   }
 
   return injected;
+}
+
+export function repairExcessAmberCandidates(
+  plan: WorkoutPlan,
+  candidateBuild: CandidateBuildResult,
+  maxAmberPerDay = 1,
+): { plan: WorkoutPlan; repaired: boolean } {
+  const candidatesById = new Map(
+    candidateBuild.allCandidates.map((candidate) => [candidate.masterExerciseId, candidate]),
+  );
+
+  const usedIds = new Set<string>();
+  for (const day of plan.days) {
+    for (const exercise of day.exercises) {
+      if (exercise.masterExerciseId) {
+        usedIds.add(exercise.masterExerciseId);
+      }
+    }
+  }
+
+  const greenByMovement = new Map<string, CatalogCandidate[]>();
+  for (const candidate of candidateBuild.clusters.green) {
+    const list = greenByMovement.get(candidate.movementPattern) ?? [];
+    list.push(candidate);
+    greenByMovement.set(candidate.movementPattern, list);
+  }
+
+  let repaired = false;
+
+  const newDays = plan.days.map((day) => {
+    let amberCount = 0;
+    const newExercises = day.exercises.map((exercise) => {
+      const candidate = exercise.masterExerciseId
+        ? candidatesById.get(exercise.masterExerciseId)
+        : undefined;
+
+      if (!candidate || candidate.cluster !== 'amber') {
+        return exercise;
+      }
+
+      amberCount += 1;
+      if (amberCount <= maxAmberPerDay) {
+        return exercise;
+      }
+
+      const greenPool = greenByMovement.get(exercise.movementPattern) ?? [];
+      const replacement = greenPool.find((c) => !usedIds.has(c.masterExerciseId));
+
+      if (replacement) {
+        if (exercise.masterExerciseId) {
+          usedIds.delete(exercise.masterExerciseId);
+        }
+        usedIds.add(replacement.masterExerciseId);
+        repaired = true;
+        return {
+          ...exercise,
+          id: replacement.masterExerciseId,
+          masterExerciseId: replacement.masterExerciseId,
+          name: replacement.name,
+          muscleGroup: replacement.primaryMuscleGroup ?? replacement.movementPattern,
+        };
+      }
+
+      return exercise;
+    });
+
+    return { ...day, exercises: newExercises };
+  });
+
+  if (!repaired) {
+    return { plan, repaired: false };
+  }
+
+  const newPlan = workoutPlanSchema.parse({
+    ...plan,
+    days: newDays,
+  });
+
+  return { plan: newPlan, repaired: true };
 }
 
 export function validatePlanCatalogMembership(

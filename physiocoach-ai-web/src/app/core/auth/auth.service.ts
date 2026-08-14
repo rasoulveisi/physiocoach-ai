@@ -156,7 +156,7 @@ export class AuthService {
     }
 
     try {
-      const body: AuthOAuthExchangeInput = { code, state };
+      const body: AuthOAuthExchangeInput = { provider: 'google', code, state };
       const session = await this.postSession(authApiPaths.oauthExchange, body);
       this.storeSession(session);
       this.clearOAuthState();

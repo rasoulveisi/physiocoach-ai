@@ -70,10 +70,16 @@ export interface WorkoutPlanModelConfig {
   maxRetries?: number;
 }
 
+import type { createDb } from '../db/client';
+
 export interface WorkoutPlanOrchestrationOptions {
   forceFresh?: boolean;
   /** Development-only triage: treat empty rule-code caution cells as green. */
   provisionalNoRuleCautions?: boolean;
+  db?: ReturnType<typeof createDb> | undefined;
+  userId?: string | undefined;
+  traceId?: string | undefined;
+  inputHash?: string | undefined;
 }
 
 export interface WorkoutPlanGenerationFailureDetails {
@@ -133,6 +139,7 @@ export type WorkoutPlanRecordFromDb = Omit<WorkoutPlanRecord, 'status'> & {
 };
 
 export interface WorkoutPlanProviderConfig {
+  GEMINI_API_KEY?: string;
   OPENROUTER_API_KEY?: string;
   OPENROUTER_BASE_URL?: string;
   OPENROUTER_REFERER?: string;

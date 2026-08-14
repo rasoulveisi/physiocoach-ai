@@ -11,7 +11,6 @@ import {
   masterEquipment,
   masterMuscles,
 } from '../../db/schema';
-import { clusterExerciseCandidates } from '../exercise-candidate-clusterer';
 import { WORKOUT_PLAN_MOVEMENT_PATTERNS } from '../../types/workout-plan-contract';
 import type { WorkoutPlanConsideration, WorkoutPlanGenerationContext } from '../../types/ai';
 import type {
@@ -101,10 +100,7 @@ export const CATALOG_EQUIPMENT_TOKENS_BY_ASSESSMENT_VALUE: Record<string, readon
   resistance_bands: ['resistance_band', 'resistance_bands', 'band', 'bands'],
 };
 
-const CATALOG_MOVEMENT_ORDER = WORKOUT_PLAN_MOVEMENT_PATTERNS.reduce((acc, pattern) => {
-  acc.set(pattern, acc.size);
-  return acc;
-}, new Map<WorkoutPlanMovementPattern, number>());
+
 
 export function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -317,8 +313,22 @@ export function buildCandidateExerciseSet(
     return true;
   });
 
-  const clusters = clusterExerciseCandidates(baseFiltered, context.considerations ?? []);
-  const safeCandidates = [...clusters.green, ...clusters.amber];
+  const green: CatalogCandidate[] = [];
+  const amber: CatalogCandidate[] = [];
+  const red: CatalogCandidate[] = [];
+
+  for (const candidate of baseFiltered) {
+    if (candidate.cluster === 'red') {
+      red.push(candidate);
+    } else if (candidate.cluster === 'amber') {
+      amber.push(candidate);
+    } else {
+      green.push({ ...candidate, cluster: candidate.cluster ?? 'green' });
+    }
+  }
+
+  const clusters = { green, amber, red, exclusions: [] };
+  const safeCandidates = [...green, ...amber];
   const missingSafeMovementPatterns = movementNeeds.filter(
     (pattern) => !safeCandidates.some((candidate) => candidate.movementPattern === pattern),
   );
@@ -333,11 +343,17 @@ export function buildCandidateExerciseSet(
     if (leftClusterOrder !== rightClusterOrder) {
       return leftClusterOrder - rightClusterOrder;
     }
-    const leftRequired = availableRequiredSet.has(left.movementPattern) ? 0 : 1;
-    const rightRequired = availableRequiredSet.has(right.movementPattern) ? 0 : 1;
 
-    if (leftRequired !== rightRequired) {
-      return leftRequired - rightRequired;
+    const leftIsRequired = availableRequiredSet.has(left.movementPattern);
+    const rightIsRequired = availableRequiredSet.has(right.movementPattern);
+    if (leftIsRequired !== rightIsRequired) {
+      return leftIsRequired ? -1 : 1;
+    }
+
+    const leftOrder = movementNeeds.indexOf(left.movementPattern);
+    const rightOrder = movementNeeds.indexOf(right.movementPattern);
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
     }
 
     const leftGoalMatched = left.goalTags?.some((goal) =>
@@ -352,12 +368,6 @@ export function buildCandidateExerciseSet(
       : 1;
     if (leftGoalMatched !== rightGoalMatched) {
       return leftGoalMatched - rightGoalMatched;
-    }
-
-    const leftOrder = CATALOG_MOVEMENT_ORDER.get(left.movementPattern) ?? 0;
-    const rightOrder = CATALOG_MOVEMENT_ORDER.get(right.movementPattern) ?? 0;
-    if (leftOrder !== rightOrder) {
-      return leftOrder - rightOrder;
     }
 
     return left.name.localeCompare(right.name);
