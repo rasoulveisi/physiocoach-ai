@@ -5,7 +5,6 @@ import {
   aiAuditLogs,
   assessments,
   authRefreshTokenHistory,
-  bodyMeasurements,
   exerciseLogs,
   profiles,
   users,
@@ -46,7 +45,6 @@ describe('database schema', () => {
     expect(workoutPlans).toBeDefined();
     expect(workoutSessions).toBeDefined();
     expect(exerciseLogs).toBeDefined();
-    expect(bodyMeasurements).toBeDefined();
     expect(exerciseCatalogVersions).toBeDefined();
     expect(bodyConsiderations).toBeDefined();
     expect(assessmentConsiderations).toBeDefined();

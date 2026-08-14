@@ -227,45 +227,9 @@ export const userSettings = sqliteTable(
   (table) => [uniqueIndex('user_settings_user_id_unique').on(table.userId)],
 );
 
-export const personalRecords = sqliteTable('personal_records', {
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id),
-  masterExerciseId: text('master_exercise_id'),
-  exerciseName: text('exercise_name').notNull(),
-  recordType: text('record_type').notNull(),
-  value: real('value').notNull(),
-  reps: integer('reps'),
-  weightKg: real('weight_kg'),
-  workoutSessionId: text('workout_session_id'),
-  achievedAt: text('achieved_at').notNull(),
-  createdAt: text('created_at').notNull(),
-});
 
-export const bodyMeasurements = sqliteTable('body_measurements', {
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id),
-  measuredAt: text('measured_at').notNull(),
-  bodyWeightKg: real('body_weight_kg').notNull(),
-  bodyFatEstimate: real('body_fat_estimate'),
-  neckCm: real('neck_cm'),
-  shouldersCm: real('shoulders_cm'),
-  chestCm: real('chest_cm'),
-  waistCm: real('waist_cm'),
-  hipsCm: real('hips_cm'),
-  upperArmLeftCm: real('upper_arm_left_cm'),
-  upperArmRightCm: real('upper_arm_right_cm'),
-  forearmLeftCm: real('forearm_left_cm'),
-  forearmRightCm: real('forearm_right_cm'),
-  thighLeftCm: real('thigh_left_cm'),
-  thighRightCm: real('thigh_right_cm'),
-  calfLeftCm: real('calf_left_cm'),
-  calfRightCm: real('calf_right_cm'),
-  notes: text('notes'),
-});
+
+
 
 export const masterMuscles = sqliteTable('master_muscles', {
   id: text('id').primaryKey(),
