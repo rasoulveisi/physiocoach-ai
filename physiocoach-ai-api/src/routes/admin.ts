@@ -73,6 +73,52 @@ export function createAdminRoutes() {
 
   route.get('/admin/not-found', async (c) => notFound(c, 'Admin endpoint does not exist.'));
 
+  route.get('/ai-audit-logs', async (c) => {
+    try {
+      const { db } = getApiRouteContext(c);
+      const limitStr = c.req.query('limit');
+      const traceId = c.req.query('traceId');
+      const task = c.req.query('task');
+      const status = c.req.query('status');
+      const parsedLimit = limitStr ? Number.parseInt(limitStr, 10) : 20;
+      const queryOpts: {
+        limit?: number;
+        traceId?: string;
+        task?: string;
+        status?: string;
+      } = {
+        limit: Number.isNaN(parsedLimit) ? 20 : parsedLimit,
+      };
+      if (traceId) queryOpts.traceId = traceId;
+      if (task) queryOpts.task = task;
+      if (status) queryOpts.status = status;
+
+      const { queryAuditLogs } = await import('../services/ai-audit-logger');
+      const logs = await queryAuditLogs(db, queryOpts);
+
+      return c.json({ data: logs });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to list AI audit logs.');
+    }
+  });
+
+  route.get('/ai-audit-logs/:id', async (c) => {
+    try {
+      const { db } = getApiRouteContext(c);
+      const id = c.req.param('id');
+      const { getAuditLogById } = await import('../services/ai-audit-logger');
+      const log = await getAuditLogById(db, id);
+
+      if (!log) {
+        return notFound(c, `AI audit log record not found for id: ${id}`);
+      }
+
+      return c.json({ data: log });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to fetch AI audit log record.');
+    }
+  });
+
   route.delete('/admin/audit-logs/purge', async (c) => {
     try {
       const { user, db } = getApiRouteContext(c);

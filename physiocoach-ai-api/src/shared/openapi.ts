@@ -429,6 +429,52 @@ export function createOpenApiDocument() {
           },
         },
       },
+      '/api/v1/ai-audit-logs': {
+        get: {
+          summary: 'List AI audit logs for traceability and testing',
+          tags: ['Admin'],
+          parameters: [
+            {
+              name: 'limit',
+              in: 'query',
+              required: false,
+              schema: { type: 'integer', default: 20 },
+            },
+            {
+              name: 'traceId',
+              in: 'query',
+              required: false,
+              schema: { type: 'string' },
+            },
+            {
+              name: 'task',
+              in: 'query',
+              required: false,
+              schema: { type: 'string' },
+            },
+            {
+              name: 'status',
+              in: 'query',
+              required: false,
+              schema: { type: 'string' },
+            },
+          ],
+          responses: {
+            '200': dataEnvelopeWithSchema('AiAuditLog', { isArray: true }),
+          },
+        },
+      },
+      '/api/v1/ai-audit-logs/{id}': {
+        get: {
+          summary: 'Get a specific AI audit log record by ID',
+          tags: ['Admin'],
+          parameters: [idPathParameter],
+          responses: {
+            '200': dataEnvelopeWithSchema('AiAuditLog'),
+            '404': errorResponse,
+          },
+        },
+      },
       '/api/v1/admin/audit-logs/purge': {
         delete: {
           summary: 'Purge expired AI audit logs',
@@ -489,9 +535,31 @@ export function createOpenApiDocument() {
           type: 'object',
           required: ['data'],
           properties: {
-            data: {
-              type: 'object',
-            },
+            data: { type: 'object' },
+          },
+          additionalProperties: true,
+        },
+        AiAuditLog: {
+          type: 'object',
+          required: ['id', 'traceId', 'task', 'provider', 'model', 'prompt', 'status', 'latencyMs', 'createdAt'],
+          properties: {
+            id: { type: 'string' },
+            traceId: { type: 'string', nullable: true },
+            userId: { type: 'string', nullable: true },
+            task: { type: 'string' },
+            provider: { type: 'string' },
+            model: { type: 'string' },
+            prompt: { type: 'string' },
+            completion: { type: 'string', nullable: true },
+            status: { type: 'string', enum: ['success', 'error', 'schema_rejected'] },
+            errorMessage: { type: 'string', nullable: true },
+            schemaIssuesJson: { type: 'string', nullable: true },
+            inputHash: { type: 'string', nullable: true },
+            promptTokens: { type: 'integer', nullable: true },
+            completionTokens: { type: 'integer', nullable: true },
+            totalTokens: { type: 'integer', nullable: true },
+            latencyMs: { type: 'integer' },
+            createdAt: { type: 'string' },
           },
           additionalProperties: true,
         },

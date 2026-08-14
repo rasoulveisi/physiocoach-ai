@@ -1,4 +1,4 @@
-import { lte } from 'drizzle-orm';
+import { and, desc, eq, lte } from 'drizzle-orm';
 import { createDb } from '../db/client';
 import { aiAuditLogs } from '../db/schema';
 
@@ -108,3 +108,34 @@ export async function deleteExpiredAuditLogs(
     return 0;
   }
 }
+
+export async function queryAuditLogs(
+  db: DbClient | undefined,
+  options: {
+    limit?: number;
+    traceId?: string;
+    task?: string;
+    status?: string;
+  } = {},
+) {
+  if (!db) return [];
+  const limit = Math.min(options.limit ?? 20, 100);
+  const conditions = [];
+  if (options.traceId) conditions.push(eq(aiAuditLogs.traceId, options.traceId));
+  if (options.task) conditions.push(eq(aiAuditLogs.task, options.task));
+  if (options.status) conditions.push(eq(aiAuditLogs.status, options.status));
+
+  return await db
+    .select()
+    .from(aiAuditLogs)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(aiAuditLogs.createdAt))
+    .limit(limit);
+}
+
+export async function getAuditLogById(db: DbClient | undefined, id: string) {
+  if (!db) return null;
+  const rows = await db.select().from(aiAuditLogs).where(eq(aiAuditLogs.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+

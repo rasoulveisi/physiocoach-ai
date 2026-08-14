@@ -979,6 +979,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai-audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List AI audit logs for traceability and testing */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    traceId?: string;
+                    task?: string;
+                    status?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AiAuditLog"][];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-audit-logs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a specific AI audit log record by ID */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stable MVP response envelope. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AiAuditLog"];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description API error response. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/audit-logs/purge": {
         parameters: {
             query?: never;
@@ -1117,6 +1213,28 @@ export interface components {
     schemas: {
         DataEnvelope: {
             data: Record<string, never>;
+        } & {
+            [key: string]: unknown;
+        };
+        AiAuditLog: {
+            id: string;
+            traceId: string | null;
+            userId?: string | null;
+            task: string;
+            provider: string;
+            model: string;
+            prompt: string;
+            completion?: string | null;
+            /** @enum {string} */
+            status: "success" | "error" | "schema_rejected";
+            errorMessage?: string | null;
+            schemaIssuesJson?: string | null;
+            inputHash?: string | null;
+            promptTokens?: number | null;
+            completionTokens?: number | null;
+            totalTokens?: number | null;
+            latencyMs: number;
+            createdAt: string;
         } & {
             [key: string]: unknown;
         };
