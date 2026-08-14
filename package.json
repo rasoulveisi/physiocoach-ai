@@ -8,9 +8,14 @@
     "physiocoach-ai-web"
   ],
   "scripts": {
+    "start": "npx concurrently -k -p \"[{name}]\" -c \"cyan,magenta\" -n \"API,WEB\" \"npm run dev:api\" \"npm run dev:web\"",
+    "dev": "npm run start",
     "dev:api": "npm --workspace=physiocoach-ai-api run dev",
-    "dev:web": "npm --workspace=physiocoach-ai-web run start",
+    "dev:web": "npm --workspace=physiocoach-ai-web run dev",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4"
   }
 }

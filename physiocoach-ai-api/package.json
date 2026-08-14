@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --config ./wrangler.toml --port 8787",
+    "dev": "wrangler dev --config ./wrangler.toml --remote --port 8787",
     "prepare": "husky || true",
     "build": "tsc --noEmit",
     "test": "vitest run",

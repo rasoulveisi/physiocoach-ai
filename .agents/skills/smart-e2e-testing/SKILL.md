@@ -12,17 +12,15 @@ This skill governs how to perform **Smart End-to-End (E2E) Integration Testing**
 
 ---
 
-## E2E Architecture & Environment Rule
+## E2E Architecture & Concurrent Execution
 
-1. **Single Database Instance**: Always connect to the live production Cloudflare D1 database (`physiocoach_prod`).
-2. **Local Worker Execution**: Run the backend worker locally with remote production database binding:
+1. **Single Production Database**: Always connect to the live production Cloudflare D1 database (`physiocoach_prod`).
+2. **Concurrent Monorepo Launcher**: Run both local backend Worker (connected to production D1) and Angular PWA concurrently:
    ```bash
-   npx wrangler dev --config ./wrangler.toml --remote
+   npm start # or npm run dev (in project root)
    ```
-3. **Local Frontend Execution**: Run Angular PWA on port `4300`:
-   ```bash
-   npm run dev # in physiocoach-ai-web
-   ```
+   - **Backend API**: `http://localhost:8787` (`npx wrangler dev --config ./wrangler.toml --remote`)
+   - **Frontend App**: `http://localhost:4300` (`ng serve --port 4300`)
 
 ---
 
