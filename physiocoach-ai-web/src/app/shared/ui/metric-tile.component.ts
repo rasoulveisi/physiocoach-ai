@@ -1,5 +1,15 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
+export type MetricTileAccent = 'volt' | 'amber' | 'cyan';
+
+// Data-driven accent top borders — strictly semantic:
+// volt (active/action), amber (clinical caution), cyan (recovery/mobility).
+const ACCENT_BAR_CLASSES: Record<MetricTileAccent, string> = {
+  volt: 'bg-volt',
+  amber: 'bg-amber-500',
+  cyan: 'bg-cyan-500',
+};
+
 @Component({
   selector: 'pc-metric-tile',
   standalone: true,
@@ -11,11 +21,14 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
                     transition-[box-shadow,transform] duration-200
                     hover:shadow-card-md hover:-translate-y-0.5"
     >
-      <!-- Gradient top accent -->
-      <div
-        class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand-500 to-violet-500"
-        aria-hidden="true"
-      ></div>
+      <!-- Data-driven accent top border (optional; omitted = clean 1px border) -->
+      @if (accentBarClass()) {
+        <div
+          class="absolute inset-x-0 top-0 h-[3px]"
+          [class]="accentBarClass()"
+          aria-hidden="true"
+        ></div>
+      }
 
       <!-- Label -->
       <p class="text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-muted">
@@ -24,7 +37,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
       <!-- Value + Trend -->
       <div class="mt-2 flex items-end justify-between gap-2">
-        <p class="text-[1.875rem] font-extrabold leading-none tracking-[-0.03em] text-primary">
+        <p class="font-mono tabular-nums text-[1.875rem] font-extrabold leading-none text-primary">
           {{ value() }}
         </p>
         @if (trend()) {
@@ -55,6 +68,12 @@ export class MetricTileComponent {
   readonly value = input.required<string | number>();
   readonly trend = input<string | null>(null);
   readonly caption = input<string | null>(null);
+  readonly accent = input<MetricTileAccent | null>(null);
+
+  protected accentBarClass(): string {
+    const accent = this.accent();
+    return accent ? (ACCENT_BAR_CLASSES[accent] ?? '') : '';
+  }
 
   protected trendIsPositive(): boolean {
     const t = this.trend();

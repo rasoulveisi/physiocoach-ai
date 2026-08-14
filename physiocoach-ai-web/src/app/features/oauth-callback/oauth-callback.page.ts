@@ -5,19 +5,19 @@ import { AuthService } from '../../core/auth/auth.service';
 @Component({
   standalone: true,
   template: `
-    <main class="grid h-dvh overflow-y-auto place-items-center bg-slate-950 px-4 py-10 text-white text-center">
+    <main class="grid h-dvh overflow-y-auto place-items-center bg-[#090d15] px-4 py-10 text-primary text-center">
       <section class="grid gap-6 justify-items-center">
         <!-- Spinner Ring -->
         <div class="relative flex items-center justify-center w-16 h-16">
-          <div class="absolute inset-0 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin"></div>
-          <i class="pi pi-bolt text-xl text-blue-400 animate-pulse"></i>
+          <div class="absolute inset-0 rounded-full border-4 border-volt/20 border-t-volt animate-spin"></div>
+          <i class="pi pi-bolt text-xl text-volt animate-pulse"></i>
         </div>
 
         <div class="grid gap-2">
-          <p class="text-sm font-medium tracking-wide text-slate-300">
+          <p class="text-sm font-semibold tracking-wide text-primary">
             {{ statusMessage() }}
           </p>
-          <p class="text-xs text-slate-500 max-w-xs leading-relaxed">
+          <p class="text-xs text-secondary max-w-xs leading-relaxed">
             Please wait while we secure your connection and redirect you.
           </p>
         </div>
@@ -27,7 +27,7 @@ import { AuthService } from '../../core/auth/auth.service';
           <div class="mt-4 animate-fade-in">
             <button
               (click)="openApp()"
-              class="px-6 py-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/20 transition-all duration-200 cursor-pointer inline-flex items-center gap-2"
+              class="px-6 py-3 bg-volt hover:brightness-105 active:scale-95 text-[#090d15] font-bold rounded-lg shadow-volt transition-all duration-150 cursor-pointer inline-flex items-center gap-2"
             >
               <i class="pi pi-external-link"></i>
               Open PhysioCoach AI App

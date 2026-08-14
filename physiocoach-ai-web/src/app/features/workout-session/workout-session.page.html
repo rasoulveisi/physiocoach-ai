@@ -1,181 +1,138 @@
-<section class="grid min-w-0 max-w-full gap-4 overflow-hidden break-words">
+<section class="grid min-w-0 max-w-full gap-3 overflow-hidden break-words sm:gap-4">
   @if (planStore.currentPlan$ | async; as current) {
     @if (sessionStore.activeSession$ | async; as session) {
-      <section class="grid min-w-0 gap-4">
-        <!-- ===== STICKY REST TIMER ===== -->
-        <div
-          class="sticky top-0 z-30 rounded-2xl border border-slate-200 bg-white/95 p-3 text-slate-900 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-50"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex min-w-0 items-center gap-3">
-              <!-- Circular countdown ring -->
-              <div class="relative grid size-16 shrink-0 place-items-center">
-                <svg
-                  width="64"
-                  height="64"
-                  viewBox="0 0 64 64"
-                  class="-rotate-90"
-                  aria-hidden="true"
-                >
-                  <circle
-                    cx="32"
-                    cy="32"
-                    r="26"
-                    fill="none"
-                    stroke-width="5"
-                    class="stroke-slate-200 dark:stroke-slate-700"
-                  ></circle>
-                  <circle
-                    cx="32"
-                    cy="32"
-                    r="26"
-                    fill="none"
-                    stroke-width="5"
-                    stroke-linecap="round"
-                    [class]="timer.isRunning() ? 'stroke-emerald-500 dark:stroke-volt' : 'stroke-slate-300 dark:stroke-slate-600'"
-                    [attr.stroke-dasharray]="timerRingCircumference"
-                    [attr.stroke-dashoffset]="timerRingOffset()"
-                    class="transition-[stroke-dashoffset] duration-500 ease-linear"
-                  ></circle>
-                </svg>
-                <span class="absolute text-sm font-extrabold tabular-nums leading-none">
-                  {{ formatTime(timer.remainingSeconds()) }}
-                </span>
-              </div>
-
-              <div class="min-w-0">
-                <p class="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Rest timer
-                </p>
-                <p
-                  class="text-lg font-bold tabular-nums leading-none"
-                  [class.text-emerald-600]="timer.isRunning()"
-                  [class.text-slate-400]="timer.isFinished() || (!timer.isRunning() && !timer.isPaused())"
-                >
-                  {{ timer.isRunning() && !timer.isPaused() ? 'Resting…' : timer.isFinished() ? 'Time!' : 'Paused' }}
-                </p>
-                <!-- Auto-start toggle -->
-                <label class="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  <input
-                    type="checkbox"
-                    class="h-3.5 w-3.5 accent-emerald-600"
-                    [checked]="restAutoStart()"
-                    (change)="toggleAutoStart($event)"
-                  />
-                  Auto-start
-                </label>
-              </div>
+      <section class="grid min-w-0 gap-3">
+        <!-- ===== SLEEK COMPACT REST TIMER BAR ===== -->
+        <div class="sticky top-0 z-30 flex items-center justify-between rounded-lg border border-surface-border bg-surface-0 px-3.5 py-2.5 shadow-card">
+          <div class="flex items-center gap-3">
+            <div class="relative grid size-9 shrink-0 place-items-center">
+              <svg viewBox="0 0 40 40" class="size-9 -rotate-90" aria-hidden="true">
+                <circle cx="20" cy="20" r="16" fill="none" stroke-width="3" class="stroke-surface-border"></circle>
+                <circle
+                  cx="20"
+                  cy="20"
+                  r="16"
+                  fill="none"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  [class]="timer.remainingSeconds() > 0 ? 'stroke-volt' : 'stroke-surface-border'"
+                  [attr.stroke-dasharray]="timerRingCircumference"
+                  [attr.stroke-dashoffset]="timerRingOffset()"
+                  class="transition-[stroke-dashoffset] duration-500 ease-linear"
+                ></circle>
+              </svg>
+              <i class="pi pi-clock absolute text-[10px] text-muted"></i>
             </div>
 
-            <div class="flex flex-wrap items-center gap-1.5">
-              @if (timer.isRunning() && !timer.isPaused()) {
-                <button
-                  class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
-                  type="button"
-                  (click)="pauseTimer()"
-                >
-                  Pause
-                </button>
-              } @else {
-                <button
-                  class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-                  type="button"
-                  (click)="playTimer()"
-                >
-                  Play
-                </button>
-              }
-              <button
-                class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
-                type="button"
-                (click)="addTime(30)"
-              >
-                +30s
-              </button>
-              <button
-                class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
-                type="button"
-                (click)="addTime(-15)"
-              >
-                -15s
-              </button>
-              <button
-                class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
-                type="button"
-                (click)="skipTimer()"
-              >
-                Skip
-              </button>
-              <button
-                [class]="soundButtonClass()"
-                type="button"
-                (click)="toggleSound()"
-                [attr.aria-label]="timer.soundEnabled() ? 'Mute timer sound' : 'Unmute timer sound'"
-              >
-                {{ timer.soundEnabled() ? 'Sound on' : 'Sound off' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ===== SESSION PROGRESS ===== -->
-        <div class="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50">
-          <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
             <div>
-              <p class="pc-kicker">Session in progress</p>
-              <h1 class="mt-2 text-2xl font-semibold break-words">Active workout</h1>
-              <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Day {{ session.dayIndex + 1 }}</p>
-            </div>
-            <div class="text-right">
-              <p class="text-2xl font-extrabold tabular-nums text-emerald-600 dark:text-volt">
-                {{ completionPercent(session) }}%
+              <p class="font-mono text-lg font-bold tabular-nums text-primary leading-none">
+                {{ formatTime(timer.remainingSeconds()) }}
               </p>
-              <p class="text-xs font-medium text-slate-500 dark:text-slate-400">
-                {{ session.progress.completedSets }} / {{ session.progress.totalSets }} sets
-              </p>
+              <span
+                class="font-mono text-[0.625rem] font-bold uppercase tracking-wider"
+                [class.text-volt]="timer.isRunning()"
+                [class.text-warn-text]="timer.isFinished()"
+                [class.text-secondary]="timer.isPaused()"
+                [class.text-muted]="!timer.isRunning() && !timer.isPaused() && !timer.isFinished()"
+              >
+                {{ timer.isFinished() ? "TIME'S UP" : timer.isRunning() ? 'RESTING' : timer.isPaused() ? 'PAUSED' : 'REST TIMER' }}
+              </span>
             </div>
           </div>
-          <div class="h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-            <div
-              class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-volt transition-all dark:from-emerald-500 dark:to-volt"
-              [style.width.%]="completionPercent(session)"
-            ></div>
+
+          <!-- Compact controls -->
+          <div class="flex items-center gap-1.5">
+            <button
+              class="h-8 rounded-md border border-surface-border bg-surface-raised px-2 font-mono text-xs font-bold tabular-nums text-secondary hover:text-primary active:scale-95 pc-no-tap-highlight"
+              type="button"
+              (click)="addTime(30)"
+            >
+              +30s
+            </button>
+            <button
+              class="h-8 rounded-md border border-surface-border bg-surface-raised px-2 text-xs font-semibold text-secondary hover:text-primary active:scale-95 pc-no-tap-highlight"
+              type="button"
+              (click)="skipTimer()"
+            >
+              Skip
+            </button>
+            <button
+              class="inline-flex h-8 items-center gap-1 rounded-md bg-volt px-2.5 text-xs font-bold text-[#090d15] hover:brightness-105 active:scale-95 pc-no-tap-highlight"
+              type="button"
+              (click)="timer.isRunning() ? pauseTimer() : playTimer()"
+            >
+              <i class="pi text-[10px]" [class.pi-pause]="timer.isRunning()" [class.pi-play]="!timer.isRunning()"></i>
+              <span>{{ timer.isRunning() ? 'Pause' : 'Start' }}</span>
+            </button>
           </div>
         </div>
 
-        <!-- ===== CURRENT EXERCISE ===== -->
+        <!-- ===== SESSION PROGRESS BAR ===== -->
+        <div class="flex items-center justify-between rounded-lg border border-surface-border bg-surface-0 px-4 py-2.5">
+          <div class="flex items-center gap-2">
+            <span class="size-2 rounded-full bg-volt"></span>
+            <p class="text-xs font-bold text-primary">Day {{ session.dayIndex + 1 }} Workout</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="h-1.5 w-24 overflow-hidden rounded-full bg-surface-border">
+              <div class="h-full rounded-full bg-volt transition-all" [style.width.%]="completionPercent(session)"></div>
+            </div>
+            <span class="font-mono text-xs font-bold tabular-nums text-primary">
+              {{ session.progress.completedSets }}/{{ session.progress.totalSets }}
+            </span>
+          </div>
+        </div>
+
+        <!-- ===== ACTIVE EXERCISE CARD ===== -->
         @if (nextIncompleteLog(session.logs); as nextLog) {
           @if (groupForLog(session.logs, nextLog); as currentGroup) {
-            <div class="grid min-w-0 gap-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-slate-900 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-slate-50">
-              <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                <div class="grid min-w-0 gap-1">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Current exercise</p>
-                  <h2 class="text-xl font-semibold break-words">{{ currentGroup.name }}</h2>
-                  <p class="text-sm text-slate-600 dark:text-slate-300">
-                    Set {{ nextLog.setIndex }} · target {{ currentGroup.targetReps || nextLog.targetReps || '—' }}
+            <div class="grid min-w-0 gap-3 rounded-lg border border-surface-border bg-surface-0 p-4">
+              <div class="flex min-w-0 items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-[0.6875rem] font-bold uppercase tracking-wider text-volt">Active Exercise</span>
+                    @if (currentGroup.movementPattern) {
+                      <span class="rounded bg-surface-raised px-1.5 py-0.5 text-[0.625rem] font-bold uppercase tracking-wider text-muted">
+                        {{ currentGroup.movementPattern }}
+                      </span>
+                    }
+                  </div>
+                  <h2 class="mt-0.5 text-lg font-bold text-primary break-words">{{ currentGroup.name }}</h2>
+                  <p class="font-mono text-xs text-secondary tabular-nums">
+                    Set {{ nextLog.setIndex }} · Target {{ currentGroup.targetReps || nextLog.targetReps || '—' }}
                   </p>
                 </div>
                 <button
-                  class="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-slate-800"
+                  class="rounded-md border border-surface-border bg-surface-raised px-2.5 py-1.5 text-xs font-semibold text-secondary hover:text-primary transition-colors"
                   type="button"
                   (click)="openSwapModal(currentGroup.key)"
                 >
-                  Substitute
+                  Swap
                 </button>
               </div>
 
-              <div class="flex min-w-0 flex-wrap gap-2 text-xs font-semibold">
-                @if (currentGroup.muscleGroups[0]) {
-                  <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
-                    Primary: {{ currentGroup.muscleGroups[0] }}
-                  </span>
-                }
-                @for (muscle of secondaryMuscles(currentGroup); track muscle) {
-                  <span class="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700">
-                    {{ muscle }}
-                  </span>
-                }
+              <!-- Biomechanical Form Cue (Amber) -->
+              <div class="rounded-md border border-amber-500/30 bg-warn-surface p-2.5">
+                <p class="flex items-center gap-1 text-[0.6875rem] font-bold uppercase tracking-wider text-warn-text">
+                  <i class="pi pi-shield text-[10px]"></i> Form Cue
+                </p>
+                <ul class="mt-0.5 grid gap-0.5">
+                  @for (tip of exerciseSafetyChips(currentGroup); track tip) {
+                    <li class="flex items-start gap-1.5 text-xs text-warn-text">
+                      <span class="mt-1.5 size-1 shrink-0 rounded-full bg-amber-500"></span>
+                      {{ tip }}
+                    </li>
+                  }
+                </ul>
               </div>
+
+              @if (previousBenchmarkLabel(nextLog); as prev) {
+                <div class="flex items-center gap-2">
+                  <span class="rounded border border-surface-border bg-surface-raised px-2 py-1 font-mono text-xs text-secondary">
+                    {{ prev }}
+                  </span>
+                </div>
+              }
 
               <pc-exercise-visual
                 [name]="currentGroup.name"
@@ -184,93 +141,62 @@
                 [muscleGroup]="currentGroup.muscleGroups[0]"
                 [media]="exerciseMediaFor(currentGroup)"
                 [loading]="isExerciseMediaLoading(currentGroup)"
+                [compact]="true"
               />
-
-              <!-- Physio posture/safety caution chips -->
-              <div class="grid gap-2">
-                <p class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                  <i class="pi pi-shield text-xs" aria-hidden="true"></i>
-                  Form &amp; safety
-                </p>
-                <div class="flex flex-wrap gap-1.5">
-                  @for (tip of exerciseSafetyChips(currentGroup); track tip) {
-                    <span class="inline-flex items-start gap-1 rounded-lg bg-white/80 px-2.5 py-1.5 text-xs font-medium leading-snug text-slate-700 ring-1 ring-emerald-200 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-emerald-900">
-                      {{ tip }}
-                    </span>
-                  }
-                </div>
-              </div>
-
-              @if (currentGroup.notes) {
-                <p class="rounded-md bg-white/80 p-3 text-sm leading-6 text-slate-700 ring-1 ring-emerald-200 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-emerald-900">
-                  {{ currentGroup.notes }}
-                </p>
-              }
-
-              @if (previousBenchmarkLabel(nextLog); as prev) {
-                <p class="inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-100">
-                  {{ prev }}
-                </p>
-              }
             </div>
           }
         }
 
-        <!-- ===== SET LIST ===== -->
+        <!-- ===== SET LIST & LOGGING TABLE ===== -->
         <section class="grid min-w-0 gap-3">
           @for (group of groupedLogs(session.logs); track group.key) {
-            <div class="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-              <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
-                <div class="grid min-w-0 gap-1">
-                  <h2 class="text-lg font-semibold break-words">{{ group.name }}</h2>
-                  <p class="text-xs text-slate-500 dark:text-slate-400">
-                    {{ group.logs.length }} sets
+            <div class="grid min-w-0 gap-2.5 rounded-lg border border-surface-border bg-surface-0 p-3 sm:p-4">
+              <div class="flex min-w-0 items-center justify-between gap-2 border-b border-surface-border pb-2">
+                <div>
+                  <h3 class="text-sm font-bold text-primary break-words">{{ group.name }}</h3>
+                  <p class="font-mono text-[0.6875rem] text-muted">
+                    {{ group.logs.length }} SETS
                     @if (group.previousPerformance; as prev) {
-                      · Prev: {{ formatWeight(prev.weight) }}kg x {{ prev.reps }}
+                      · PREV: {{ formatWeight(prev.weight) }}kg × {{ prev.reps }}
                     }
                   </p>
                 </div>
                 <button
-                  class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  class="text-xs text-muted hover:text-primary transition-colors"
                   type="button"
                   (click)="openSwapModal(group.key)"
                 >
-                  Substitute
+                  Swap
                 </button>
               </div>
 
               <div class="grid min-w-0 gap-2">
                 @for (log of group.logs; track log.id) {
                   <div [class]="setRowClass(group, log)">
-                    <!-- Row header: set #, prev, volt check -->
+                    <!-- Row header: set #, done badge, volt check -->
                     <div class="flex min-w-0 items-center justify-between gap-2">
-                      <div class="flex min-w-0 flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center rounded-md bg-slate-200 px-2 py-1 text-xs font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                      <div class="flex min-w-0 items-center gap-1.5">
+                        <span class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-xs font-bold text-secondary">
                           Set {{ log.setIndex }}
                         </span>
                         @if (log.completed) {
-                          <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
-                            <i class="pi pi-check text-[0.625rem]" aria-hidden="true"></i>
-                            Done
+                          <span class="inline-flex items-center gap-1 rounded bg-volt/10 px-1.5 py-0.5 font-mono text-[0.6875rem] font-bold text-volt">
+                            <i class="pi pi-check text-[8px]"></i> DONE
                           </span>
                         }
-                        @if (previousBenchmarkLabel(log); as prev) {
-                          <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-100">{{ prev }}</span>
-                        }
                       </div>
+
                       <button
                         [class]="voltButtonClass(log)"
                         type="button"
                         [attr.aria-label]="log.completed ? 'Mark set incomplete' : 'Complete set'"
                         (click)="toggleSetCompleteVolt(log)"
                       >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <i class="pi pi-check text-xs"></i>
                       </button>
                     </div>
 
-                    <!-- Set type chips -->
+                    <!-- Set type selector -->
                     <div class="flex flex-wrap items-center gap-1">
                       @for (option of setCategoryOptions; track option.label) {
                         <button
@@ -283,65 +209,67 @@
                       }
                     </div>
 
-                    <!-- Weight / Reps / RPE -->
-                    <div class="grid min-w-0 gap-3 sm:grid-cols-[1.2fr_1fr_1.4fr]">
-                      <!-- Weight with steppers + plate calculator -->
-                      <div class="grid min-w-0 gap-1">
-                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Weight (kg)</span>
-                        <div class="flex items-stretch gap-1">
+                    <!-- Weight & Reps inputs with fast steppers -->
+                    <div class="grid grid-cols-2 gap-2">
+                      <!-- Weight -->
+                      <div class="grid gap-0.5">
+                        <span class="text-[0.625rem] font-bold text-muted uppercase">Weight (kg)</span>
+                        <div class="flex items-stretch gap-0.5">
                           <button
-                            class="grid w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-base font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            class="grid w-8 shrink-0 place-items-center rounded bg-surface-raised font-mono text-sm font-bold text-secondary hover:text-primary active:scale-95"
                             type="button"
                             (click)="adjustWeight(log, -2.5)"
                           >
                             −
                           </button>
                           <input
-                            class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-center text-base font-bold tabular-nums dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            class="w-full min-w-0 rounded border border-surface-border bg-surface-0 px-1 py-1.5 text-center font-mono text-base font-bold tabular-nums text-primary focus:border-volt"
                             type="number"
+                            inputmode="decimal"
                             min="0"
                             step="0.5"
                             [value]="draftFor(log).weightKg"
                             (change)="setWeight(log, $event)"
                           />
                           <button
-                            class="grid w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-base font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            class="grid w-8 shrink-0 place-items-center rounded bg-surface-raised font-mono text-sm font-bold text-secondary hover:text-primary active:scale-95"
                             type="button"
                             (click)="adjustWeight(log, 2.5)"
                           >
                             +
                           </button>
                           <button
-                            class="grid w-9 shrink-0 place-items-center rounded-md border border-slate-300 bg-white text-sm text-slate-600 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-volt dark:hover:text-volt"
+                            class="grid w-8 shrink-0 place-items-center rounded bg-surface-raised text-muted hover:text-volt active:scale-95"
                             type="button"
-                            [attr.aria-label]="'Plate calculator for ' + log.exerciseName"
+                            title="Plate calculator"
                             (click)="openPlateCalculator(log)"
                           >
-                            <i class="pi pi-calculator text-xs" aria-hidden="true"></i>
+                            <i class="pi pi-calculator text-xs"></i>
                           </button>
                         </div>
                       </div>
 
                       <!-- Reps -->
-                      <div class="grid min-w-0 gap-1">
-                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Reps</span>
-                        <div class="flex items-stretch gap-1">
+                      <div class="grid gap-0.5">
+                        <span class="text-[0.625rem] font-bold text-muted uppercase">Reps</span>
+                        <div class="flex items-stretch gap-0.5">
                           <button
-                            class="grid w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-base font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            class="grid w-8 shrink-0 place-items-center rounded bg-surface-raised font-mono text-sm font-bold text-secondary hover:text-primary active:scale-95"
                             type="button"
                             (click)="adjustReps(log, -1)"
                           >
                             −
                           </button>
                           <input
-                            class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-center text-base font-bold tabular-nums dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            class="w-full min-w-0 rounded border border-surface-border bg-surface-0 px-1 py-1.5 text-center font-mono text-base font-bold tabular-nums text-primary focus:border-volt"
                             type="number"
+                            inputmode="numeric"
                             min="0"
                             [value]="draftFor(log).reps"
                             (change)="setReps(log, $event)"
                           />
                           <button
-                            class="grid w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-base font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            class="grid w-8 shrink-0 place-items-center rounded bg-surface-raised font-mono text-sm font-bold text-secondary hover:text-primary active:scale-95"
                             type="button"
                             (click)="adjustReps(log, 1)"
                           >
@@ -349,31 +277,26 @@
                           </button>
                         </div>
                       </div>
+                    </div>
 
-                      <!-- RPE rating selector -->
-                      <div class="grid min-w-0 gap-1">
-                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
-                          RPE
-                          @if (draftFor(log).rpe; as rpe) {
-                            <span class="ml-1 font-bold text-emerald-600 dark:text-volt">{{ rpe }}</span>
-                          }
-                        </span>
-                        <div class="flex flex-wrap items-center gap-0.5">
-                          @for (value of rpeOptions; track value) {
-                            <button
-                              class="h-8 min-w-8 rounded-md border px-1 text-xs font-bold tabular-nums transition-colors"
-                              [class]="
-                                draftFor(log).rpe === value
-                                  ? 'border-emerald-600 bg-emerald-600 text-white dark:border-volt dark:bg-volt dark:text-slate-950'
-                                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                              "
-                              type="button"
-                              (click)="setRpeValue(log, value)"
-                            >
-                              {{ value }}
-                            </button>
-                          }
-                        </div>
+                    <!-- RPE strip -->
+                    <div class="grid gap-0.5">
+                      <span class="text-[0.625rem] font-bold text-muted uppercase">
+                        RPE @if (draftFor(log).rpe; as rpe) { <strong class="text-volt">{{ rpe }}</strong> }
+                      </span>
+                      <div class="flex flex-wrap gap-0.5">
+                        @for (value of rpeOptions; track value) {
+                          <button
+                            class="h-7 min-w-7 rounded border px-1 font-mono text-[0.6875rem] font-bold tabular-nums transition-colors active:scale-95"
+                            [class]="draftFor(log).rpe === value
+                              ? 'border-volt bg-volt text-[#090d15]'
+                              : 'border-surface-border bg-surface-raised text-secondary hover:text-primary'"
+                            type="button"
+                            (click)="setRpeValue(log, value)"
+                          >
+                            {{ value }}
+                          </button>
+                        }
                       </div>
                     </div>
                   </div>
@@ -383,25 +306,28 @@
           }
         </section>
 
-        <button pButton type="button" severity="success" class="w-full justify-center sm:w-auto" (click)="complete()">
-          Finish workout
+        <!-- ===== FINISH WORKOUT BUTTON ===== -->
+        <button
+          class="w-full justify-center rounded-lg bg-volt px-4 py-3 text-sm font-bold text-[#090d15] hover:brightness-105 active:scale-[0.98] transition-all"
+          type="button"
+          (click)="complete()"
+        >
+          Finish Workout
         </button>
       </section>
     } @else {
-      <div class="grid min-w-0 gap-3 rounded-lg border border-slate-200 bg-white p-5 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50">
-        <p class="pc-kicker">Start your session</p>
-        <h1 class="text-2xl font-semibold break-words">Choose workout</h1>
-        <p class="text-sm text-slate-600 dark:text-slate-300">Pick today’s training day</p>
-        <div class="mt-1 grid min-w-0 gap-3 sm:grid-cols-2">
+      <div class="grid min-w-0 gap-3 rounded-lg border border-surface-border bg-surface-0 p-5">
+        <h1 class="text-xl font-bold text-primary">Choose Workout Day</h1>
+        <p class="text-xs text-secondary">Pick today's session to begin logging</p>
+        <div class="mt-2 grid gap-2 sm:grid-cols-2">
           @for (day of current.plan.days; track day.name; let dayIndex = $index) {
             <button
-              pButton
-              outlined
-              class="w-full justify-center whitespace-normal"
+              class="w-full rounded-lg border border-surface-border bg-surface-raised p-3 text-left transition-colors hover:border-volt active:scale-[0.98]"
               type="button"
               (click)="start(current.id, dayIndex)"
             >
-              {{ day.name }}
+              <p class="text-sm font-bold text-primary">{{ day.name }}</p>
+              <p class="text-xs text-secondary">{{ day.focus }} · {{ day.exercises.length }} exercises</p>
             </button>
           }
         </div>
@@ -410,8 +336,8 @@
   } @else {
     <pc-page-state
       eyebrow="Ready"
-      title="Generate a plan first"
-      message="Generate a plan first"
+      title="No plan available"
+      message="Generate a plan to start your workout sessions."
       actionLabel="Start assessment"
       (action)="startAssessment()"
     />
@@ -421,7 +347,7 @@
 <!-- ===== SWAP EXERCISE MODAL ===== -->
 @if (swapModalOpen()) {
   <div
-    class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
     role="dialog"
     aria-modal="true"
     aria-label="Swap exercise"
@@ -429,57 +355,34 @@
     (click)="onBackdropClick($event)"
     (keydown.escape)="closeSwapModal()"
   >
-    <div
-      class="grid max-h-[80vh] w-full max-w-md gap-3 overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 text-slate-900 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-    >
+    <div class="grid max-h-[80vh] w-full max-w-md gap-3 overflow-y-auto rounded-lg border border-surface-border bg-surface-0 p-5 shadow-card-lg">
       <div class="flex items-start justify-between gap-3">
         <div>
-          <p class="pc-kicker">Swap exercise</p>
-          <h3 class="mt-1 text-lg font-semibold break-words">{{ swapTargetGroupName() }}</h3>
-          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            Replace this exercise with an alternative from your plan.
-          </p>
+          <h3 class="text-base font-bold text-primary">Swap {{ swapTargetGroupName() }}</h3>
+          <p class="text-xs text-secondary">Select an alternative exercise from your plan.</p>
         </div>
-        <button
-          class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-          type="button"
-          aria-label="Close"
-          (click)="closeSwapModal()"
-        >
-          ✕
-        </button>
+        <button class="rounded p-1 text-muted hover:text-primary" type="button" (click)="closeSwapModal()">✕</button>
       </div>
 
       @if (alternativeExercises().length) {
-        <div class="grid gap-2">
+        <div class="grid gap-1.5">
           @for (candidate of alternativeExercises(); track candidate.masterExerciseId) {
             <button
-              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left hover:border-emerald-300 hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-emerald-800 dark:hover:bg-slate-800"
+              class="flex items-center justify-between rounded-md border border-surface-border bg-surface-raised px-3 py-2 text-left hover:border-volt transition-colors"
               type="button"
               (click)="confirmSwap(candidate)"
             >
-              <span class="grid min-w-0 gap-0.5">
-                <span class="text-sm font-semibold break-words">{{ candidate.name }}</span>
-                @if (candidate.muscleGroups.length) {
-                  <span class="truncate text-xs text-slate-500 dark:text-slate-400">
-                    {{ candidate.muscleGroups.join(' · ') }}
-                  </span>
-                }
-              </span>
-              <span class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ candidate.movementPattern }}</span>
+              <span class="text-xs font-semibold text-primary">{{ candidate.name }}</span>
+              <span class="text-[0.625rem] font-bold text-muted uppercase">{{ candidate.movementPattern }}</span>
             </button>
           }
         </div>
       } @else {
-        <p class="rounded-md bg-slate-100 p-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          No alternative exercises are available in your current plan.
-        </p>
+        <p class="p-3 text-xs text-secondary">No alternative exercises found in your plan.</p>
       }
 
       <button
-        pButton
-        outlined
-        class="w-full justify-center"
+        class="w-full rounded-md border border-surface-border bg-surface-raised py-2 text-xs font-semibold text-secondary hover:text-primary"
         type="button"
         (click)="closeSwapModal()"
       >
@@ -492,7 +395,7 @@
 <!-- ===== BARBELL PLATE CALCULATOR ===== -->
 @if (plateCalculatorOpen()) {
   <div
-    class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
     role="dialog"
     aria-modal="true"
     aria-label="Barbell plate calculator"
@@ -500,44 +403,34 @@
     (click)="onBackdropClick($event)"
     (keydown.escape)="closePlateCalculator()"
   >
-    <div
-      class="grid max-h-[85vh] w-full max-w-md gap-4 overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 text-slate-900 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-    >
+    <div class="grid max-h-[85vh] w-full max-w-md gap-3 overflow-y-auto rounded-lg border border-surface-border bg-surface-0 p-5 shadow-card-lg">
       <div class="flex items-start justify-between gap-3">
         <div>
-          <p class="pc-kicker">Barbell plate calculator</p>
-          <h3 class="mt-1 text-lg font-semibold break-words">{{ plateCalculatorExerciseName() }}</h3>
-          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            Plates per side for a standard {{ plateCalculatorBarWeight() }}kg bar.
-          </p>
+          <h3 class="text-base font-bold text-primary">Plate Calculator</h3>
+          <p class="text-xs text-secondary">{{ plateCalculatorExerciseName() }} ({{ plateCalculatorBarWeight() }}kg bar)</p>
         </div>
-        <button
-          class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-          type="button"
-          aria-label="Close"
-          (click)="closePlateCalculator()"
-        >
-          ✕
-        </button>
+        <button class="rounded p-1 text-muted hover:text-primary" type="button" (click)="closePlateCalculator()">✕</button>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div class="grid gap-1">
-          <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Target weight (kg)</span>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="grid gap-0.5">
+          <span class="text-[0.625rem] font-bold text-muted uppercase">Target Weight (kg)</span>
           <input
-            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-center text-lg font-bold tabular-nums dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            class="w-full rounded border border-surface-border bg-surface-raised px-2 py-1.5 text-center font-mono text-base font-bold tabular-nums text-primary focus:border-volt"
             type="number"
+            inputmode="decimal"
             min="0"
             step="0.5"
             [value]="plateCalculatorTargetWeight() ?? ''"
             (change)="setPlateTargetWeight($event)"
           />
         </div>
-        <div class="grid gap-1">
-          <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Bar weight (kg)</span>
+        <div class="grid gap-0.5">
+          <span class="text-[0.625rem] font-bold text-muted uppercase">Bar Weight (kg)</span>
           <input
-            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-center text-lg font-bold tabular-nums dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            class="w-full rounded border border-surface-border bg-surface-raised px-2 py-1.5 text-center font-mono text-base font-bold tabular-nums text-primary focus:border-volt"
             type="number"
+            inputmode="decimal"
             min="0"
             step="0.5"
             [value]="plateCalculatorBarWeight()"
@@ -546,61 +439,59 @@
         </div>
       </div>
 
+      <!-- Quick Add Presets -->
+      <div class="flex items-center gap-1.5">
+        <span class="text-[0.625rem] font-bold text-muted uppercase">Quick:</span>
+        @for (delta of platePresets; track delta) {
+          <button
+            class="rounded border border-surface-border bg-surface-raised px-2 py-1 font-mono text-xs font-semibold text-secondary hover:border-volt hover:text-volt"
+            type="button"
+            (click)="applyPlatePreset(delta)"
+          >
+            +{{ delta }}kg
+          </button>
+        }
+      </div>
+
       @if (plateCalculatorBreakdown(); as breakdown) {
-        <div class="grid gap-2 rounded-xl bg-slate-100 p-3 dark:bg-slate-800">
-          <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Load <span class="font-bold text-emerald-600 dark:text-volt">{{ formatPlateWeight(breakdown.sideWeight) }}kg</span> per side
+        <div class="grid gap-2 rounded-md border border-surface-border bg-surface-raised p-3">
+          <p class="font-mono text-xs font-bold tabular-nums text-primary">
+            Load <span class="text-volt">{{ formatPlateWeight(breakdown.sideWeight) }}kg</span> per side:
           </p>
 
           @if (breakdown.plates.length) {
-            <ul class="grid gap-1.5">
+            <div class="grid gap-1">
               @for (plate of breakdown.plates; track plate.weight) {
-                <li class="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 dark:bg-slate-900">
-                  <span class="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                    <i class="pi pi-circle-fill text-xs text-emerald-500 dark:text-volt" aria-hidden="true"></i>
-                    {{ formatPlateWeight(plate.weight) }}kg plates
+                <div class="flex items-center justify-between text-xs">
+                  <span class="flex items-center gap-1.5 font-medium text-primary">
+                    <span class="size-2.5 rounded-full" [style.background]="plateColor(plate.weight)"></span>
+                    {{ formatPlateWeight(plate.weight) }}kg plate
                   </span>
-                  <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
-                    {{ plate.count }} ×
-                  </span>
-                </li>
+                  <span class="font-mono font-bold text-secondary">{{ plate.count }} × per side</span>
+                </div>
               }
-            </ul>
+            </div>
           } @else {
-            <p class="text-sm text-slate-600 dark:text-slate-300">No plates needed — bar only.</p>
-          }
-
-          @if (breakdown.remainder > 0) {
-            <p class="text-xs font-medium text-amber-700 dark:text-amber-300">
-              ⚠ {{ formatPlateWeight(breakdown.remainder) }}kg per side can’t be loaded with available plates.
-            </p>
+            <p class="text-xs text-secondary">Bar only — no plates required.</p>
           }
         </div>
-      } @else {
-        <p class="rounded-md bg-slate-100 p-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          Enter a target weight above the bar weight to see the plate breakdown.
-        </p>
       }
 
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-2 gap-2 mt-1">
         <button
-          pButton
-          outlined
-          class="w-full justify-center"
+          class="w-full rounded-md border border-surface-border bg-surface-raised py-2 text-xs font-semibold text-secondary hover:text-primary"
           type="button"
           (click)="closePlateCalculator()"
         >
           Cancel
         </button>
         <button
-          pButton
-          severity="success"
-          class="w-full justify-center"
+          class="w-full rounded-md bg-volt py-2 text-xs font-bold text-[#090d15] hover:brightness-105 disabled:opacity-40"
           type="button"
           [disabled]="(plateCalculatorTargetWeight() ?? 0) <= plateCalculatorBarWeight()"
           (click)="applyPlateTarget()"
         >
-          Apply weight
+          Apply Weight
         </button>
       </div>
     </div>

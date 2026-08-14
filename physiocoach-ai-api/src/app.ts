@@ -15,6 +15,7 @@ import { createHealthRoutes } from './routes/health';
 import { createProfileRoutes } from './routes/profiles';
 import { createSettingsRoutes } from './routes/settings';
 import { createWorkoutPlanRoutes } from './routes/workout-plans';
+import { createWorkoutSessionRoutes } from './routes/workout-sessions';
 
 export function createApp() {
   const app = new Hono<{ Bindings: WorkerBindings; Variables: AppVariables }>();
@@ -117,6 +118,7 @@ export function createApp() {
   app.route('/api/v1', createAssessmentRoutes());
   app.route('/api/v1', createAdminRoutes());
   app.route('/api/v1', createWorkoutPlanRoutes());
+  app.route('/api/v1', createWorkoutSessionRoutes());
   app.route('/api/v1', createSettingsRoutes());
 
   return app;

@@ -12,7 +12,6 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ButtonModule } from 'primeng/button';
 import { catchError, EMPTY, take } from 'rxjs';
 
 import { WorkoutPlanStore } from '../workout-plan/workout-plan.store';
@@ -44,9 +43,34 @@ interface SetCategoryOption {
   value: ExerciseSetType;
 }
 
+interface PlateDisc {
+  weight: number;
+  key: string;
+}
+
+// IWF Olympic plate colour mapping (functional, data-driven — not decorative).
+const PLATE_COLORS: Record<number, string> = {
+  20: '#2563eb', // IWF blue
+  15: '#eab308', // IWF yellow
+  10: '#16a34a', // IWF green
+  5: '#f1f5f9', // IWF white
+  2.5: '#111827', // IWF black
+  1.25: '#94a3b8', // chrome
+};
+
+// Disc dimensions (px) — heavier plates render taller/thicker on the sleeve.
+const PLATE_SIZES: Record<number, { height: number; width: number }> = {
+  20: { height: 48, width: 10 },
+  15: { height: 40, width: 9 },
+  10: { height: 34, width: 8 },
+  5: { height: 28, width: 7 },
+  2.5: { height: 22, width: 6 },
+  1.25: { height: 18, width: 5 },
+};
+
 @Component({
   standalone: true,
-  imports: [AsyncPipe, ButtonModule, FormsModule, PageStateComponent, ExerciseVisualComponent],
+  imports: [AsyncPipe, FormsModule, PageStateComponent, ExerciseVisualComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './workout-session.page.html',
 })
@@ -70,6 +94,7 @@ export class WorkoutSessionPage implements OnDestroy {
   protected readonly currentPlan = toSignal(this.planStore.currentPlan$, { initialValue: null });
 
   protected readonly plateDenominations: readonly number[] = [20, 15, 10, 5, 2.5, 1.25];
+  protected readonly platePresets: readonly number[] = [5, 10, 20];
   protected readonly rpeOptions: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   protected readonly setCategoryOptions: readonly SetCategoryOption[] = [
@@ -313,8 +338,7 @@ export class WorkoutSessionPage implements OnDestroy {
     return Math.min(100, Math.max(0, percent));
   }
 
-  protected readonly timerRingRadius = 26;
-  protected readonly timerRingCircumference = 2 * Math.PI * 26;
+  protected readonly timerRingCircumference = 2 * Math.PI * 16;
 
   protected timerRingOffset(): number {
     const percent = this.timerProgressPercent();
@@ -355,10 +379,14 @@ export class WorkoutSessionPage implements OnDestroy {
 
   protected setRowClass(group: ExerciseLogGroup, log: ExerciseLogDto): string {
     const isNext = log.id === this.nextIncompleteLog(group.logs)?.id;
-    const base = 'grid min-w-0 gap-3 rounded-md border p-3';
-    return isNext
-      ? `${base} border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950`
-      : `${base} border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800`;
+    const base = 'grid min-w-0 gap-3 rounded-lg border p-3 transition-colors';
+    if (isNext) {
+      return `${base} border-volt/50 bg-success-surface`;
+    }
+    if (log.completed) {
+      return `${base} border-surface-border bg-surface-0 opacity-75`;
+    }
+    return `${base} border-surface-border bg-surface-0`;
   }
 
   protected setCategoryClass(
@@ -366,18 +394,18 @@ export class WorkoutSessionPage implements OnDestroy {
     log: ExerciseLogDto,
     option: SetCategoryOption,
   ): string {
-    const base = 'h-9 min-w-9 rounded-md border px-2 text-sm font-bold transition-colors';
+    const base = 'h-9 min-w-9 rounded-md border px-2 font-mono text-sm font-bold tabular-nums transition-colors pc-no-tap-highlight';
     if (this.categoryActive(group, log, option)) {
-      return `${base} border-emerald-600 bg-emerald-600 text-white`;
+      return `${base} border-volt bg-volt text-brand-950`;
     }
-    return `${base} border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700`;
+    return `${base} border-surface-border bg-surface-raised text-secondary hover:border-surface-border hover:text-primary active:scale-95`;
   }
 
   protected soundButtonClass(): string {
-    const base = 'rounded-lg px-2.5 py-2 text-sm font-semibold';
+    const base = 'inline-flex h-11 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors pc-no-tap-highlight active:scale-95';
     return this.timer.soundEnabled()
-      ? `${base} bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100`
-      : `${base} bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700`;
+      ? `${base} border-volt/40 bg-success-surface text-volt`
+      : `${base} border-surface-border bg-surface-raised text-muted hover:text-secondary`;
   }
 
   protected setSetType(log: ExerciseLogDto, type: ExerciseSetType): void {
@@ -463,6 +491,10 @@ export class WorkoutSessionPage implements OnDestroy {
     this.restAutoStart.set((event.target as HTMLInputElement).checked);
   }
 
+  protected toggleAutoStartChip(): void {
+    this.restAutoStart.update((value) => !value);
+  }
+
   protected openSwapModal(groupKey: string): void {
     this.swapTargetGroupKey.set(groupKey);
     this.swapModalOpen.set(true);
@@ -506,11 +538,11 @@ export class WorkoutSessionPage implements OnDestroy {
 
   protected voltButtonClass(log: ExerciseLogDto): string {
     const base =
-      'grid size-11 shrink-0 place-items-center rounded-full border-2 transition-all duration-150 active:scale-90 pc-no-tap-highlight';
+      'grid size-12 shrink-0 place-items-center rounded-full border-2 transition-all duration-150 active:scale-90 pc-no-tap-highlight';
     if (log.completed) {
-      return `${base} border-volt bg-volt text-white shadow-volt`;
+      return `${base} border-volt bg-volt text-brand-950 shadow-volt`;
     }
-    return `${base} border-slate-300 bg-white text-slate-400 hover:border-volt hover:text-volt dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500 dark:hover:border-volt dark:hover:text-volt`;
+    return `${base} border-surface-border bg-surface-raised text-muted hover:border-volt hover:text-volt active:border-volt active:text-volt`;
   }
 
   // ── Barbell plate calculator ────────────────────────────────
@@ -570,6 +602,36 @@ export class WorkoutSessionPage implements OnDestroy {
     }
 
     return { sideWeight, plates, remainder: remaining };
+  }
+
+  protected plateColor(weight: number): string {
+    return PLATE_COLORS[weight] ?? '#94a3b8';
+  }
+
+  protected plateHeight(weight: number): number {
+    return PLATE_SIZES[weight]?.height ?? 24;
+  }
+
+  protected plateWidth(weight: number): number {
+    return PLATE_SIZES[weight]?.width ?? 8;
+  }
+
+  /** Flatten the per-side plate summary into individual discs for the sleeve graphic. */
+  protected plateDiscs(plates: readonly { weight: number; count: number }[]): PlateDisc[] {
+    const discs: PlateDisc[] = [];
+    for (const plate of plates) {
+      for (let i = 0; i < plate.count; i += 1) {
+        discs.push({ weight: plate.weight, key: `${plate.weight}-${i}` });
+      }
+    }
+    return discs;
+  }
+
+  protected applyPlatePreset(delta: number): void {
+    const bar = this.plateCalculatorBarWeight();
+    const current = this.plateCalculatorTargetWeight();
+    const base = current !== null && current > bar ? current : bar;
+    this.plateCalculatorTargetWeight.set(Math.max(bar, Math.round((base + delta) * 10) / 10));
   }
 
   protected applyPlateTarget(): void {

@@ -41,10 +41,11 @@ export class WorkoutPlanPage {
   protected readonly planStore = inject(WorkoutPlanStore);
   private readonly messageService = inject(MessageService);
   private readonly exerciseCatalogApi = inject(ExerciseCatalogApiService);
-  private readonly router = inject(Router);
+  protected readonly router = inject(Router);
   protected readonly sessionStore = inject(WorkoutSessionStore);
+  protected readonly activeDayIndex = signal<number>(0);
   protected readonly planFeedback = signal<string | null>(null);
-  protected readonly expandedDayIndex = signal<number | null>(null);
+  protected readonly expandedDayIndex = signal<number | null>(0);
   protected readonly expandedExerciseKeys = signal<Set<ExerciseOpenKey>>(new Set());
   protected readonly exerciseMedia = signal<Record<string, ExerciseCatalogMediaDto>>({});
   protected readonly exerciseImageLoadingState = signal<Record<string, boolean>>({});
@@ -61,6 +62,77 @@ export class WorkoutPlanPage {
     { value: 'too_easy', label: 'Too easy' },
     { value: 'too_hard', label: 'Too hard' },
   ];
+
+  protected readonly previewExerciseModal = signal<WorkoutExerciseView | null>(null);
+  protected readonly slideDirection = signal<'right' | 'left'>('right');
+  protected readonly transitionIndex = signal(0);
+  private touchStartX = 0;
+  private touchStartY = 0;
+
+  protected setActiveDay(index: number): void {
+    const current = this.activeDayIndex();
+    if (index === current) return;
+    this.slideDirection.set(index > current ? 'right' : 'left');
+    this.activeDayIndex.set(index);
+    this.expandedDayIndex.set(index);
+    this.transitionIndex.update((n) => n + 1);
+  }
+
+  protected nextDay(totalDays: number): void {
+    if (totalDays <= 0) return;
+    this.slideDirection.set('right');
+    const next = (this.activeDayIndex() + 1) % totalDays;
+    this.activeDayIndex.set(next);
+    this.expandedDayIndex.set(next);
+    this.transitionIndex.update((n) => n + 1);
+  }
+
+  protected prevDay(totalDays: number): void {
+    if (totalDays <= 0) return;
+    this.slideDirection.set('left');
+    const prev = (this.activeDayIndex() - 1 + totalDays) % totalDays;
+    this.activeDayIndex.set(prev);
+    this.expandedDayIndex.set(prev);
+    this.transitionIndex.update((n) => n + 1);
+  }
+
+  protected onTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 1) {
+      this.touchStartX = event.touches[0].clientX;
+      this.touchStartY = event.touches[0].clientY;
+    }
+  }
+
+  protected onTouchEnd(event: TouchEvent, totalDays: number): void {
+    if (event.changedTouches.length !== 1 || totalDays <= 1) {
+      return;
+    }
+    const deltaX = event.changedTouches[0].clientX - this.touchStartX;
+    const deltaY = event.changedTouches[0].clientY - this.touchStartY;
+
+    // Minimum swipe threshold of 45px and predominantly horizontal
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      if (deltaX < 0) {
+        this.nextDay(totalDays);
+      } else {
+        this.prevDay(totalDays);
+      }
+    }
+  }
+
+  protected openExercisePreview(exercise: WorkoutExerciseView): void {
+    this.previewExerciseModal.set(exercise);
+  }
+
+  protected closeExercisePreview(): void {
+    this.previewExerciseModal.set(null);
+  }
+
+  protected onBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.closeExercisePreview();
+    }
+  }
 
   constructor() {
     this.planStore.ensureCurrentPlan();

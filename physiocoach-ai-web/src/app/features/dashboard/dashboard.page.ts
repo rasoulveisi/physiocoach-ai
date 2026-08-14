@@ -1,10 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AsyncPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ButtonModule } from 'primeng/button';
-
 import { DisclaimerComponent } from '../../shared/ui/disclaimer.component';
-import { MetricTileComponent } from '../../shared/ui/metric-tile.component';
 import { WorkoutPlanStore } from '../workout-plan/workout-plan.store';
 import { WorkoutSessionStore } from '../workout-session/workout-session.store';
 import type { WorkoutSessionDto } from '../workout-session/workout-session.model';
@@ -26,7 +23,7 @@ interface MuscleRecovery {
 
 @Component({
   standalone: true,
-  imports: [AsyncPipe, ButtonModule, DisclaimerComponent, MetricTileComponent, RouterLink],
+  imports: [AsyncPipe, DisclaimerComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
 })
@@ -137,13 +134,12 @@ export class DashboardPage {
     return streak;
   }
 
-  protected streakRingGradient(streak: number): string {
-    const percent = Math.min(100, (streak / 7) * 100);
-    return `conic-gradient(#10e760 0deg, #10e760 ${percent * 3.6}deg, var(--color-surface-muted) 0deg)`;
+  protected recoveryReadyCount(sessions: WorkoutSessionDto[] | null): number {
+    return this.muscleRecovery(sessions).filter((item) => item.recovered).length;
   }
 
   protected muscleRecoveryColor(recovered: boolean): string {
-    return recovered ? 'bg-emerald-500' : 'bg-amber-500';
+    return recovered ? 'bg-cyan-500' : 'bg-cyan-500/50';
   }
 
   // ── Internal date helpers ───────────────────────────────────

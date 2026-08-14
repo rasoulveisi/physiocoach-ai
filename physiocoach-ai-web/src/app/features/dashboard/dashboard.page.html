@@ -1,311 +1,217 @@
-<div class="grid min-w-0 gap-5 animate-fade-up">
-  <!-- ===== HERO + STREAK ROW ===== -->
-  <div class="grid gap-4 lg:grid-cols-[1fr_auto]">
-    <!-- High-impact Start Workout hero card -->
-    <div
-      class="relative overflow-hidden rounded-[18px] bg-gradient-to-br from-brand-600 via-violet-600 to-violet-700 p-7 shadow-[0_8px_32px_-8px_rgb(99_102_241/0.45)]"
-    >
-      <div
-        class="pointer-events-none absolute -top-1/3 -right-[10%] size-[200px] rounded-full bg-[radial-gradient(ellipse,rgb(255_255_255/0.08),transparent_70%)]"
-        aria-hidden="true"
-      ></div>
-      <p class="text-xs font-bold uppercase tracking-[0.08em] text-white/65">{{ greeting }}</p>
-      <h1
-        class="mt-1 text-[clamp(1.25rem,3vw,1.625rem)] font-extrabold tracking-[-0.02em] text-white"
-      >
-        Ready to train today? 💪
-      </h1>
-      <p class="mt-1 text-[0.8125rem] text-white/70">{{ todayLabel }}</p>
+<div class="grid min-w-0 gap-4 animate-fade-up">
+  <!-- ===== TOP HERO & QUICK START ===== -->
+  <section class="rounded-lg border border-surface-border bg-surface-0 p-5 shadow-card">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-secondary">{{ todayLabel }}</p>
+        <h1 class="mt-1 text-2xl font-bold text-primary">
+          {{ greeting }}, ready to train?
+        </h1>
+        @if (planStore.currentPlan$ | async; as current) {
+          <p class="mt-1 text-sm text-secondary">
+            Next up: <strong class="text-primary">{{ current.plan.days[0]?.name }}</strong> ({{ current.plan.days[0]?.focus }})
+          </p>
+        }
+      </div>
 
       @if (planStore.currentPlan$ | async; as current) {
         <a
           routerLink="/session"
-          class="pc-press mt-5 inline-flex h-12 items-center gap-2 rounded-xl bg-white px-6 text-[0.9375rem] font-bold text-brand-700 no-underline shadow-[0_8px_24px_rgb(0_0_0/0.25)] transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97]"
+          class="pc-press inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-volt px-5 text-sm font-bold text-[#090d15] no-underline hover:brightness-105 active:scale-95 transition-all"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
-          Start workout
+          <i class="pi pi-play text-xs"></i>
+          Start Workout
+        </a>
+      } @else {
+        <a
+          routerLink="/onboarding"
+          class="pc-press inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-volt px-5 text-sm font-bold text-[#090d15] no-underline hover:brightness-105 active:scale-95 transition-all"
+        >
+          Create Plan →
         </a>
       }
     </div>
 
-    <!-- Streak ring widget -->
+    <!-- Quick Stats Strip -->
     @if (sessionStore.recentSessions$ | async; as recentSessions) {
-      @let streak = streakCount(recentSessions);
-      <div
-        class="flex min-w-30 flex-col items-center justify-center gap-2 rounded-[18px] border border-surface-border bg-surface-0 px-6 py-5 shadow-card"
-      >
-        <div
-          class="flex size-16 items-center justify-center rounded-full"
-          [style.background]="streakRingGradient(streak)"
-        >
-          <div
-            class="flex size-[50px] items-center justify-center rounded-full bg-surface-0 text-center"
-          >
-            <div>
-              <p class="text-lg font-extrabold leading-none text-brand-600">{{ streak }}</p>
-              <p class="mt-0.5 text-[0.5625rem] font-semibold uppercase tracking-wide text-muted">days</p>
-            </div>
-          </div>
+      <div class="mt-4 grid grid-cols-2 gap-2 border-t border-surface-border pt-4 sm:grid-cols-4">
+        <div class="rounded-md bg-surface-raised px-3 py-2">
+          <span class="text-[0.6875rem] font-medium text-muted uppercase">Streak</span>
+          <p class="font-mono text-lg font-bold text-volt tabular-nums">
+            {{ streakCount(recentSessions) }} <span class="text-xs font-normal text-secondary">days</span>
+          </p>
         </div>
-        <p class="pc-kicker mt-1 text-center leading-[1.3]">Weekly<br />Streak</p>
-      </div>
-    }
-  </div>
-
-  <!-- ===== 7-DAY WEEKLY SPLIT TRACKER ===== -->
-  @if (sessionStore.recentSessions$ | async; as recentSessions) {
-    <section class="pc-card rounded-[18px]">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="pc-kicker">Weekly split</p>
-          <h2 class="mt-1 text-lg font-bold tracking-[-0.01em] text-primary">This week</h2>
+        <div class="rounded-md bg-surface-raised px-3 py-2">
+          <span class="text-[0.6875rem] font-medium text-muted uppercase">This Week</span>
+          <p class="font-mono text-lg font-bold text-primary tabular-nums">
+            {{ trainedDaysThisWeek(recentSessions) }} <span class="text-xs font-normal text-secondary">/ 7 days</span>
+          </p>
         </div>
-        <span class="pc-badge pc-badge-brand">
-          {{ trainedDaysThisWeek(recentSessions) }} / 7 trained
-        </span>
-      </div>
-
-      <div class="mt-4 grid grid-cols-7 gap-2">
-        @for (day of weeklySplit(recentSessions); track day.dateKey) {
-          <div
-            class="flex flex-col items-center gap-1.5 rounded-xl border px-1 py-3"
-            [class]="
-              day.isToday
-                ? 'border-brand-400/60 bg-brand-50 dark:bg-brand-500/10'
-                : 'border-surface-border bg-surface-muted'
-            "
-          >
-            <span class="text-[0.625rem] font-bold uppercase tracking-wide text-muted">
-              {{ day.label }}
-            </span>
-            <span
-              class="grid size-8 place-items-center rounded-full text-xs font-bold"
-              [class]="
-                day.trained
-                  ? 'bg-brand-500 text-white shadow-brand'
-                  : 'bg-surface-border text-muted'
-              "
-            >
-              @if (day.trained) {
-                <i class="pi pi-check text-[0.625rem]" aria-hidden="true"></i>
-              } @else {
-                {{ day.dateKey.slice(8) }}
-              }
-            </span>
-            @if (day.muscles.length) {
-              <span
-                class="line-clamp-1 max-w-full text-center text-[0.5625rem] font-semibold text-secondary"
-                [title]="day.muscles.join(', ')"
-              >
-                {{ day.muscles[0] }}
-              </span>
-            } @else {
-              <span class="text-[0.5625rem] text-muted">—</span>
-            }
+        <div class="rounded-md bg-surface-raised px-3 py-2">
+          <span class="text-[0.6875rem] font-medium text-muted uppercase">Readiness</span>
+          <p class="font-mono text-lg font-bold text-cyan-500 tabular-nums">
+            {{ recoveryReadyCount(recentSessions) }} <span class="text-xs font-normal text-secondary">recovered</span>
+          </p>
+        </div>
+        @if (planStore.currentPlan$ | async; as current) {
+          <div class="rounded-md bg-surface-raised px-3 py-2">
+            <span class="text-[0.6875rem] font-medium text-muted uppercase">Plan Frequency</span>
+            <p class="font-mono text-lg font-bold text-primary tabular-nums">
+              {{ current.plan.days.length }} <span class="text-xs font-normal text-secondary">days/wk</span>
+            </p>
           </div>
         }
       </div>
+    }
+  </section>
+
+  <!-- ===== ACTIVE SESSION BANNER ===== -->
+  @if (sessionStore.activeSession$ | async; as session) {
+    <section class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-volt/30 bg-volt/10 p-4">
+      <div class="flex items-center gap-3">
+        <i class="pi pi-play text-volt"></i>
+        <div>
+          <p class="text-sm font-bold text-primary">Workout in progress</p>
+          <p class="font-mono text-xs text-secondary tabular-nums">
+            {{ session.progress.completedSets }} of {{ session.progress.totalSets }} sets logged
+          </p>
+        </div>
+      </div>
+      <a
+        routerLink="/session"
+        class="inline-flex h-9 items-center rounded-md bg-volt px-4 text-xs font-bold text-[#090d15] no-underline hover:brightness-105"
+      >
+        Resume Session
+      </a>
     </section>
   }
 
-  <!-- ===== MUSCLE RECOVERY OVERVIEW ===== -->
-  @if (sessionStore.recentSessions$ | async; as recentSessions) {
-    @if (muscleRecovery(recentSessions); as recovery) {
-      <section class="pc-card rounded-[18px]">
-        <div class="flex items-center justify-between gap-3">
+  <!-- ===== TODAY'S WORKOUT PREVIEW (IF PLAN EXISTS) ===== -->
+  @if (planStore.currentPlan$ | async; as current) {
+    @if (current.plan.days[0]; as firstDay) {
+      <section class="rounded-lg border border-surface-border bg-surface-0 p-4 sm:p-5 shadow-card">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
           <div>
-            <p class="pc-kicker">Muscle recovery</p>
-            <h2 class="mt-1 text-lg font-bold tracking-[-0.01em] text-primary">
-              Ready to train again?
-            </h2>
+            <span class="text-[0.6875rem] font-bold uppercase tracking-wider text-muted">Planned Routine</span>
+            <h2 class="text-base font-bold text-primary">{{ firstDay.name }}: {{ firstDay.focus }}</h2>
           </div>
+          <a routerLink="/plan" class="text-xs font-semibold text-volt hover:underline">
+            View full plan →
+          </a>
         </div>
 
-        @if (recovery.length) {
-          <div class="mt-4 grid gap-2">
-            @for (item of recovery; track item.muscle) {
-              <div
-                class="flex items-center gap-3 rounded-xl border border-surface-border bg-surface-muted px-4 py-3"
-              >
-                <span
-                  class="grid size-9 shrink-0 place-items-center rounded-[10px] bg-surface-0 text-base shadow-xs"
-                  [class]="item.recovered ? '' : 'opacity-70'"
-                >
-                  💪
+        <div class="mt-3 grid gap-2">
+          @for (exercise of firstDay.exercises; track exercise.id || exercise.name) {
+            <div class="flex items-center justify-between rounded-md bg-surface-raised px-3 py-2.5">
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-primary">{{ exercise.name }}</p>
+                <p class="text-xs text-muted">{{ exercise.muscleGroup }}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="rounded bg-surface-0 px-2 py-0.5 font-mono text-xs font-bold tabular-nums text-primary border border-surface-border">
+                  {{ exercise.sets }} × {{ exercise.reps }}
                 </span>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center justify-between gap-2">
-                    <p class="truncate text-sm font-semibold text-primary">{{ item.muscle }}</p>
-                    <span
-                      class="shrink-0 text-xs font-semibold"
-                      [class]="
-                        item.recovered ? 'text-success-text' : 'text-warn-text'
-                      "
-                    >
-                      {{
-                        item.daysAgo === null
-                          ? 'Not trained'
-                          : item.daysAgo === 0
-                            ? 'Today'
-                            : item.daysAgo === 1
-                              ? 'Yesterday'
-                              : item.daysAgo + 'd ago'
-                      }}
-                    </span>
-                  </div>
-                  <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-border">
+                @if (exercise.rpe) {
+                  <span class="font-mono text-xs text-volt">
+                    RPE {{ exercise.rpe }}
+                  </span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  }
+
+  <!-- ===== 2-COLUMN: WEEKLY SPLIT & MUSCLE READINESS ===== -->
+  @if (sessionStore.recentSessions$ | async; as recentSessions) {
+    <div class="grid gap-4 md:grid-cols-2">
+      <!-- Weekly Split -->
+      <section class="rounded-lg border border-surface-border bg-surface-0 p-4 shadow-card">
+        <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
+          <h2 class="text-sm font-bold text-primary">Weekly Schedule</h2>
+          <span class="font-mono text-xs text-secondary">{{ trainedDaysThisWeek(recentSessions) }} / 7 trained</span>
+        </div>
+        <div class="mt-3 grid grid-cols-7 gap-1.5">
+          @for (day of weeklySplit(recentSessions); track day.dateKey) {
+            <div
+              class="flex flex-col items-center gap-1 rounded-md border p-2"
+              [class]="day.trained
+                ? 'border-volt/40 bg-volt/10'
+                : day.isToday
+                  ? 'border-surface-border bg-surface-raised ring-1 ring-volt'
+                  : 'border-surface-border bg-surface-raised/40'"
+            >
+              <span class="text-[0.625rem] font-bold text-muted uppercase">{{ day.label }}</span>
+              <span
+                class="grid size-6 place-items-center rounded font-mono text-xs font-bold"
+                [class]="day.trained ? 'bg-volt text-[#090d15]' : 'text-secondary'"
+              >
+                @if (day.trained) {
+                  <i class="pi pi-check text-[10px]"></i>
+                } @else {
+                  {{ day.dateKey.slice(8) }}
+                }
+              </span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Muscle Readiness -->
+      @if (muscleRecovery(recentSessions); as recovery) {
+        <section class="rounded-lg border border-surface-border bg-surface-0 p-4 shadow-card">
+          <div class="border-b border-surface-border pb-2.5">
+            <h2 class="text-sm font-bold text-primary">Muscle Recovery</h2>
+          </div>
+          <div class="mt-3 grid gap-2">
+            @if (recovery.length) {
+              @for (item of recovery.slice(0, 4); track item.muscle) {
+                <div class="flex items-center justify-between gap-3 text-xs">
+                  <span class="w-24 truncate font-medium text-primary">{{ item.muscle }}</span>
+                  <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-border">
                     <div
                       class="h-full rounded-full transition-all"
                       [class]="muscleRecoveryColor(item.recovered)"
                       [style.width.%]="item.percent"
                     ></div>
                   </div>
+                  <span class="w-8 text-right font-mono font-semibold tabular-nums text-secondary">{{ item.percent }}%</span>
                 </div>
-              </div>
+              }
+            } @else {
+              <p class="py-2 text-xs text-muted">Log workouts to start tracking recovery status.</p>
             }
           </div>
-        } @else {
-          <p class="mt-4 text-sm text-muted">
-            Log your first workout to start tracking muscle recovery.
-          </p>
-        }
-      </section>
-    }
-  }
-
-  <!-- ===== TODAY'S PLAN ===== -->
-  @if (planStore.currentPlan$ | async; as current) {
-    <section class="pc-card rounded-[18px]">
-      <div class="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div class="min-w-0">
-          <p class="pc-kicker">Today's focus</p>
-          <h2
-            class="mt-2 text-2xl font-semibold leading-tight tracking-[-0.02em] text-primary sm:text-3xl"
-          >
-            {{ current.plan.days[0]?.focus || 'Workout Plan' }}
-          </h2>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-secondary">
-            {{ current.plan.days.length }} training days this week. Start with the first planned
-            session and log sets as you go.
-          </p>
-        </div>
-        <a
-          routerLink="/session"
-          class="pc-btn-brand h-11 shrink-0 px-[1.375rem] text-[0.9375rem] rounded-xl shadow-[0_4px_16px_rgb(99_102_241/0.4)] hover:shadow-[0_8px_24px_rgb(99_102_241/0.5)]"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
-          Start workout
-        </a>
-      </div>
-
-      <!-- Metric tiles -->
-      <div class="mt-5 grid gap-3 sm:grid-cols-3">
-        <pc-metric-tile
-          label="Weekly target"
-          [value]="current.plan.days.length + ' sessions'"
-          caption="Based on your onboarding frequency."
-        />
-        <pc-metric-tile
-          label="Plan type"
-          [value]="current.plan.source === 'fallback' ? 'Fallback' : 'AI Generated'"
-          caption="Personalized to your constraints."
-        />
-        <pc-metric-tile
-          label="Next focus"
-          [value]="current.plan.days[0]?.name || 'Day 1'"
-          [caption]="current.plan.days[0]?.focus || 'Open your plan for details.'"
-        />
-      </div>
-    </section>
-  } @else {
-    <!-- Empty state — no plan yet -->
-    <section class="pc-card rounded-[18px] py-8 text-center">
-      <p class="text-5xl">📋</p>
-      <p class="pc-kicker mt-3 mb-2">Start here</p>
-      <h2 class="pc-heading-lg text-primary">No plan yet</h2>
-      <p class="mx-auto mt-2 mb-6 max-w-[360px] text-sm leading-[1.6] text-secondary">
-        Complete the assessment to generate your first posture-aware training plan.
-      </p>
-      <a
-        routerLink="/onboarding"
-        class="pc-btn-brand h-11 px-6 text-[0.9375rem] rounded-xl shadow-[0_4px_16px_rgb(99_102_241/0.4)]"
-      >
-        Start assessment →
-      </a>
-    </section>
-  }
-
-  <!-- ===== ACTIVE SESSION BANNER ===== -->
-  @if (sessionStore.activeSession$ | async; as session) {
-    <section
-      class="pc-alert pc-alert-success flex flex-wrap items-center justify-between gap-4 rounded-[14px]"
-    >
-      <div>
-        <p class="text-sm font-bold">⚡ Workout in progress</p>
-        <p class="mt-0.5 text-[0.8125rem] opacity-85">
-          {{ session.progress.completedSets }} / {{ session.progress.totalSets }} sets completed
-        </p>
-      </div>
-      <a
-        routerLink="/session"
-        class="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-success-icon px-4 text-sm font-bold text-white no-underline whitespace-nowrap"
-      >
-        Resume workout
-      </a>
-    </section>
+        </section>
+      }
+    </div>
   }
 
   <!-- ===== RECENT SESSIONS ===== -->
-  <section class="pc-card rounded-[18px]">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-[1.0625rem] font-bold tracking-[-0.01em] text-primary">Recent sessions</h2>
-      <a
-        routerLink="/progress"
-        class="text-[0.8125rem] font-semibold text-brand-500 no-underline hover:text-brand-600"
-      >
-        View all →
-      </a>
-    </div>
-
-    @if (sessionStore.recentSessions$ | async; as recentSessions) {
-      @if (recentSessions.length) {
-        <div class="mt-4 grid gap-2">
-          @for (session of recentSessions; track session.id) {
-            <div
-              class="flex items-center justify-between gap-4 rounded-xl border border-surface-border bg-surface-muted px-4 py-3.5"
-            >
-              <div class="flex min-w-0 items-center gap-3">
-                <!-- Icon box -->
-                <span
-                  class="flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-brand-200 bg-gradient-to-br from-brand-50 to-brand-100 text-base"
-                >
-                  🏋️
-                </span>
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold text-primary">
-                    {{ session.scheduledDate }}
-                  </p>
-                  <p class="text-xs text-muted">{{ session.progress.completedSets }} sets logged</p>
-                </div>
+  @if (sessionStore.recentSessions$ | async; as recentSessions) {
+    @if (recentSessions.length) {
+      <section class="rounded-lg border border-surface-border bg-surface-0 p-4 shadow-card">
+        <div class="flex items-center justify-between border-b border-surface-border pb-2.5">
+          <h2 class="text-sm font-bold text-primary">Recent Completed Workouts</h2>
+        </div>
+        <div class="mt-3 divide-y divide-surface-border">
+          @for (session of recentSessions.slice(0, 4); track session.id) {
+            <div class="flex items-center justify-between py-2 text-xs">
+              <div class="flex items-center gap-2">
+                <span class="size-1.5 rounded-full bg-volt"></span>
+                <span class="font-mono font-medium text-primary">{{ session.scheduledDate.slice(0, 10) }}</span>
               </div>
-              <span class="pc-badge pc-badge-success shrink-0">Done</span>
+              <span class="font-mono text-muted tabular-nums">
+                {{ session.progress.completedSets }} sets logged
+              </span>
             </div>
           }
         </div>
-      } @else {
-        <div class="mt-6 py-6 text-center">
-          <p class="text-[2rem]">🏁</p>
-          <p class="mt-2 text-sm text-muted">
-            Completed workouts will appear here after your first logged session.
-          </p>
-        </div>
-      }
+      </section>
     }
-  </section>
+  }
 
   <pc-disclaimer />
 </div>

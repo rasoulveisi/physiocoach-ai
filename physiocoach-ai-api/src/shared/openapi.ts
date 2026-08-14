@@ -339,6 +339,101 @@ export function createOpenApiDocument() {
           },
         },
       },
+      '/api/v1/workout-sessions': {
+        get: {
+          summary: 'List workout sessions',
+          tags: ['Workout Sessions'],
+          parameters: [
+            {
+              name: 'status',
+              in: 'query',
+              required: false,
+              schema: { type: 'string', enum: ['active', 'recent'] },
+            },
+          ],
+          responses: {
+            '200': dataEnvelopeResponse,
+          },
+        },
+        post: {
+          summary: 'Create a workout session',
+          tags: ['Workout Sessions'],
+          requestBody: requestBodyFromSchema('WorkoutSessionCreateInput'),
+          responses: {
+            '200': dataEnvelopeResponse,
+          },
+        },
+      },
+      '/api/v1/workout-sessions/{id}': {
+        get: {
+          summary: 'Get a workout session',
+          tags: ['Workout Sessions'],
+          parameters: [idPathParameter],
+          responses: {
+            '200': dataEnvelopeResponse,
+          },
+        },
+        patch: {
+          summary: 'Update a workout session',
+          tags: ['Workout Sessions'],
+          parameters: [idPathParameter],
+          requestBody: requestBodyFromSchema('WorkoutSessionPatchInput'),
+          responses: {
+            '200': dataEnvelopeResponse,
+          },
+        },
+      },
+      '/api/v1/workout-sessions/{id}/complete': {
+        post: {
+          summary: 'Complete a workout session',
+          tags: ['Workout Sessions'],
+          parameters: [idPathParameter],
+          responses: {
+            '200': dataEnvelopeResponse,
+          },
+        },
+      },
+      '/api/v1/workout-sessions/{id}/swap-exercise': {
+        post: {
+          summary: 'Swap an exercise in a workout session',
+          tags: ['Workout Sessions'],
+          parameters: [idPathParameter],
+          requestBody: requestBodyFromSchema('SwapExerciseInput'),
+          responses: {
+            '200': dataEnvelopeResponse,
+            '404': errorResponse,
+          },
+        },
+      },
+      '/api/v1/exercise-logs': {
+        post: {
+          summary: 'Create an exercise log',
+          tags: ['Exercise Logs'],
+          requestBody: requestBodyFromSchema('ExerciseLogInput'),
+          responses: {
+            '201': dataEnvelopeResponse,
+          },
+        },
+      },
+      '/api/v1/exercise-logs/{id}': {
+        patch: {
+          summary: 'Update an exercise log',
+          tags: ['Exercise Logs'],
+          parameters: [idPathParameter],
+          requestBody: requestBodyFromSchema('ExerciseLogPatchInput'),
+          responses: {
+            '200': dataEnvelopeResponse,
+          },
+        },
+        delete: {
+          summary: 'Delete an exercise log',
+          tags: ['Exercise Logs'],
+          parameters: [idPathParameter],
+          responses: {
+            '200': dataEnvelopeResponse,
+          },
+        },
+      },
       '/api/v1/exercise-catalog/media': {
         get: {
           summary: 'Get exercise catalog media',
@@ -1007,6 +1102,101 @@ export function createOpenApiDocument() {
             requestedAt: { type: 'string' },
           },
           additionalProperties: true,
+        },
+        WorkoutSessionCreateInput: {
+          type: 'object',
+          required: ['workoutPlanId', 'dayIndex', 'scheduledDate'],
+          properties: {
+            workoutPlanId: { type: 'string' },
+            dayIndex: { type: 'integer', minimum: 0 },
+            scheduledDate: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+          },
+          additionalProperties: false,
+        },
+        WorkoutSessionPatchInput: {
+          type: 'object',
+          properties: {
+            notes: { type: 'string', nullable: true },
+            status: { type: 'string', enum: ['active', 'completed'] },
+          },
+          additionalProperties: false,
+        },
+        SwapExerciseInput: {
+          type: 'object',
+          required: [
+            'logGroupKey',
+            'newMasterExerciseId',
+            'newExerciseName',
+            'newMovementPattern',
+            'newMuscleGroups',
+          ],
+          properties: {
+            logGroupKey: { type: 'string' },
+            newMasterExerciseId: { type: 'string' },
+            newExerciseName: { type: 'string' },
+            newMovementPattern: {
+              type: 'string',
+              enum: ['squat', 'hinge', 'push', 'pull', 'lunge', 'carry', 'core', 'mobility'],
+            },
+            newMuscleGroups: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+          },
+          additionalProperties: false,
+        },
+        ExerciseLogInput: {
+          type: 'object',
+          required: [
+            'workoutSessionId',
+            'exerciseName',
+            'movementPattern',
+            'muscleGroups',
+            'setIndex',
+            'reps',
+            'weightKg',
+          ],
+          properties: {
+            workoutSessionId: { type: 'string' },
+            exerciseName: { type: 'string' },
+            masterExerciseId: { type: 'string', nullable: true },
+            movementPattern: {
+              type: 'string',
+              enum: ['squat', 'hinge', 'push', 'pull', 'lunge', 'carry', 'core', 'mobility'],
+            },
+            muscleGroups: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+            setIndex: { type: 'integer', minimum: 1 },
+            targetReps: { type: 'string', nullable: true },
+            reps: { type: 'integer', minimum: 0 },
+            weightKg: { type: 'number', minimum: 0 },
+            rpe: { type: 'number', minimum: 1, maximum: 10, nullable: true },
+            completed: { type: 'boolean' },
+            notes: { type: 'string', nullable: true },
+            setType: {
+              type: 'string',
+              enum: ['warmup', 'working', 'drop', 'failure'],
+            },
+          },
+          additionalProperties: false,
+        },
+        ExerciseLogPatchInput: {
+          type: 'object',
+          required: ['reps', 'weightKg', 'completed'],
+          properties: {
+            reps: { type: 'integer', minimum: 0 },
+            weightKg: { type: 'number', minimum: 0 },
+            rpe: { type: 'number', minimum: 1, maximum: 10, nullable: true },
+            completed: { type: 'boolean' },
+            notes: { type: 'string', nullable: true },
+            setType: {
+              type: 'string',
+              enum: ['warmup', 'working', 'drop', 'failure'],
+            },
+          },
+          additionalProperties: false,
         },
       },
     },

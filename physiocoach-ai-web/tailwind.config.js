@@ -14,6 +14,13 @@ module.exports = {
           '-apple-system',
           'sans-serif',
         ],
+        mono: [
+          '"JetBrains Mono"',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'monospace',
+        ],
       },
 
       // ── Colors ──────────────────────────────────────────────
@@ -58,8 +65,8 @@ module.exports = {
           400: '#55637d',
           500: '#3b4a63',
           600: '#2e3a4f',
-          700: '#232c3d', // border
-          800: '#1a202e', // raised surface
+          700: '#1f2937', // border
+          800: '#181f2e', // raised surface
           900: '#121722', // surface-0
           950: '#090d15', // base background
         },
@@ -172,12 +179,12 @@ module.exports = {
         card: 'var(--shadow-sm)',
         'card-md': 'var(--shadow-md)',
         'card-lg': 'var(--shadow-lg)',
-        brand: '0 4px 24px -4px rgb(16 231 96 / 0.35)',
-        'brand-lg': '0 8px 40px -8px rgb(16 231 96 / 0.45)',
-        'brand-xl': '0 24px 64px -12px rgb(16 231 96 / 0.4)',
-        glow: '0 0 20px rgb(16 231 96 / 0.25)',
-        volt: '0 0 24px rgb(16 231 96 / 0.5)',
-        'volt-lg': '0 0 40px rgb(16 231 96 / 0.65)',
+        brand: '0 1px 3px 0 rgb(0 0 0 / 0.2)',
+        'brand-lg': '0 4px 6px -1px rgb(0 0 0 / 0.3)',
+        'brand-xl': '0 10px 15px -3px rgb(0 0 0 / 0.3)',
+        glow: 'none',
+        volt: '0 1px 3px 0 rgb(0 0 0 / 0.2)',
+        'volt-lg': '0 4px 6px -1px rgb(0 0 0 / 0.3)',
       },
 
       // ── Border radius ───────────────────────────────────────

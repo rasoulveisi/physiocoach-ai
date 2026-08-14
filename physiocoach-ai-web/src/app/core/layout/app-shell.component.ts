@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { catchError, defer, finalize, from, of } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { catchError, defer, finalize, from, map, of, timer } from 'rxjs';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 
-import { DisclaimerComponent } from '../../shared/ui/disclaimer.component';
 import { AuthService } from '../auth/auth.service';
 import { AuthStore } from '../auth/auth.store';
 import { CurrentUserService } from '../auth/current-user.service';
@@ -23,7 +23,7 @@ interface MobileNavItem {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [ButtonModule, DisclaimerComponent, RouterLink, RouterLinkActive, RouterOutlet, ToastModule],
+  imports: [ButtonModule, RouterLink, RouterLinkActive, RouterOutlet, ToastModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app-shell.component.html',
 })
@@ -78,6 +78,38 @@ export class AppShellComponent {
     }
 
     return Math.min(100, Math.round((session.progress.completedSets / session.progress.totalSets) * 100));
+  });
+
+  /** Ticking clock (1s) so the live workout timer stays current under OnPush. */
+  private readonly now = toSignal(timer(0, 1000).pipe(map(() => Date.now())), {
+    initialValue: Date.now(),
+  });
+
+  /** Whole seconds elapsed since the active workout started (or null when unknown). */
+  protected readonly elapsedSeconds = computed(() => {
+    const session = this.activeWorkout();
+    if (!session?.startedAt) {
+      return null;
+    }
+    const started = new Date(session.startedAt).getTime();
+    if (Number.isNaN(started)) {
+      return null;
+    }
+    return Math.max(0, Math.floor((this.now() - started) / 1000));
+  });
+
+  /** HH:MM:SS (or MM:SS) live timer label for the floating pill. */
+  protected readonly elapsedLabel = computed(() => {
+    const total = this.elapsedSeconds();
+    if (total === null) {
+      return '00:00';
+    }
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    const mm = String(minutes).padStart(2, '0');
+    const ss = String(seconds).padStart(2, '0');
+    return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
   });
 
   constructor() {

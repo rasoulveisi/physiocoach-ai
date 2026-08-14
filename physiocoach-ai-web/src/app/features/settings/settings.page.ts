@@ -4,7 +4,6 @@ import { ButtonModule } from 'primeng/button';
 import { MessageService } from 'primeng/api';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 
-import { DisclaimerComponent } from '../../shared/ui/disclaimer.component';
 import { SkeletonBlockComponent } from '../../shared/ui/skeleton-block.component';
 import { AuthService } from '../../core/auth/auth.service';
 import type { ThemeSetting, UnitSetting, WorkoutViewSetting } from './settings.model';
@@ -12,7 +11,7 @@ import { SettingsStore } from './settings.store';
 
 @Component({
   standalone: true,
-  imports: [ButtonModule, FormsModule, ToggleSwitch, DisclaimerComponent, SkeletonBlockComponent],
+  imports: [ButtonModule, FormsModule, ToggleSwitch, SkeletonBlockComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './settings.page.html',
 })

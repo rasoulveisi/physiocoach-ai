@@ -79,7 +79,7 @@ export class LandingPage {
       sets: '3 sets',
       reps: '6-8 reps · slow eccentric',
       tag: 'Strength',
-      badgeClass: 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30',
+      badgeClass: 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30',
     },
   ];
 
@@ -94,7 +94,7 @@ export class LandingPage {
   protected readonly features = [
     {
       icon: '🦴',
-      iconBg: 'from-indigo-50 to-indigo-100',
+      iconBg: 'from-cyan-500/10 to-cyan-500/20',
       title: 'Posture-aware planning',
       description:
         'Tell us your posture flags — rounded shoulders, anterior pelvic tilt, knee valgus — and every exercise is selected to correct, not aggravate.',
