@@ -11,6 +11,15 @@ import { AuthStore } from '../auth/auth.store';
 import { CurrentUserService } from '../auth/current-user.service';
 import { WorkoutSessionStore } from '../../features/workout-session/workout-session.store';
 
+interface MobileNavItem {
+  label: string;
+  path: string;
+  exact: boolean;
+  icon: string;
+  /** Render as a raised center "Session" FAB. */
+  fab?: boolean;
+}
+
 @Component({
   selector: 'app-shell',
   standalone: true,
@@ -24,7 +33,6 @@ export class AppShellComponent {
   protected readonly auth = inject(AuthService);
   private readonly messageService = inject(MessageService);
   protected readonly isSigningOut = signal(false);
-  protected readonly isMoreMenuOpen = signal(false);
   protected readonly canShowAdmin = () => this.currentUser.isAdmin();
 
   protected readonly topNavItems = [
@@ -35,26 +43,15 @@ export class AppShellComponent {
     { label: 'Profile', path: '/settings', exact: true, icon: 'pi pi-user' },
   ];
 
-  protected readonly mobilePrimaryItems = [
+  protected readonly mobilePrimaryItems: MobileNavItem[] = [
     { label: 'Today', path: '/dashboard', exact: true, icon: 'pi pi-home' },
     { label: 'Plan', path: '/plan', exact: true, icon: 'pi pi-list' },
-    { label: 'Session', path: '/session', exact: true, icon: 'pi pi-play' },
+    { label: 'Session', path: '/session', exact: true, icon: 'pi pi-play', fab: true },
+    { label: 'Assessment', path: '/onboarding', exact: true, icon: 'pi pi-id-card' },
     { label: 'Profile', path: '/settings', exact: true, icon: 'pi pi-user' },
   ];
 
-  protected readonly mobileMoreItems = [
-    { label: 'Assessment', path: '/onboarding', exact: true, icon: 'pi pi-id-card' },
-    { label: 'Profile', path: '/settings', exact: true, icon: 'pi pi-cog' },
-  ];
-
   protected readonly adminPathItem = {
-    label: 'Admin',
-    path: '/admin',
-    exact: true,
-    icon: 'pi pi-shield',
-  };
-
-  protected readonly mobileAdminItem = {
     label: 'Admin',
     path: '/admin',
     exact: true,
@@ -73,19 +70,21 @@ export class AppShellComponent {
     return session;
   });
 
+  /** 0–100 live completion percentage for the floating session pill. */
+  protected readonly sessionProgressPercent = computed(() => {
+    const session = this.activeWorkout();
+    if (!session || session.progress.totalSets <= 0) {
+      return 0;
+    }
+
+    return Math.min(100, Math.round((session.progress.completedSets / session.progress.totalSets) * 100));
+  });
+
   constructor() {
     if (this.isAuthenticated()) {
       this.currentUser.loadCurrentUser().subscribe();
       this.workoutSessionStore.ensureActiveSession();
     }
-  }
-
-  protected toggleMoreMenu(): void {
-    this.isMoreMenuOpen.update((value) => !value);
-  }
-
-  protected closeMoreMenu(): void {
-    this.isMoreMenuOpen.set(false);
   }
 
   protected isAuthenticated(): boolean {

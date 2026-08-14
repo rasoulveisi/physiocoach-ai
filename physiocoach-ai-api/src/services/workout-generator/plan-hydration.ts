@@ -75,7 +75,16 @@ export function normalizeAiDayKeys(val: unknown): unknown {
   const obj = { ...val } as Record<string, unknown>;
 
   // Normalize dayNumber key
-  const dayNumKeys = ['dayNumber', 'day_number', 'dayNo', 'day_no', 'day'];
+  const dayNumKeys = [
+    'dayNumber',
+    'day_number',
+    'dayNo',
+    'day_no',
+    'day',
+    'dayIndex',
+    'day_index',
+    'index',
+  ];
   for (const key of dayNumKeys) {
     if (obj[key] !== undefined && key !== 'dayNumber') {
       if (obj.dayNumber === undefined) {
@@ -114,6 +123,8 @@ export const leanAiExerciseSchema = z.preprocess(
       name: z.string().min(1),
       id: z.string().min(1).optional(),
       masterExerciseId: z.string().min(1).optional(),
+      movementPattern: z.string().optional(),
+      muscleGroup: z.string().optional(),
       sets: z.number().int().min(1),
       reps: z.union([z.string().min(1), z.number().positive()]),
       restSeconds: z.number().int().min(1).default(60),

@@ -33,9 +33,12 @@ export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 15_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
 export const ALLOWED_WORKOUT_MODELS = [
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
   'gemini-3.5-flash',
-  'gemini-3.7-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-3.1-pro',
   'google/gemma-4-26b-a4b-it:free',
   'meta-llama/llama-3.1-8b-instruct',
   'meta-llama/llama-3.3-70b-instruct',
@@ -45,6 +48,7 @@ export const ALLOWED_WORKOUT_MODELS = [
   'nvidia/nemotron-3.5-lightning:free',
 ] as const;
 export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
+  'gemini-3.7-flash',
   'gemini-3.5-flash-lite',
   'meta-llama/llama-3.1-8b-instruct',
   'meta-llama/llama-3.3-70b-instruct',

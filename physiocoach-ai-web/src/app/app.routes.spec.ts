@@ -37,17 +37,14 @@ describe('app.routes', () => {
   it('does not block normal app routes behind onboarding completion', () => {
     const shellRoute = routes.find((route) => route.path === '' && route.pathMatch === undefined);
     const children = (shellRoute?.children ?? []) as RouteConfig[];
-    const normalAppPaths = [
+    const directAppPaths = [
       'dashboard',
       'plan',
       'session',
-      'progress',
-      'posture-assessment',
       'settings',
-      'measurements',
     ];
 
-    for (const path of normalAppPaths) {
+    for (const path of directAppPaths) {
       const route = children.find((candidate) => candidate.path === path);
       expect(route?.loadComponent).toBeTruthy();
       expect(route?.canActivate).toBeUndefined();

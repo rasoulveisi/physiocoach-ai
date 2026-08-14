@@ -1,44 +1,60 @@
-<div class="fixed inset-0 flex h-dvh max-h-dvh w-full flex-col overflow-hidden
-            bg-surface-bg text-primary">
+<div
+  class="fixed inset-0 flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-surface-bg text-primary"
+>
   <p-toast position="top-right" />
 
-  <!-- ===== ACTIVE WORKOUT BAR ===== -->
+  <!-- ===== ACTIVE WORKOUT PILL (floating, live set progress) ===== -->
   @if (activeWorkout(); as session) {
-    <div class="pointer-events-none fixed inset-x-0 bottom-16 z-40 px-3 md:bottom-6 md:px-4">
+    <div
+      class="pointer-events-none fixed inset-x-0 z-40 px-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-6 md:px-4"
+    >
       <div
-        class="pointer-events-auto mx-auto flex w-full max-w-6xl items-center gap-3 rounded-2xl border border-brand-400/40 bg-brand-600 px-4 py-3 text-white shadow-brand-lg animate-fade-up"
+        class="pointer-events-auto mx-auto flex w-full max-w-6xl items-center gap-3 rounded-2xl border border-volt/40 pc-glass px-4 py-3 shadow-volt animate-slide-up"
       >
-        <span
-          class="grid size-9 shrink-0 place-items-center rounded-full bg-white/15"
-          aria-hidden="true"
-        >
-          <i class="pi pi-play text-sm"></i>
+        <span class="relative grid size-10 shrink-0 place-items-center rounded-full bg-volt/15 text-volt">
+          <span class="absolute inset-0 rounded-full bg-volt/20 animate-ping" aria-hidden="true"></span>
+          <i class="pi pi-play text-sm" aria-hidden="true"></i>
         </span>
         <div class="min-w-0 flex-1">
-          <p class="text-sm font-semibold leading-tight">Workout in Progress</p>
-          <p class="text-xs text-white/80">
-            {{ session.progress.completedSets }}/{{ session.progress.totalSets }} sets completed
-          </p>
+          <div class="flex items-baseline justify-between gap-2">
+            <p class="truncate text-sm font-semibold leading-tight">Workout in Progress</p>
+            <span class="shrink-0 text-xs font-semibold text-volt">{{ sessionProgressPercent() }}%</span>
+          </div>
+          <div class="mt-1.5 flex items-center gap-2">
+            <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-border">
+              <div
+                class="h-full rounded-full bg-gradient-to-r from-volt to-brand-500 transition-[width] duration-500 ease-out"
+                [style.width.%]="sessionProgressPercent()"
+              ></div>
+            </div>
+            <span class="shrink-0 text-[0.6875rem] text-muted">
+              {{ session.progress.completedSets }}/{{ session.progress.totalSets }} sets
+            </span>
+          </div>
         </div>
         <a
           routerLink="/session"
-          class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-brand-700 no-underline transition-colors duration-150 hover:bg-brand-50"
+          class="pc-press inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-br from-volt to-brand-600 px-3 py-1.5 text-sm font-semibold text-white no-underline transition-shadow duration-200 hover:shadow-volt"
         >
-          Continue Session
+          Resume
         </a>
       </div>
     </div>
   }
 
   <!-- ===== HEADER ===== -->
-  <header class="shrink-0 border-b border-surface-border bg-surface-0 shadow-xs">
-    <div class="mx-auto flex min-h-12 w-full max-w-6xl items-center gap-3 px-4 py-1.5 md:min-h-14 md:py-2">
-
+  <header class="pt-safe shrink-0 border-b border-surface-border bg-surface-0 shadow-xs">
+    <div
+      class="mx-auto flex min-h-12 w-full max-w-6xl items-center gap-3 px-4 py-1.5 md:min-h-14 md:py-2"
+    >
       <!-- Logo mark + wordmark -->
-      <a routerLink="/dashboard"
-         class="mr-auto flex min-w-0 items-center gap-2 no-underline text-primary">
-        <span class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl
-                     bg-white shadow-brand ring-1 ring-slate-200 md:size-8 md:rounded-[9px]">
+      <a
+        routerLink="/dashboard"
+        class="mr-auto flex min-w-0 items-center gap-2 no-underline text-primary"
+      >
+        <span
+          class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-brand ring-1 ring-slate-200 md:size-8 md:rounded-[9px]"
+        >
           <img
             class="size-8 object-contain md:size-6"
             src="/assets/icon.svg"
@@ -56,31 +72,61 @@
       <!-- Desktop nav -->
       <nav class="hidden flex-wrap items-center gap-1 md:flex">
         @for (item of topNavItems; track item.path) {
-          <a class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm
-                    font-medium no-underline text-secondary transition-all duration-150"
-             [routerLink]="item.path"
-             routerLinkActive="active-nav-link"
-             [routerLinkActiveOptions]="{ exact: item.exact }">
+          <a
+            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium no-underline text-secondary transition-all duration-150"
+            [routerLink]="item.path"
+            routerLinkActive="active-nav-link"
+            [routerLinkActiveOptions]="{ exact: item.exact }"
+          >
             <i class="{{ item.icon }} text-xs" aria-hidden="true"></i>
             {{ item.label }}
           </a>
         }
         @if (canShowAdmin()) {
-          <a class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm
-                    font-medium no-underline text-secondary transition-all duration-150"
-             [routerLink]="adminPathItem.path"
-             routerLinkActive="active-nav-link"
-             [routerLinkActiveOptions]="{ exact: adminPathItem.exact }">
+          <a
+            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium no-underline text-secondary transition-all duration-150"
+            [routerLink]="adminPathItem.path"
+            routerLinkActive="active-nav-link"
+            [routerLinkActiveOptions]="{ exact: adminPathItem.exact }"
+          >
             <i class="{{ adminPathItem.icon }} text-xs" aria-hidden="true"></i>
             {{ adminPathItem.label }}
           </a>
         }
       </nav>
 
-      <!-- Auth profile -->
+      <!-- Mobile header controls (admin + sign out) -->
+      @if (isAuthenticated()) {
+        <div class="flex items-center gap-1 md:hidden">
+          @if (canShowAdmin()) {
+            <a
+              class="pc-press inline-flex size-9 items-center justify-center rounded-lg no-underline text-secondary"
+              [routerLink]="adminPathItem.path"
+              routerLinkActive="text-volt"
+              [routerLinkActiveOptions]="{ exact: adminPathItem.exact }"
+              [attr.aria-label]="adminPathItem.label"
+            >
+              <i class="{{ adminPathItem.icon }} text-sm" aria-hidden="true"></i>
+            </a>
+          }
+          <button
+            type="button"
+            class="pc-press inline-flex size-9 items-center justify-center rounded-lg text-danger-text"
+            [attr.aria-label]="isSigningOut() ? 'Signing out...' : 'Sign out'"
+            [disabled]="isSigningOut()"
+            (click)="signOut()"
+          >
+            <i class="pi pi-sign-out text-sm" aria-hidden="true"></i>
+          </button>
+        </div>
+      }
+
+      <!-- Desktop auth profile -->
       @if (isAuthenticated()) {
         <div class="hidden min-w-0 items-center gap-2 md:flex">
-          <div class="flex min-w-0 items-center gap-2 rounded-full border border-surface-border bg-surface-0 px-2 py-1">
+          <div
+            class="flex min-w-0 items-center gap-2 rounded-full border border-surface-border bg-surface-0 px-2 py-1"
+          >
             <span
               class="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-muted"
               [attr.aria-label]="auth.userDisplayName()"
@@ -92,9 +138,7 @@
                   [alt]="`${auth.userDisplayName()} avatar`"
                 />
               } @else {
-                <span class="text-xs font-semibold text-primary">
-                  {{ auth.userInitials() }}
-                </span>
+                <span class="text-xs font-semibold text-primary">{{ auth.userInitials() }}</span>
               }
             </span>
             <div class="hidden min-w-0 xl:block">
@@ -104,13 +148,12 @@
               <p class="text-xs text-secondary">Signed in</p>
             </div>
           </div>
-          <button type="button"
-                  class="rounded-lg border border-danger-border bg-danger-surface
-                         px-3 py-1.5 text-xs font-semibold text-danger-text
-                         transition-colors duration-150 disabled:cursor-not-allowed
-                         disabled:opacity-60"
-                  [disabled]="isSigningOut()"
-                  (click)="signOut()">
+          <button
+            type="button"
+            class="rounded-lg border border-danger-border bg-danger-surface px-3 py-1.5 text-xs font-semibold text-danger-text transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60"
+            [disabled]="isSigningOut()"
+            (click)="signOut()"
+          >
             {{ isSigningOut() ? 'Signing out...' : 'Sign out' }}
           </button>
         </div>
@@ -121,9 +164,7 @@
   <!-- ===== MAIN CONTENT ===== -->
   <main
     class="mx-auto min-h-0 w-full max-w-6xl min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain {{
-      isAssessmentRoute()
-        ? 'block px-3 py-3 md:px-4 md:py-4'
-        : 'grid gap-5 px-4 py-4 md:gap-6 md:py-6'
+      isAssessmentRoute() ? 'block px-3 py-3 md:px-4 md:py-4' : 'grid gap-5 px-4 py-4 md:gap-6 md:py-6'
     }}"
   >
     @if (!isAssessmentRoute()) {
@@ -132,67 +173,39 @@
     <router-outlet class="hidden" />
   </main>
 
-  <!-- ===== MOBILE TAB BAR ===== -->
+  <!-- ===== MOBILE BOTTOM NAV (safe-area aware) ===== -->
   @if (isAuthenticated()) {
-    <nav class="relative z-30 shrink-0 border-t border-surface-border pc-glass px-1 py-1 md:hidden"
-         aria-label="Primary mobile navigation">
-
-      <div class="mx-auto grid w-full max-w-6xl min-w-0 grid-cols-5 gap-0.5">
+    <nav
+      class="relative z-30 shrink-0 border-t border-surface-border pc-glass md:hidden"
+      aria-label="Primary mobile navigation"
+    >
+      <div class="mx-auto grid w-full max-w-6xl grid-cols-5 items-end gap-1 px-2 pb-safe pt-1">
         @for (item of mobilePrimaryItems; track item.path) {
-          <a class="mobile-tab"
-             [routerLink]="item.path"
-             routerLinkActive="mobile-tab-active"
-             [routerLinkActiveOptions]="{ exact: item.exact }"
-             (click)="closeMoreMenu()">
-            <i class="{{ item.icon }}" aria-hidden="true"></i>
-            <span>{{ item.label }}</span>
-          </a>
+          @if (item.fab) {
+            <a
+              class="mobile-fab pc-press"
+              [routerLink]="item.path"
+              routerLinkActive="mobile-fab-active"
+              [routerLinkActiveOptions]="{ exact: item.exact }"
+            >
+              <span class="fab-disc" aria-hidden="true">
+                <i class="{{ item.icon }} text-xl" aria-hidden="true"></i>
+              </span>
+              <span class="fab-label">{{ item.label }}</span>
+            </a>
+          } @else {
+            <a
+              class="mobile-tab"
+              [routerLink]="item.path"
+              routerLinkActive="mobile-tab-active"
+              [routerLinkActiveOptions]="{ exact: item.exact }"
+            >
+              <i class="{{ item.icon }}" aria-hidden="true"></i>
+              <span>{{ item.label }}</span>
+            </a>
+          }
         }
-
-        <button type="button" class="mobile-tab"
-                [class.mobile-tab-active]="isMoreMenuOpen()"
-                (click)="toggleMoreMenu()">
-          <i class="pi pi-ellipsis-h" aria-hidden="true"></i>
-          <span>More</span>
-        </button>
       </div>
-
-      <!-- More drawer -->
-      @if (isMoreMenuOpen()) {
-        <div class="absolute inset-x-2 bottom-[calc(100%+4px)] rounded-xl border
-                    border-surface-border bg-surface-0 p-2 shadow-card-lg">
-          <div class="grid grid-cols-4 gap-1">
-            @if (canShowAdmin()) {
-              <a class="mobile-tab"
-                 [routerLink]="adminPathItem.path"
-                 routerLinkActive="mobile-tab-active"
-                 [routerLinkActiveOptions]="{ exact: adminPathItem.exact }"
-                 (click)="closeMoreMenu()">
-                <i class="{{ adminPathItem.icon }}" aria-hidden="true"></i>
-                <span>{{ adminPathItem.label }}</span>
-              </a>
-            }
-            @for (item of mobileMoreItems; track item.path) {
-              <a class="mobile-tab"
-                 [routerLink]="item.path"
-                 routerLinkActive="mobile-tab-active"
-                 [routerLinkActiveOptions]="{ exact: item.exact }"
-                 (click)="closeMoreMenu()">
-                <i class="{{ item.icon }}" aria-hidden="true"></i>
-                <span>{{ item.label }}</span>
-              </a>
-            }
-            <button class="mobile-tab text-danger-text" type="button"
-                    [disabled]="isSigningOut()"
-                    (click)="signOut()">
-              <i class="pi pi-sign-out" aria-hidden="true"></i>
-              <span>{{ isSigningOut() ? 'Signing out...' : 'Logout' }}</span>
-            </button>
-          </div>
-        </div>
-      }
-
     </nav>
   }
-
 </div>

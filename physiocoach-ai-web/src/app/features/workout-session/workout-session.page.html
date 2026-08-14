@@ -2,28 +2,68 @@
   @if (planStore.currentPlan$ | async; as current) {
     @if (sessionStore.activeSession$ | async; as session) {
       <section class="grid min-w-0 gap-4">
+        <!-- ===== STICKY REST TIMER ===== -->
         <div
-          class="sticky top-0 z-30 rounded-xl border border-slate-200 bg-white/95 p-3 text-slate-900 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-50"
+          class="sticky top-0 z-30 rounded-2xl border border-slate-200 bg-white/95 p-3 text-slate-900 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-50"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex min-w-0 items-center gap-3">
-              <div>
+              <!-- Circular countdown ring -->
+              <div class="relative grid size-16 shrink-0 place-items-center">
+                <svg
+                  width="64"
+                  height="64"
+                  viewBox="0 0 64 64"
+                  class="-rotate-90"
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="26"
+                    fill="none"
+                    stroke-width="5"
+                    class="stroke-slate-200 dark:stroke-slate-700"
+                  ></circle>
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="26"
+                    fill="none"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                    [class]="timer.isRunning() ? 'stroke-emerald-500 dark:stroke-volt' : 'stroke-slate-300 dark:stroke-slate-600'"
+                    [attr.stroke-dasharray]="timerRingCircumference"
+                    [attr.stroke-dashoffset]="timerRingOffset()"
+                    class="transition-[stroke-dashoffset] duration-500 ease-linear"
+                  ></circle>
+                </svg>
+                <span class="absolute text-sm font-extrabold tabular-nums leading-none">
+                  {{ formatTime(timer.remainingSeconds()) }}
+                </span>
+              </div>
+
+              <div class="min-w-0">
                 <p class="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Rest timer
                 </p>
                 <p
-                  class="text-3xl font-bold tabular-nums leading-none"
+                  class="text-lg font-bold tabular-nums leading-none"
                   [class.text-emerald-600]="timer.isRunning()"
                   [class.text-slate-400]="timer.isFinished() || (!timer.isRunning() && !timer.isPaused())"
                 >
-                  {{ formatTime(timer.remainingSeconds()) }}
+                  {{ timer.isRunning() && !timer.isPaused() ? 'Resting…' : timer.isFinished() ? 'Time!' : 'Paused' }}
                 </p>
-              </div>
-              <div class="hidden h-2 w-24 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700 sm:block">
-                <div
-                  class="h-full bg-emerald-600 transition-all dark:bg-emerald-400"
-                  [style.width.%]="timerProgressPercent()"
-                ></div>
+                <!-- Auto-start toggle -->
+                <label class="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <input
+                    type="checkbox"
+                    class="h-3.5 w-3.5 accent-emerald-600"
+                    [checked]="restAutoStart()"
+                    (change)="toggleAutoStart($event)"
+                  />
+                  Auto-start
+                </label>
               </div>
             </div>
 
@@ -46,21 +86,21 @@
                 </button>
               }
               <button
-                class="rounded-lg bg-slate-100 px-2.5 py-2 text-sm font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+                class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
                 type="button"
                 (click)="addTime(30)"
               >
                 +30s
               </button>
               <button
-                class="rounded-lg bg-slate-100 px-2.5 py-2 text-sm font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+                class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
                 type="button"
                 (click)="addTime(-15)"
               >
                 -15s
               </button>
               <button
-                class="rounded-lg bg-slate-100 px-2.5 py-2 text-sm font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+                class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
                 type="button"
                 (click)="skipTimer()"
               >
@@ -78,33 +118,35 @@
           </div>
         </div>
 
-        <div class="grid min-w-0 gap-3 rounded-lg border border-slate-200 bg-white p-5 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50">
+        <!-- ===== SESSION PROGRESS ===== -->
+        <div class="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50">
           <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
             <div>
               <p class="pc-kicker">Session in progress</p>
               <h1 class="mt-2 text-2xl font-semibold break-words">Active workout</h1>
               <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Day {{ session.dayIndex + 1 }}</p>
             </div>
-            <label class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-              <input type="checkbox" class="h-4 w-4" [checked]="restAutoStart()" (change)="toggleAutoStart($event)" />
-              Auto-start rest timer
-            </label>
+            <div class="text-right">
+              <p class="text-2xl font-extrabold tabular-nums text-emerald-600 dark:text-volt">
+                {{ completionPercent(session) }}%
+              </p>
+              <p class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                {{ session.progress.completedSets }} / {{ session.progress.totalSets }} sets
+              </p>
+            </div>
           </div>
-          <p class="text-sm font-medium">{{ completionPercent(session) }}% complete</p>
-          <p class="text-sm text-slate-600 dark:text-slate-300">
-            {{ session.progress.completedSets }} / {{ session.progress.totalSets }} sets completed
-          </p>
           <div class="h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div
-              class="h-full bg-emerald-600 transition-all dark:bg-emerald-400"
+              class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-volt transition-all dark:from-emerald-500 dark:to-volt"
               [style.width.%]="completionPercent(session)"
             ></div>
           </div>
         </div>
 
+        <!-- ===== CURRENT EXERCISE ===== -->
         @if (nextIncompleteLog(session.logs); as nextLog) {
           @if (groupForLog(session.logs, nextLog); as currentGroup) {
-            <div class="grid min-w-0 gap-4 rounded-lg border border-emerald-300 bg-emerald-50 p-5 text-slate-900 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-slate-50">
+            <div class="grid min-w-0 gap-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-slate-900 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-slate-50">
               <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
                 <div class="grid min-w-0 gap-1">
                   <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Current exercise</p>
@@ -118,7 +160,7 @@
                   type="button"
                   (click)="openSwapModal(currentGroup.key)"
                 >
-                  Swap exercise
+                  Substitute
                 </button>
               </div>
 
@@ -144,6 +186,21 @@
                 [loading]="isExerciseMediaLoading(currentGroup)"
               />
 
+              <!-- Physio posture/safety caution chips -->
+              <div class="grid gap-2">
+                <p class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                  <i class="pi pi-shield text-xs" aria-hidden="true"></i>
+                  Form &amp; safety
+                </p>
+                <div class="flex flex-wrap gap-1.5">
+                  @for (tip of exerciseSafetyChips(currentGroup); track tip) {
+                    <span class="inline-flex items-start gap-1 rounded-lg bg-white/80 px-2.5 py-1.5 text-xs font-medium leading-snug text-slate-700 ring-1 ring-emerald-200 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-emerald-900">
+                      {{ tip }}
+                    </span>
+                  }
+                </div>
+              </div>
+
               @if (currentGroup.notes) {
                 <p class="rounded-md bg-white/80 p-3 text-sm leading-6 text-slate-700 ring-1 ring-emerald-200 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-emerald-900">
                   {{ currentGroup.notes }}
@@ -159,9 +216,10 @@
           }
         }
 
+        <!-- ===== SET LIST ===== -->
         <section class="grid min-w-0 gap-3">
           @for (group of groupedLogs(session.logs); track group.key) {
-            <div class="grid min-w-0 gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <div class="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
               <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
                 <div class="grid min-w-0 gap-1">
                   <h2 class="text-lg font-semibold break-words">{{ group.name }}</h2>
@@ -177,34 +235,42 @@
                   type="button"
                   (click)="openSwapModal(group.key)"
                 >
-                  Swap exercise
+                  Substitute
                 </button>
               </div>
 
               <div class="grid min-w-0 gap-2">
                 @for (log of group.logs; track log.id) {
                   <div [class]="setRowClass(group, log)">
-                    <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                    <!-- Row header: set #, prev, volt check -->
+                    <div class="flex min-w-0 items-center justify-between gap-2">
                       <div class="flex min-w-0 flex-wrap items-center gap-2">
-                        <span class="text-sm font-semibold">Set {{ log.setIndex }}</span>
+                        <span class="inline-flex items-center rounded-md bg-slate-200 px-2 py-1 text-xs font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                          Set {{ log.setIndex }}
+                        </span>
                         @if (log.completed) {
-                          <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">Done</span>
+                          <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
+                            <i class="pi pi-check text-[0.625rem]" aria-hidden="true"></i>
+                            Done
+                          </span>
                         }
                         @if (previousBenchmarkLabel(log); as prev) {
                           <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-100">{{ prev }}</span>
                         }
                       </div>
-                      <label class="flex items-center gap-2 text-sm font-medium">
-                        <input
-                          class="h-5 w-5 rounded accent-emerald-600"
-                          type="checkbox"
-                          [checked]="log.completed"
-                          (change)="toggleSetComplete(log, $event)"
-                        />
-                        <span>Done</span>
-                      </label>
+                      <button
+                        [class]="voltButtonClass(log)"
+                        type="button"
+                        [attr.aria-label]="log.completed ? 'Mark set incomplete' : 'Complete set'"
+                        (click)="toggleSetCompleteVolt(log)"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </button>
                     </div>
 
+                    <!-- Set type chips -->
                     <div class="flex flex-wrap items-center gap-1">
                       @for (option of setCategoryOptions; track option.label) {
                         <button
@@ -217,19 +283,21 @@
                       }
                     </div>
 
-                    <div class="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-[1fr_1fr_6rem]">
+                    <!-- Weight / Reps / RPE -->
+                    <div class="grid min-w-0 gap-3 sm:grid-cols-[1.2fr_1fr_1.4fr]">
+                      <!-- Weight with steppers + plate calculator -->
                       <div class="grid min-w-0 gap-1">
                         <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Weight (kg)</span>
                         <div class="flex items-stretch gap-1">
                           <button
-                            class="rounded-md bg-slate-100 px-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            class="grid w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-base font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                             type="button"
                             (click)="adjustWeight(log, -2.5)"
                           >
                             −
                           </button>
                           <input
-                            class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-center text-sm font-semibold dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-center text-base font-bold tabular-nums dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             type="number"
                             min="0"
                             step="0.5"
@@ -237,34 +305,43 @@
                             (change)="setWeight(log, $event)"
                           />
                           <button
-                            class="rounded-md bg-slate-100 px-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            class="grid w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-base font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                             type="button"
                             (click)="adjustWeight(log, 2.5)"
                           >
                             +
                           </button>
+                          <button
+                            class="grid w-9 shrink-0 place-items-center rounded-md border border-slate-300 bg-white text-sm text-slate-600 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-volt dark:hover:text-volt"
+                            type="button"
+                            [attr.aria-label]="'Plate calculator for ' + log.exerciseName"
+                            (click)="openPlateCalculator(log)"
+                          >
+                            <i class="pi pi-calculator text-xs" aria-hidden="true"></i>
+                          </button>
                         </div>
                       </div>
 
+                      <!-- Reps -->
                       <div class="grid min-w-0 gap-1">
                         <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Reps</span>
                         <div class="flex items-stretch gap-1">
                           <button
-                            class="rounded-md bg-slate-100 px-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            class="grid w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-base font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                             type="button"
                             (click)="adjustReps(log, -1)"
                           >
                             −
                           </button>
                           <input
-                            class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-center text-sm font-semibold dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-center text-base font-bold tabular-nums dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             type="number"
                             min="0"
                             [value]="draftFor(log).reps"
                             (change)="setReps(log, $event)"
                           />
                           <button
-                            class="rounded-md bg-slate-100 px-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            class="grid w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-base font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                             type="button"
                             (click)="adjustReps(log, 1)"
                           >
@@ -273,16 +350,30 @@
                         </div>
                       </div>
 
+                      <!-- RPE rating selector -->
                       <div class="grid min-w-0 gap-1">
-                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">RPE</span>
-                        <input
-                          class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-center text-sm font-semibold dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                          type="number"
-                          min="1"
-                          max="10"
-                          [value]="draftFor(log).rpe ?? ''"
-                          (change)="setRpe(log, $event)"
-                        />
+                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          RPE
+                          @if (draftFor(log).rpe; as rpe) {
+                            <span class="ml-1 font-bold text-emerald-600 dark:text-volt">{{ rpe }}</span>
+                          }
+                        </span>
+                        <div class="flex flex-wrap items-center gap-0.5">
+                          @for (value of rpeOptions; track value) {
+                            <button
+                              class="h-8 min-w-8 rounded-md border px-1 text-xs font-bold tabular-nums transition-colors"
+                              [class]="
+                                draftFor(log).rpe === value
+                                  ? 'border-emerald-600 bg-emerald-600 text-white dark:border-volt dark:bg-volt dark:text-slate-950'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                              "
+                              type="button"
+                              (click)="setRpeValue(log, value)"
+                            >
+                              {{ value }}
+                            </button>
+                          }
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -327,6 +418,7 @@
   }
 </section>
 
+<!-- ===== SWAP EXERCISE MODAL ===== -->
 @if (swapModalOpen()) {
   <div
     class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
@@ -393,6 +485,124 @@
       >
         Cancel
       </button>
+    </div>
+  </div>
+}
+
+<!-- ===== BARBELL PLATE CALCULATOR ===== -->
+@if (plateCalculatorOpen()) {
+  <div
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Barbell plate calculator"
+    tabindex="-1"
+    (click)="onBackdropClick($event)"
+    (keydown.escape)="closePlateCalculator()"
+  >
+    <div
+      class="grid max-h-[85vh] w-full max-w-md gap-4 overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 text-slate-900 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+    >
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="pc-kicker">Barbell plate calculator</p>
+          <h3 class="mt-1 text-lg font-semibold break-words">{{ plateCalculatorExerciseName() }}</h3>
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            Plates per side for a standard {{ plateCalculatorBarWeight() }}kg bar.
+          </p>
+        </div>
+        <button
+          class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          type="button"
+          aria-label="Close"
+          (click)="closePlateCalculator()"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="grid gap-1">
+          <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Target weight (kg)</span>
+          <input
+            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-center text-lg font-bold tabular-nums dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            type="number"
+            min="0"
+            step="0.5"
+            [value]="plateCalculatorTargetWeight() ?? ''"
+            (change)="setPlateTargetWeight($event)"
+          />
+        </div>
+        <div class="grid gap-1">
+          <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Bar weight (kg)</span>
+          <input
+            class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-center text-lg font-bold tabular-nums dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            type="number"
+            min="0"
+            step="0.5"
+            [value]="plateCalculatorBarWeight()"
+            (change)="setPlateBarWeight($event)"
+          />
+        </div>
+      </div>
+
+      @if (plateCalculatorBreakdown(); as breakdown) {
+        <div class="grid gap-2 rounded-xl bg-slate-100 p-3 dark:bg-slate-800">
+          <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Load <span class="font-bold text-emerald-600 dark:text-volt">{{ formatPlateWeight(breakdown.sideWeight) }}kg</span> per side
+          </p>
+
+          @if (breakdown.plates.length) {
+            <ul class="grid gap-1.5">
+              @for (plate of breakdown.plates; track plate.weight) {
+                <li class="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 dark:bg-slate-900">
+                  <span class="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    <i class="pi pi-circle-fill text-xs text-emerald-500 dark:text-volt" aria-hidden="true"></i>
+                    {{ formatPlateWeight(plate.weight) }}kg plates
+                  </span>
+                  <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
+                    {{ plate.count }} ×
+                  </span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="text-sm text-slate-600 dark:text-slate-300">No plates needed — bar only.</p>
+          }
+
+          @if (breakdown.remainder > 0) {
+            <p class="text-xs font-medium text-amber-700 dark:text-amber-300">
+              ⚠ {{ formatPlateWeight(breakdown.remainder) }}kg per side can’t be loaded with available plates.
+            </p>
+          }
+        </div>
+      } @else {
+        <p class="rounded-md bg-slate-100 p-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          Enter a target weight above the bar weight to see the plate breakdown.
+        </p>
+      }
+
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          pButton
+          outlined
+          class="w-full justify-center"
+          type="button"
+          (click)="closePlateCalculator()"
+        >
+          Cancel
+        </button>
+        <button
+          pButton
+          severity="success"
+          class="w-full justify-center"
+          type="button"
+          [disabled]="(plateCalculatorTargetWeight() ?? 0) <= plateCalculatorBarWeight()"
+          (click)="applyPlateTarget()"
+        >
+          Apply weight
+        </button>
+      </div>
     </div>
   </div>
 }

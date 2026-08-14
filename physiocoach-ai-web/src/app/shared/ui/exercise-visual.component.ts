@@ -28,7 +28,7 @@ export class ExerciseVisualComponent {
   protected readonly stageClasses = computed(() =>
     this.compact()
       ? 'h-14 w-14 p-1 bg-white rounded-lg border border-slate-200'
-      : 'w-full max-w-2xl mx-auto h-64 sm:h-72 p-3 sm:p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center',
+      : 'w-full max-w-2xl mx-auto aspect-[4/3] sm:aspect-[3/2] lg:aspect-[16/9] p-2 sm:p-3 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center',
   );
 
   protected readonly visual = computed<ExerciseVisualResult>(() => {

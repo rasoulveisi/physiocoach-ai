@@ -294,7 +294,7 @@ describe('AuthService', () => {
 
     const request = http.expectOne('https://api.example.test/api/v1/auth/oauth/exchange');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({ code: 'abc123', state: 'state-123' });
+    expect(request.request.body).toEqual({ provider: 'google', code: 'abc123', state: 'state-123' });
     request.flush(authEnvelope);
     await promise;
 

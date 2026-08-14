@@ -12,32 +12,46 @@
 :root {
   color-scheme: light dark;
 
-  /* Brand */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-950: #1e1b4b;
+  /* ── Brand — Performance Volt (electric green) ── */
+  --color-brand-50: #eafff2;
+  --color-brand-100: #ccf9dc;
+  --color-brand-200: #99f2bc;
+  --color-brand-300: #5ee894;
+  --color-brand-400: #10e760;
+  --color-brand-500: #22c55e;
+  --color-brand-600: #16a34a;
+  --color-brand-700: #15803d;
+  --color-brand-800: #166534;
+  --color-brand-950: #052e16;
+
+  /* ── Accent primitives ── */
+  --color-volt: #10e760;
+  --color-volt-bright: #2bf27b;
+  --color-volt-deep: #22c55e;
+  --color-amber: #f59e0b;
+  --color-cyan: #06b6d4;
+
+  /* ── Obsidian dark surfaces (used by [data-theme='dark']) ── */
+  --color-obsidian-950: #090d15;
+  --color-obsidian-900: #121722;
+  --color-obsidian-800: #1a202e;
+  --color-obsidian-700: #232c3d;
+  --color-obsidian-600: #2e3a4f;
 
   /* Surfaces — Light */
-  --color-surface-bg: #f8fafc;
+  --color-surface-bg: #f7fbf8;
   --color-surface-0: #ffffff;
   --color-surface-raised: #ffffff;
   --color-surface-overlay: rgba(255, 255, 255, 0.85);
-  --color-surface-border: #e2e8f0;
-  --color-surface-muted: #f1f5f9;
+  --color-surface-border: #e3ece6;
+  --color-surface-muted: #eef5f0;
 
   /* Text — Light */
   --color-text-primary: #0f172a;
   --color-text-secondary: #475569;
   --color-text-muted: #94a3b8;
   --color-text-inverse: #f8fafc;
-  --color-text-brand: #4f46e5;
+  --color-text-brand: #15803d;
 
   /* Semantic — Light */
   --color-success-bg: #ecfdf5;
@@ -65,50 +79,68 @@
   --shadow-sm: 0 2px 8px -2px rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.04);
   --shadow-md: 0 4px 16px -4px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.06);
   --shadow-lg: 0 8px 32px -8px rgb(0 0 0 / 0.12), 0 4px 8px -4px rgb(0 0 0 / 0.08);
-  --shadow-brand: 0 4px 24px -4px rgb(99 102 241 / 0.35);
+  --shadow-brand: 0 4px 24px -4px rgb(16 231 96 / 0.35);
+  --shadow-volt: 0 0 24px rgb(16 231 96 / 0.5);
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Surfaces — Dark */
-  --color-surface-bg: #0b0f1a;
-  --color-surface-0: #111827;
-  --color-surface-raised: #1a2236;
-  --color-surface-overlay: rgba(17, 24, 39, 0.9);
-  --color-surface-border: #1e2d45;
-  --color-surface-muted: #0f172a;
+  /* Brand — Volt reads brighter on Obsidian */
+  --color-brand-50: #052e16;
+  --color-brand-100: #0c3a1d;
+  --color-brand-200: #14532d;
+  --color-brand-300: #16a34a;
+  --color-brand-400: #10e760;
+  --color-brand-500: #2bf27b;
+  --color-brand-600: #10e760;
+  --color-brand-700: #5ee894;
+  --color-brand-800: #99f2bc;
+  --color-brand-950: #eafff2;
+
+  /* Surfaces — Obsidian hierarchy */
+  --color-surface-bg: #090d15;
+  --color-surface-0: #121722;
+  --color-surface-raised: #1a202e;
+  --color-surface-overlay: rgba(18, 23, 34, 0.85);
+  --color-surface-border: #232c3d;
+  --color-surface-muted: #0f1623;
 
   /* Text — Dark */
   --color-text-primary: #f1f5f9;
   --color-text-secondary: #94a3b8;
   --color-text-muted: #64748b;
-  --color-text-inverse: #0f172a;
-  --color-text-brand: #818cf8;
+  --color-text-inverse: #090d15;
+  --color-text-brand: #10e760;
 
   /* Semantic — Dark */
   --color-success-bg: #022c22;
   --color-success-border: #065f46;
   --color-success-text: #6ee7b7;
+  --color-success-icon: #10e760;
 
   --color-warn-bg: #451a03;
   --color-warn-border: #92400e;
   --color-warn-text: #fcd34d;
+  --color-warn-icon: #f59e0b;
 
   --color-danger-bg: #450a0a;
   --color-danger-border: #7f1d1d;
   --color-danger-text: #fca5a5;
+  --color-danger-icon: #ef4444;
 
   --color-info-bg: #083344;
   --color-info-border: #164e63;
   --color-info-text: #67e8f9;
+  --color-info-icon: #06b6d4;
 
-  /* Elevation — Dark */
+  /* Elevation — Dark (volt-tinted glows) */
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-sm: 0 2px 8px -2px rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 16px -4px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
   --shadow-lg: 0 8px 32px -8px rgb(0 0 0 / 0.6), 0 4px 8px -4px rgb(0 0 0 / 0.5);
-  --shadow-brand: 0 4px 24px -4px rgb(99 102 241 / 0.5);
+  --shadow-brand: 0 4px 24px -4px rgb(16 231 96 / 0.5);
+  --shadow-volt: 0 0 28px rgb(16 231 96 / 0.6);
 }
 
 /* ============================================================
@@ -271,7 +303,7 @@ textarea {
 
   /* ── Gradient text ───────────────────────────────────────── */
   .pc-gradient-text {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+    background: linear-gradient(135deg, #10e760 0%, #22c55e 45%, #06b6d4 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -279,14 +311,14 @@ textarea {
 
   /* ── Brand gradient background ───────────────────────────── */
   .pc-gradient-brand {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #6366f1 100%);
+    background: linear-gradient(135deg, #10e760 0%, #22c55e 50%, #06b6d4 100%);
     background-size: 200%;
     animation: gradient-shift 4s ease infinite;
   }
 
   /* ── Hero gradient (dark section) ───────────────────────── */
   .pc-hero-bg {
-    background: linear-gradient(145deg, #0b0f1a 0%, #1e1b4b 40%, #1a0a2e 70%, #0b0f1a 100%);
+    background: linear-gradient(145deg, #090d15 0%, #121722 40%, #052e16 72%, #090d15 100%);
   }
 
   /* ── Glass effect ────────────────────────────────────────── */
@@ -309,25 +341,25 @@ textarea {
   /* ── CTA Buttons ─────────────────────────────────────────── */
   .pc-btn-brand {
     @apply inline-flex items-center gap-1.5 font-bold text-white no-underline
-           bg-gradient-to-br from-brand-600 to-violet-600
+           bg-gradient-to-br from-brand-500 to-brand-700
            shadow-brand rounded-xl transition-[box-shadow,transform] duration-200
-           hover:shadow-brand-lg hover:-translate-y-0.5;
+           hover:shadow-brand-lg hover:-translate-y-0.5 active:scale-[0.97];
   }
 
   .pc-btn-ghost {
     @apply inline-flex items-center font-semibold no-underline rounded-xl
            bg-white/[0.07] border border-white/[0.15] text-slate-200
            transition-[background,border-color] duration-200
-           hover:bg-white/[0.12] hover:border-brand-500/50;
+           hover:bg-white/[0.12] hover:border-brand-400/60 active:scale-[0.97];
   }
 
   /* ── Nav items (app shell) ───────────────────────────────── */
   .mobile-tab {
-    @apply inline-flex flex-col items-center justify-center gap-0.5 min-h-[52px]
+    @apply relative inline-flex flex-col items-center justify-center gap-0.5 min-h-[52px]
            rounded-[10px] px-1 text-[0.625rem] font-medium tracking-[0.02em]
-           text-center text-muted no-underline cursor-pointer
-           border-0 bg-transparent transition-[color,background] duration-150
-           active:scale-[0.92];
+           text-center text-muted no-underline cursor-pointer select-none
+           border-0 bg-transparent transition-[color,transform] duration-150 ease-out
+           active:scale-[0.9] active:brightness-110;
   }
 
   .mobile-tab i {
@@ -335,16 +367,24 @@ textarea {
   }
 
   .mobile-tab-active {
-    @apply text-brand-600 bg-brand-50 font-bold;
+    @apply text-brand-600 font-bold;
   }
 
   /* dark variant handled via data-theme selector below */
   [data-theme='dark'] .mobile-tab-active {
-    @apply text-brand-400 bg-brand-950/30;
+    @apply text-volt;
   }
 
   .mobile-tab-active i {
-    filter: drop-shadow(0 0 4px theme('colors.brand.400'));
+    filter: drop-shadow(0 0 5px theme('colors.volt.400'));
+  }
+
+  /* Active indicator pill — volt glow bar under the icon */
+  .mobile-tab-active::after {
+    content: '';
+    @apply absolute -bottom-0.5 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full;
+    background: var(--color-volt);
+    box-shadow: 0 0 8px 1px rgb(16 231 96 / 0.7);
   }
 
   .active-nav-link {
@@ -352,7 +392,92 @@ textarea {
   }
 
   [data-theme='dark'] .active-nav-link {
-    @apply text-brand-400 bg-brand-950/20;
+    @apply text-volt bg-brand-950/20;
+  }
+}
+
+/* ============================================================
+   MOBILE SAFE-AREA & TACTILE PRESS UTILITIES
+   ============================================================ */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  .mt-safe {
+    margin-top: env(safe-area-inset-top);
+  }
+
+  /* Tactile active-press micro-interaction for any tappable element */
+  .pc-press {
+    @apply transition-transform duration-100 ease-out;
+  }
+  .pc-press:active {
+    transform: scale(0.96);
+  }
+
+  /* Volt glow indicator utilities */
+  .pc-glow-volt {
+    box-shadow: var(--shadow-volt);
+  }
+  .pc-glow-volt-soft {
+    box-shadow: 0 0 16px rgb(16 231 96 / 0.35);
+  }
+
+  /* Hide tap highlight on mobile for custom-styled controls */
+  .pc-no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ============================================================
+   MOBILE BOTTOM-NAV SESSION FAB
+   ============================================================ */
+.mobile-fab {
+  @apply relative flex flex-col items-center justify-end no-underline select-none;
+}
+
+.mobile-fab .fab-disc {
+  @apply absolute -top-7 grid size-14 place-items-center rounded-full
+         border border-volt/40 bg-gradient-to-br from-volt to-brand-600
+         text-white shadow-volt transition-all duration-200 ease-out;
+}
+
+.mobile-fab .fab-label {
+  @apply mt-9 pb-1 text-[0.625rem] font-medium text-muted
+         transition-colors duration-150;
+}
+
+/* Active (current route) — brighter glow + raised disc + volt label */
+.mobile-fab-active .fab-disc {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow:
+    0 0 30px rgb(16 231 96 / 0.8),
+    0 12px 32px -8px rgb(16 231 96 / 0.6);
+}
+
+.mobile-fab-active .fab-label {
+  color: var(--color-volt);
+  font-weight: 700;
+}
+
+/* Tactile press feedback on the disc */
+.mobile-fab:active .fab-disc {
+  transform: scale(0.92);
+  filter: brightness(1.1);
+}
+
+/* Respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-fab .fab-disc,
+  .mobile-fab-active .fab-disc {
+    transform: none;
+    transition: none;
   }
 }
 
@@ -414,7 +539,7 @@ textarea {
 
 .pc-carousel-progress {
   transform-origin: left center;
-  background: linear-gradient(90deg, #818cf8, #a78bfa);
+  background: linear-gradient(90deg, #10e760, #06b6d4);
   animation: pc-progress 2.8s linear forwards;
 }
 

@@ -23,6 +23,7 @@ import { ExerciseCatalogApiService } from '../exercise-catalog/exercise-catalog-
 import type { ExerciseCatalogMediaDto } from '../exercise-catalog/exercise-catalog.model';
 import { PageStateComponent } from '../../shared/ui/page-state.component';
 import { ExerciseVisualComponent } from '../../shared/ui/exercise-visual.component';
+import { resolveExerciseSafetyNotes } from '../../shared/ui/exercise-safety-notes';
 
 interface SetDraft {
   reps: number;
@@ -61,8 +62,15 @@ export class WorkoutSessionPage implements OnDestroy {
   protected readonly restAutoStart = signal(true);
   protected readonly swapModalOpen = signal(false);
   protected readonly swapTargetGroupKey = signal<string | null>(null);
+  protected readonly plateCalculatorOpen = signal(false);
+  protected readonly plateCalculatorLogId = signal<string | null>(null);
+  protected readonly plateCalculatorBarWeight = signal(20);
+  protected readonly plateCalculatorTargetWeight = signal<number | null>(null);
   protected readonly activeSession = toSignal(this.sessionStore.activeSession$, { initialValue: null });
   protected readonly currentPlan = toSignal(this.planStore.currentPlan$, { initialValue: null });
+
+  protected readonly plateDenominations: readonly number[] = [20, 15, 10, 5, 2.5, 1.25];
+  protected readonly rpeOptions: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   protected readonly setCategoryOptions: readonly SetCategoryOption[] = [
     { label: 'W', value: 'warmup' },
@@ -276,6 +284,10 @@ export class WorkoutSessionPage implements OnDestroy {
     return group.muscleGroups.slice(1);
   }
 
+  protected exerciseSafetyChips(group: ExerciseLogGroup): string[] {
+    return resolveExerciseSafetyNotes(group.name).tips;
+  }
+
   protected draftFor(log: ExerciseLogDto): SetDraft {
     return this.setDrafts()[log.id] ?? {
       reps: log.reps,
@@ -299,6 +311,14 @@ export class WorkoutSessionPage implements OnDestroy {
     }
     const percent = Math.round((this.timer.remainingSeconds() / total) * 100);
     return Math.min(100, Math.max(0, percent));
+  }
+
+  protected readonly timerRingRadius = 26;
+  protected readonly timerRingCircumference = 2 * Math.PI * 26;
+
+  protected timerRingOffset(): number {
+    const percent = this.timerProgressPercent();
+    return this.timerRingCircumference * (1 - percent / 100);
   }
 
   protected formatWeight(value: number): string {
@@ -386,26 +406,25 @@ export class WorkoutSessionPage implements OnDestroy {
     this.updateDraft(log.id, { reps: Math.max(0, Math.trunc(Number(value) || 0)) });
   }
 
-  protected setRpe(log: ExerciseLogDto, event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    const parsed = Number(value);
-    this.updateDraft(log.id, { rpe: Number.isFinite(parsed) ? parsed : null });
+  protected setRpeValue(log: ExerciseLogDto, value: number): void {
+    this.updateDraft(log.id, { rpe: value });
   }
 
-  protected toggleSetComplete(log: ExerciseLogDto, event: Event): void {
-    const checked = (event.target as HTMLInputElement).checked;
+  /** Tactile Volt checkmark: toggles the set and starts the rest timer on completion. */
+  protected toggleSetCompleteVolt(log: ExerciseLogDto): void {
     const draft = this.draftFor(log);
     const group = this.groupForLog(this.currentLogs(), log);
+    const completed = !log.completed;
 
     this.sessionStore.saveSetLog(log.id, {
       reps: draft.reps,
       weightKg: draft.weightKg,
       rpe: draft.rpe ?? undefined,
-      completed: checked,
+      completed,
       setType: draft.setType,
     });
 
-    if (checked && this.restAutoStart()) {
+    if (completed && this.restAutoStart()) {
       this.timer.start(group ? this.restSecondsFor(group) : this.defaultRestSeconds);
     }
   }
@@ -483,6 +502,87 @@ export class WorkoutSessionPage implements OnDestroy {
       newMuscleGroups: candidate.muscleGroups,
     });
     this.closeSwapModal();
+  }
+
+  protected voltButtonClass(log: ExerciseLogDto): string {
+    const base =
+      'grid size-11 shrink-0 place-items-center rounded-full border-2 transition-all duration-150 active:scale-90 pc-no-tap-highlight';
+    if (log.completed) {
+      return `${base} border-volt bg-volt text-white shadow-volt`;
+    }
+    return `${base} border-slate-300 bg-white text-slate-400 hover:border-volt hover:text-volt dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500 dark:hover:border-volt dark:hover:text-volt`;
+  }
+
+  // ── Barbell plate calculator ────────────────────────────────
+  protected openPlateCalculator(log: ExerciseLogDto): void {
+    this.plateCalculatorLogId.set(log.id);
+    this.plateCalculatorBarWeight.set(20);
+    this.plateCalculatorTargetWeight.set(this.draftFor(log).weightKg || null);
+    this.plateCalculatorOpen.set(true);
+  }
+
+  protected closePlateCalculator(): void {
+    this.plateCalculatorOpen.set(false);
+    this.plateCalculatorLogId.set(null);
+  }
+
+  protected plateCalculatorExerciseName(): string {
+    const logId = this.plateCalculatorLogId();
+    if (!logId) {
+      return '';
+    }
+    const session = this.activeSession();
+    return session?.logs.find((log) => log.id === logId)?.exerciseName ?? '';
+  }
+
+  protected setPlateTargetWeight(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    const parsed = Number(value);
+    this.plateCalculatorTargetWeight.set(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+  }
+
+  protected setPlateBarWeight(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    const parsed = Number(value);
+    this.plateCalculatorBarWeight.set(Number.isFinite(parsed) && parsed >= 0 ? parsed : 20);
+  }
+
+  protected plateCalculatorBreakdown(): {
+    sideWeight: number;
+    plates: { weight: number; count: number }[];
+    remainder: number;
+  } | null {
+    const target = this.plateCalculatorTargetWeight();
+    const bar = this.plateCalculatorBarWeight();
+    if (target === null || !Number.isFinite(target) || target <= bar) {
+      return null;
+    }
+
+    const sideWeight = (target - bar) / 2;
+    let remaining = Math.round(sideWeight * 100) / 100;
+    const plates: { weight: number; count: number }[] = [];
+    for (const denomination of this.plateDenominations) {
+      const count = Math.floor(remaining / denomination + 1e-9);
+      if (count > 0) {
+        plates.push({ weight: denomination, count });
+        remaining = Math.round((remaining - count * denomination) * 100) / 100;
+      }
+    }
+
+    return { sideWeight, plates, remainder: remaining };
+  }
+
+  protected applyPlateTarget(): void {
+    const logId = this.plateCalculatorLogId();
+    const target = this.plateCalculatorTargetWeight();
+    if (logId && target !== null && Number.isFinite(target) && target > 0) {
+      this.updateDraft(logId, { weightKg: Math.round(target * 10) / 10 });
+    }
+    this.closePlateCalculator();
+  }
+
+  protected formatPlateWeight(value: number): string {
+    return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
   }
 
   protected start(workoutPlanId: string, dayIndex: number): void {

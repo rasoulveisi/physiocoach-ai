@@ -295,37 +295,57 @@
         <article
           class="overflow-hidden rounded-2xl border border-surface-border bg-surface-0 shadow-card"
         >
-          <button
-            type="button"
-            class="flex w-full min-w-0 items-center gap-4 p-4 text-left sm:p-5"
-            [attr.aria-expanded]="dayExpanded"
-            (click)="toggleDay(dayIndex)"
-          >
-            <span
-              class="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 text-sm font-extrabold text-white shadow-brand"
+          <div class="flex min-w-0 items-center gap-3 p-4 sm:p-5">
+            <button
+              type="button"
+              class="flex min-w-0 flex-1 items-center gap-4 text-left"
+              [attr.aria-expanded]="dayExpanded"
+              (click)="toggleDay(dayIndex)"
             >
-              Day {{ day.dayNumber }}
-            </span>
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-base font-semibold text-primary sm:text-lg">
-                {{ day.name }}
+              <span
+                class="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 text-sm font-extrabold text-white shadow-brand"
+              >
+                Day {{ day.dayNumber }}
               </span>
-              <span class="mt-0.5 block truncate text-xs font-medium uppercase tracking-wide text-brand-500">
-                {{ day.focus }}
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-base font-semibold text-primary sm:text-lg">
+                  {{ day.name }}
+                </span>
+                <span class="mt-0.5 block truncate text-xs font-medium uppercase tracking-wide text-brand-500">
+                  {{ day.focus }}
+                </span>
+                <span class="mt-1.5 flex min-w-0 flex-wrap items-center gap-1">
+                  @for (muscle of dayMuscles(day); track muscle) {
+                    <span
+                      class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[0.6875rem] font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                    >
+                      {{ muscle }}
+                    </span>
+                  }
+                  <span
+                    class="inline-flex items-center gap-1 rounded-full border border-surface-border bg-surface-muted px-2 py-0.5 text-[0.6875rem] font-semibold text-secondary"
+                  >
+                    <i class="pi pi-bolt text-[0.625rem]" aria-hidden="true"></i>
+                    {{ dayVolume(day) }} sets
+                  </span>
+                </span>
               </span>
-            </span>
-            <span
-              class="hidden shrink-0 items-center gap-1.5 rounded-full border border-surface-border bg-surface-muted px-2.5 py-1 text-xs font-semibold text-secondary sm:inline-flex"
+              <i
+                class="pi pi-chevron-down shrink-0 text-sm text-muted transition-transform duration-200"
+                [class.rotate-180]="dayExpanded"
+                aria-hidden="true"
+              ></i>
+            </button>
+            <button
+              type="button"
+              class="pc-press inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-4 py-2.5 text-sm font-bold text-white no-underline shadow-brand transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.96]"
+              (click)="startDay(dayIndex)"
             >
-              <i class="pi pi-bolt text-[0.6875rem]" aria-hidden="true"></i>
-              {{ day.exercises.length }} {{ day.exercises.length === 1 ? 'exercise' : 'exercises' }}
-            </span>
-            <i
-              class="pi pi-chevron-down shrink-0 text-sm text-muted transition-transform duration-200"
-              [class.rotate-180]="dayExpanded"
-              aria-hidden="true"
-            ></i>
-          </button>
+              <i class="pi pi-play text-xs" aria-hidden="true"></i>
+              <span class="hidden sm:inline">Start Day</span>
+              <span class="sm:hidden">Start</span>
+            </button>
+          </div>
 
           @if (dayExpanded) {
             <div

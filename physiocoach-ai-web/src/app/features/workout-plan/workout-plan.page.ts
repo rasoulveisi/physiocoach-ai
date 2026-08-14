@@ -8,12 +8,13 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { catchError, EMPTY, take } from 'rxjs';
 import { MessageService } from 'primeng/api';
 
 import { WorkoutPlanStore } from './workout-plan.store';
-import { type WorkoutExerciseView } from './workout-plan.model';
+import { type WorkoutExerciseView, type WorkoutDayView } from './workout-plan.model';
+import { WorkoutSessionStore } from '../workout-session/workout-session.store';
 import { ExerciseCatalogApiService } from '../exercise-catalog/exercise-catalog-api.service';
 import { type ExerciseCatalogMediaDto } from '../exercise-catalog/exercise-catalog.model';
 import { PageStateComponent } from '../../shared/ui/page-state.component';
@@ -40,6 +41,8 @@ export class WorkoutPlanPage {
   protected readonly planStore = inject(WorkoutPlanStore);
   private readonly messageService = inject(MessageService);
   private readonly exerciseCatalogApi = inject(ExerciseCatalogApiService);
+  private readonly router = inject(Router);
+  protected readonly sessionStore = inject(WorkoutSessionStore);
   protected readonly planFeedback = signal<string | null>(null);
   protected readonly expandedDayIndex = signal<number | null>(null);
   protected readonly expandedExerciseKeys = signal<Set<ExerciseOpenKey>>(new Set());
@@ -270,6 +273,39 @@ export class WorkoutPlanPage {
     const averageSets = totalSets / dayCount;
 
     return Math.max(25, Math.round(averageSets * 2.5));
+  }
+
+  protected dayMuscles(day: WorkoutDayView): string[] {
+    return Array.from(
+      new Set(
+        day.exercises
+          .map((exercise) => exercise.muscleGroup.trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 4);
+  }
+
+  protected dayVolume(day: WorkoutDayView): number {
+    return day.exercises.reduce((total, exercise) => total + exercise.sets, 0);
+  }
+
+  protected startDay(dayIndex: number): void {
+    const plan = this.planStore.currentPlan();
+    if (!plan) {
+      return;
+    }
+
+    const scheduledDate = new Date().toISOString().slice(0, 10);
+    const idempotencyKey = `${plan.id}:${dayIndex}:${scheduledDate}`;
+    this.sessionStore.createSession(
+      {
+        workoutPlanId: plan.id,
+        dayIndex,
+        scheduledDate,
+      },
+      idempotencyKey,
+    );
+    void this.router.navigate(['/session']);
   }
 
   protected isExerciseImageLoading(exercise: WorkoutExerciseView): boolean {
