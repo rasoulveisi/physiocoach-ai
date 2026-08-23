@@ -20,8 +20,8 @@ export function Navbar({ user }: { user: User | null }) {
 
   return (
     <>
-      {/* Desktop Top Header Bar */}
-      <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md">
+      {/* Desktop Top Header Bar (Hidden on mobile for native app feel) */}
+      <header className="hidden md:block sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-7 px-4 sm:px-6">
           <Link to="/dashboard" className="flex items-center gap-2.5 font-black tracking-tight group">
             <span className="grid size-9 place-items-center rounded-xl bg-lime-400 text-zinc-950 shadow-sm transition-transform group-hover:scale-105">

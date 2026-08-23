@@ -38,26 +38,26 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-obsidian-950/80 p-4 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-3 sm:p-4 backdrop-blur-md animate-fade-in"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className={`w-full ${maxSizes[maxWidth]} max-h-[90vh] flex flex-col rounded-2xl border border-obsidian-700 bg-obsidian-900 text-slate-100 animate-scale-in`}
+        className={`w-full ${maxSizes[maxWidth]} max-h-[90vh] flex flex-col rounded-3xl border border-zinc-800 bg-zinc-900 text-zinc-100 shadow-2xl animate-scale-in overflow-hidden`}
       >
-        <div className="flex items-center justify-between border-b border-obsidian-800 p-5">
-          <h2 id="modal-title" className="text-xl font-black tracking-tight text-white">
+        <div className="flex items-center justify-between border-b border-zinc-800/90 p-4 sm:p-5">
+          <h2 id="modal-title" className="text-lg sm:text-xl font-black tracking-tight text-white">
             {title}
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close" className="text-zinc-400 hover:text-white">
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <div className="overflow-y-auto p-5">{children}</div>
+        <div className="overflow-y-auto p-4 sm:p-5">{children}</div>
         {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-obsidian-800 p-4 bg-obsidian-950/40">
+          <div className="flex items-center justify-end gap-2.5 sm:gap-3 border-t border-zinc-800/90 p-3.5 sm:p-4 bg-zinc-950/60">
             {footer}
           </div>
         )}

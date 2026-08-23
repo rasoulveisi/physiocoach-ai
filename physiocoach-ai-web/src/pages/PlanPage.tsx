@@ -1,23 +1,19 @@
 import { useCallback, useEffect, useState, useRef, type TouchEvent } from 'react';
 import {
   BrainCircuit,
-  ChevronLeft,
-  ChevronRight,
-  Dumbbell,
-  Play,
-  RefreshCw,
-  ShieldCheck,
-  Timer,
-  Flame,
   ChevronDown,
   ChevronUp,
-  Info,
-  CheckCircle2,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  Timer,
   Trash2,
-  Sparkles,
+  CheckCircle2,
+  Info,
+  ChevronRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
@@ -156,305 +152,289 @@ const FEEDBACK_STORAGE_KEY = 'pc_plan_feedback';
 export function PlanPage() {
   const [planView, setPlanView] = useState<WorkoutPlanView | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [slideDirection, setSlideDirection] = useState<'right' | 'left'>('right');
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState<string>('');
   const [expandedFormCues, setExpandedFormCues] = useState<Record<number, boolean>>({});
   const [previewExercise, setPreviewExercise] = useState<ExercisePreviewItem | null>(null);
-  const [feedback, setFeedback] = useState<string>(() => localStorage.getItem(FEEDBACK_STORAGE_KEY) || '');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  const touchStartXRef = useRef<number | null>(null);
   const navigate = useNavigate();
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
 
-  const loadPlan = useCallback(async () => {
+  useEffect(() => {
+    const stored = localStorage.getItem(FEEDBACK_STORAGE_KEY);
+    if (stored) setFeedback(stored);
+  }, []);
+
+  const handleSaveFeedback = (value: string) => {
+    setFeedback(value);
+    localStorage.setItem(FEEDBACK_STORAGE_KEY, value);
+    setToast({ message: 'Feedback saved!', type: 'success' });
+  };
+
+  const toggleFormCue = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedFormCues((prev) => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  const fetchCurrentPlan = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await apiClient.get<unknown>('workout-plans/current');
+      const res = await apiClient.get<any>('workout-plans/current');
       const normalized = normalizeWorkoutPlanView(res);
+      if (!normalized) throw new Error('Invalid plan structure received');
       setPlanView(normalized);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not load active workout plan.');
+      setError(cause instanceof Error ? cause.message : 'Could not load your workout plan.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadPlan();
-  }, [loadPlan]);
+    fetchCurrentPlan();
+  }, [fetchCurrentPlan]);
 
   const generateNewPlan = async () => {
     setGenerating(true);
     setError('');
     try {
-      const res = await apiClient.post<unknown>('workout-plans/generate', {});
-      const normalized = normalizeWorkoutPlanView(res);
-      setPlanView(normalized);
-      setSelectedDay(0);
+      await apiClient.post('workout-plans/generate', {});
+      await fetchCurrentPlan();
+      setToast({ message: 'New plan generated!', type: 'success' });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'AI workout plan generation failed.');
+      setError(cause instanceof Error ? cause.message : 'Plan generation failed.');
     } finally {
       setGenerating(false);
     }
   };
 
-  const deleteCurrentPlan = async () => {
-    if (!window.confirm('Are you sure you want to delete your current workout plan?')) {
-      return;
-    }
-
-    setDeleting(true);
-    setError('');
+  const deletePlan = async () => {
+    if (!confirm('Delete this plan? This cannot be undone.')) return;
     try {
-      await apiClient.delete('workout-plans/current');
+      await apiClient.delete(`workout-plans/${planView?.id}`);
       setPlanView(null);
+      setToast({ message: 'Plan deleted.', type: 'success' });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not delete current plan.');
-    } finally {
-      setDeleting(false);
+      setError(cause instanceof Error ? cause.message : 'Delete failed.');
     }
   };
 
-  const days = planView?.plan?.days || [];
-  const currentDay = days[selectedDay];
-
-  const handleSelectDay = (index: number) => {
-    if (index === selectedDay) return;
-    setSlideDirection(index > selectedDay ? 'right' : 'left');
-    setSelectedDay(index);
-    setExpandedFormCues({});
+  const swipeDay = (direction: 'left' | 'right') => {
+    if (!planView?.plan?.days) return;
+    const count = planView.plan.days.length;
+    if (direction === 'left') {
+      setSelectedDay((prev) => (prev + 1) % count);
+    } else {
+      setSelectedDay((prev) => (prev === 0 ? count - 1 : prev - 1));
+    }
   };
 
-  // Touch Swipe Carousel Navigation
   const handleTouchStart = (e: TouchEvent) => {
-    touchStartXRef.current = e.touches[0].clientX;
+    touchStartX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = (e: TouchEvent) => {
-    if (touchStartXRef.current === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchStartXRef.current - touchEndX;
-
-    if (Math.abs(diff) > 50) {
-      if (diff > 0 && selectedDay < days.length - 1) {
-        // Swipe left -> Next day
-        handleSelectDay(selectedDay + 1);
-      } else if (diff < 0 && selectedDay > 0) {
-        // Swipe right -> Previous day
-        handleSelectDay(selectedDay - 1);
-      }
+    touchEndX.current = e.changedTouches[0].clientX;
+    const delta = touchStartX.current - touchEndX.current;
+    if (Math.abs(delta) > 60) {
+      swipeDay(delta > 0 ? 'left' : 'right');
     }
-    touchStartXRef.current = null;
   };
 
-  const toggleFormCue = (index: number) => {
-    setExpandedFormCues((prev) => ({ ...prev, [index]: !prev[index] }));
-  };
+  if (loading) {
+    return (
+      <main className="mx-auto min-h-screen max-w-2xl px-4 py-6">
+        <div className="grid min-h-[60vh] place-items-center">
+          <span className="h-10 w-10 animate-spin rounded-full border-4 border-lime-400 border-r-transparent" />
+        </div>
+      </main>
+    );
+  }
 
-  const handleSaveFeedback = (val: string) => {
-    setFeedback(val);
-    localStorage.setItem(FEEDBACK_STORAGE_KEY, val);
-  };
+  if (error) {
+    return (
+      <main className="mx-auto min-h-screen max-w-2xl px-4 py-6">
+        <Card className="mt-10 border-zinc-800 bg-zinc-900">
+          <CardContent className="py-16 text-center">
+            <h2 className="text-2xl font-black text-white">Error Loading Plan</h2>
+            <p className="mt-2 text-sm text-zinc-400">{error}</p>
+            <Button onClick={fetchCurrentPlan} variant="volt" size="md" className="mt-6">
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
-  const dayExercises = currentDay?.exercises || [];
-  const totalSets = dayExercises.reduce((sum, ex) => sum + (ex.sets || 3), 0);
-  const estMinutes = Math.max(25, Math.round(totalSets * 2.5));
+  const dayExercises = planView?.plan?.days?.[selectedDay]?.exercises || [];
+  const currentDay = planView?.plan?.days?.[selectedDay];
+  const totalExercises = dayExercises.length;
+  const totalSets = dayExercises.reduce((sum, ex) => sum + (ex.sets || 0), 0);
+  
+  // Real gym pacing formula
+  const totalRestSeconds = dayExercises.reduce((sum, ex) => sum + (ex.sets || 3) * (ex.restSeconds || 60), 0);
+  const totalWorkSeconds = dayExercises.reduce((sum, ex) => sum + (ex.sets || 3) * 45, 0);
+  const transitionSeconds = dayExercises.length * 90;
+  const warmupSeconds = 300;
+  const estMinutes = Math.round((totalRestSeconds + totalWorkSeconds + transitionSeconds + warmupSeconds) / 60) || 50;
+
   const targetMuscles = Array.from(
-    new Set(dayExercises.map((e) => e.muscleGroup || e.movementPattern).filter(Boolean)),
+    new Set(dayExercises.map((ex) => ex.muscleGroup || ex.movementPattern).filter(Boolean)),
   );
 
   return (
     <main
-      className="mx-auto max-w-7xl p-4 pb-28 sm:p-6 lg:p-8"
+      className="mx-auto min-h-screen max-w-2xl space-y-6 px-4 py-6 pb-28 text-zinc-50"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header & AI Plan Action */}
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-obsidian-800 pb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-volt" />
-            <p className="font-mono text-xs font-bold uppercase tracking-widest text-volt">
-              Precision Programming
-            </p>
-          </div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            {currentDay?.name ? `Personalized Split · ${days.length} Days` : 'Weekly Workout Split'}
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Swipe or select days to review exercises, clinical cues, and target loads.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {planView && (
-            <Badge variant={planView.source === 'ai' ? 'volt' : 'amber'}>
-              <Sparkles className="mr-1 h-3.5 w-3.5" />
-              {planView.source === 'ai' ? 'AI GENERATED' : 'VERIFIED SPLIT'} · {planView.model}
-            </Badge>
-          )}
-
-          {planView && (
-            <Button
-              onClick={deleteCurrentPlan}
-              loading={deleting}
-              variant="outline"
-              size="md"
-              className="text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-
-          <Button onClick={generateNewPlan} loading={generating} variant="volt" size="md">
-            <BrainCircuit className="h-4 w-4" />
-            {planView ? 'Regenerate AI Plan' : 'Generate AI Workout Plan'}
-          </Button>
-        </div>
-      </header>
-
-      {error && (
-        <div className="mt-6">
-          <Toast type="error" message={error} onClose={() => setError('')} />
-        </div>
-      )}
-
-      {days.length > 0 ? (
+      {planView?.plan?.days && planView.plan.days.length > 0 ? (
         <>
-          {/* Animated Weekly Split Day Navigation Strip */}
-          <div className="mt-6 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => selectedDay > 0 && handleSelectDay(selectedDay - 1)}
-              disabled={selectedDay === 0}
-              className="hidden size-10 shrink-0 place-items-center rounded-xl border border-obsidian-700 bg-obsidian-900 text-slate-400 hover:border-volt hover:text-volt disabled:opacity-30 sm:grid"
-              aria-label="Previous day"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
+          {/* Schedule Strip (Fitnest Style) */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-white">Schedule</h1>
+                <p className="text-xs text-zinc-400">Weekly Workout Routine</p>
+              </div>
 
-            <div className="flex flex-1 gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {days.map((item, index) => {
-                const isActive = selectedDay === index;
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={generateNewPlan}
+                  loading={generating}
+                  title="Regenerate Plan"
+                  className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={deletePlan}
+                  title="Delete Plan"
+                  className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-red-500/40 hover:text-red-400"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Vertical/Pill Day Strip */}
+            <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+              {planView.plan.days.map((day, idx) => {
+                const isActive = idx === selectedDay;
                 return (
                   <button
-                    key={item.dayNumber || index}
+                    key={day.dayNumber}
                     type="button"
-                    onClick={() => handleSelectDay(index)}
-                    className={`relative min-w-32 flex-1 rounded-xl border p-3.5 text-left transition-all duration-200 active:scale-[0.98] ${
+                    onClick={() => setSelectedDay(idx)}
+                    className={`flex min-w-[76px] flex-1 flex-col items-center justify-center rounded-2xl p-3 text-center transition-all ${
                       isActive
-                        ? 'border-volt bg-volt/10'
-                        : 'border-obsidian-700 bg-obsidian-900/80 hover:border-obsidian-600 hover:bg-obsidian-900'
+                        ? 'bg-lime-400 text-zinc-950 font-black shadow-lg shadow-lime-400/20 scale-[1.02]'
+                        : 'bg-zinc-900 border border-zinc-800/90 text-zinc-400 hover:border-zinc-700 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`font-mono text-[11px] font-extrabold uppercase ${
-                          isActive ? 'text-volt' : 'text-slate-400'
-                        }`}
-                      >
-                        DAY {item.dayNumber || index + 1}
-                      </span>
-                      {isActive && <span className="size-1.5 rounded-full bg-volt" />}
-                    </div>
-                    <span className="mt-1 block truncate text-sm font-extrabold text-white">
-                      {item.focus || item.name || `Session ${index + 1}`}
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-zinc-950/70' : 'text-zinc-500'}`}>
+                      Day {day.dayNumber}
+                    </span>
+                    <span className="mt-0.5 text-lg font-black tabular-nums">
+                      {day.name.replace(/day\s*\d+:\s*/i, '').split(' ')[0] || `D${day.dayNumber}`}
                     </span>
                   </button>
                 );
               })}
             </div>
+          </section>
 
-            <button
-              type="button"
-              onClick={() => selectedDay < days.length - 1 && handleSelectDay(selectedDay + 1)}
-              disabled={selectedDay === days.length - 1}
-              className="hidden size-10 shrink-0 place-items-center rounded-xl border border-obsidian-700 bg-obsidian-900 text-slate-400 hover:border-volt hover:text-volt disabled:opacity-30 sm:grid"
-              aria-label="Next day"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+          {/* Hero Workout Banner (Fitnest Card Style) */}
+          <section className="relative overflow-hidden rounded-3xl border border-zinc-800/90 bg-zinc-900 p-5 shadow-xl sm:p-6">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-lime-400/10 blur-3xl" />
 
-          {/* Active Day Telemetry Header */}
-          <div
-            key={`header-${selectedDay}`}
-            className={`mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-obsidian-700 bg-obsidian-900 p-5 ${
-              slideDirection === 'right' ? 'pc-slide-right' : 'pc-slide-left'
-            }`}
-          >
-            <div>
-              <span className="font-mono text-xs font-bold uppercase tracking-wider text-volt">
-                Day {currentDay?.dayNumber || selectedDay + 1} of {days.length}
-              </span>
-              <h2 className="mt-1 text-2xl font-black text-white">
-                {currentDay?.focus || currentDay?.name || 'Workout Session'}
-              </h2>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-md border border-obsidian-700 bg-obsidian-950 px-2.5 py-1 font-mono text-xs font-bold text-slate-300">
-                  {dayExercises.length} Exercises
-                </span>
-                <span className="rounded-md border border-obsidian-700 bg-obsidian-950 px-2.5 py-1 font-mono text-xs font-bold text-slate-300">
-                  {totalSets} Total Sets
-                </span>
-                <span className="flex items-center gap-1 rounded-md border border-obsidian-700 bg-obsidian-950 px-2.5 py-1 font-mono text-xs font-bold text-cyan-400">
-                  <Timer className="h-3.5 w-3.5" /> ~{estMinutes} Mins
-                </span>
-                {targetMuscles.slice(0, 3).map((m) => (
-                  <Badge key={m} variant="neutral">
-                    {m}
-                  </Badge>
-                ))}
+            <div className="relative z-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-lime-400 animate-pulse" />
+                  <p className="font-mono text-[11px] font-black uppercase tracking-widest text-lime-400">
+                    Day {currentDay?.dayNumber} · Today Target&apos;s
+                  </p>
+                </div>
+
+                <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                  {currentDay?.name || currentDay?.focus || 'Workout Session'}
+                </h2>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-xs font-bold text-zinc-300">
+                    <Timer className="h-3.5 w-3.5 text-lime-400" /> {estMinutes} MIN
+                  </span>
+
+                  {targetMuscles.slice(0, 3).map((muscle) => (
+                    <span
+                      key={muscle}
+                      className="rounded-full bg-lime-400 px-3 py-1 text-xs font-black uppercase tracking-wider text-zinc-950"
+                    >
+                      {muscle}
+                    </span>
+                  ))}
+                </div>
               </div>
+
+              {/* Start Workout Action CTA */}
+              <button
+                type="button"
+                onClick={() => navigate('/session')}
+                className="group flex items-center justify-center gap-3 rounded-full bg-lime-400 px-6 py-3.5 text-zinc-950 font-black shadow-lg shadow-lime-400/25 transition-all hover:scale-105 active:scale-95 self-start sm:self-auto shrink-0"
+              >
+                <span className="text-sm font-black uppercase tracking-wider">Start Workout</span>
+                <span className="flex size-8 items-center justify-center rounded-full bg-zinc-950 text-lime-400 transition-transform group-hover:scale-110">
+                  <Play className="ml-0.5 size-3.5 fill-current" />
+                </span>
+              </button>
+            </div>
+          </section>
+
+          {/* List of Exercises (Fitnest Sleek Card List) */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between pt-1">
+              <div>
+                <h3 className="text-lg font-black text-white">List of Exercise</h3>
+                <p className="text-xs text-zinc-400">
+                  {totalExercises} Exercises · {totalSets} Total Sets
+                </p>
+              </div>
+              <span className="font-mono text-[11px] font-bold text-zinc-500">Tap to inspect form</span>
             </div>
 
-            <Button
-              variant="volt"
-              size="md"
-              onClick={() => navigate('/session')}
-              className="w-full sm:w-auto"
-            >
-              <Play className="h-4 w-4 fill-current" /> Start This Workout
-            </Button>
-          </div>
+            <div className="space-y-3">
+              {dayExercises.map((exercise, index) => {
+                const safetyNotes = resolveExerciseSafetyNotes(exercise.name);
+                const isCueExpanded = !!expandedFormCues[index];
 
-          {/* Exercise Grid with Visuals & Form Cues */}
-          <section
-            key={`exercises-${selectedDay}`}
-            className={`mt-6 grid gap-4 lg:grid-cols-2 ${
-              slideDirection === 'right' ? 'pc-slide-right' : 'pc-slide-left'
-            }`}
-          >
-            {dayExercises.map((exercise, index) => {
-              const safety = exercise.safetyLevel || 'safe';
-              const safetyNotes = resolveExerciseSafetyNotes(exercise.name);
-              const isCueExpanded = !!expandedFormCues[index];
-
-              return (
-                <Card
-                  key={exercise.id || `${exercise.name}-${index}`}
-                  className="group relative overflow-hidden transition-all duration-200 hover:border-obsidian-600"
-                >
-                  <CardContent className="p-5">
-                    <div className="flex gap-4">
-                      {/* Interactive Visual Thumbnail */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviewExercise({
-                            id: exercise.masterExerciseId || exercise.id || '',
-                            masterExerciseId: exercise.masterExerciseId,
-                            name: exercise.name,
-                            movementPattern: exercise.movementPattern,
-                            muscleGroup: exercise.muscleGroup,
-                          })
-                        }
-                        className="group/img relative cursor-pointer"
-                        title="Click for full-screen demonstration"
-                      >
+                return (
+                  <div
+                    key={exercise.id || `${exercise.name}-${index}`}
+                    onClick={() =>
+                      setPreviewExercise({
+                        id: exercise.masterExerciseId || exercise.id || '',
+                        masterExerciseId: exercise.masterExerciseId,
+                        name: exercise.name,
+                        movementPattern: exercise.movementPattern,
+                        muscleGroup: exercise.muscleGroup,
+                      })
+                    }
+                    className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-900 p-3.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/80 active:scale-[0.99] sm:p-4"
+                  >
+                    <div className="flex items-center gap-3.5 sm:gap-4">
+                      {/* 16:9 Rectangular Thumbnail */}
+                      <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 sm:h-20 sm:w-32 flex items-center justify-center">
                         <ExerciseVisual
                           name={exercise.name}
                           masterExerciseId={exercise.masterExerciseId || exercise.id}
@@ -462,142 +442,97 @@ export function PlanPage() {
                           muscleGroup={exercise.muscleGroup}
                           compact={true}
                         />
-                        <div className="absolute inset-0 grid place-items-center rounded-xl bg-obsidian-950/60 opacity-0 transition-opacity group-hover/img:opacity-100">
-                          <span className="text-[10px] font-bold text-volt">Preview</span>
-                        </div>
-                      </button>
+                      </div>
 
-                      {/* Exercise Details */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <span className="font-mono text-[11px] font-bold text-slate-500">
-                              #{String(index + 1).padStart(2, '0')}
-                            </span>
-                            <h3
-                              onClick={() =>
-                                setPreviewExercise({
-                                  id: exercise.masterExerciseId || exercise.id || '',
-                                  masterExerciseId: exercise.masterExerciseId,
-                                  name: exercise.name,
-                                  movementPattern: exercise.movementPattern,
-                                  muscleGroup: exercise.muscleGroup,
-                                })
-                              }
-                              className="cursor-pointer text-lg font-black text-white hover:text-volt transition-colors"
-                            >
-                              {exercise.name}
-                            </h3>
-                          </div>
+                      {/* Middle Exercise Info */}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <h4 className="truncate text-sm font-bold text-zinc-100 transition-colors group-hover:text-lime-400 sm:text-base capitalize">
+                          {exercise.name}
+                        </h4>
 
-                          <Badge
-                            variant={
-                              safety === 'avoid'
-                                ? 'danger'
-                                : safety === 'caution'
-                                ? 'amber'
-                                : 'volt'
-                            }
-                          >
-                            <ShieldCheck className="mr-1 h-3 w-3" />
-                            {safety.toUpperCase()}
-                          </Badge>
-                        </div>
-
-                        {/* Sets × Reps & Load */}
-                        <div className="mt-2 flex flex-wrap items-center gap-3">
-                          <span className="font-mono text-xl font-black text-volt">
-                            {exercise.sets || 3} <span className="text-xs text-slate-400">SETS</span> ×{' '}
-                            {exercise.reps || 10} <span className="text-xs text-slate-400">REPS</span>
+                        {/* Sets & Reps Subtitle (Lime Highlight) */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="font-mono font-bold text-lime-400">
+                            {exercise.sets || 3} Sets × {exercise.reps || '8-12'}
                           </span>
-
-                          {exercise.rpe && (
-                            <span className="flex items-center gap-1 rounded-md border border-volt/30 bg-volt/10 px-2 py-0.5 font-mono text-xs font-bold text-volt">
-                              <Flame className="h-3 w-3" /> RPE {exercise.rpe}
-                            </span>
-                          )}
-
-                          {exercise.restSeconds && (
-                            <span className="font-mono text-xs text-slate-400">
-                              {exercise.restSeconds}s rest
-                            </span>
-                          )}
+                          <span className="text-zinc-600">·</span>
+                          <span className="font-mono text-zinc-400">
+                            ⏱ {exercise.restSeconds || 90}s rest
+                          </span>
                         </div>
 
-                        {/* Movement Pattern & Muscle Group Badges */}
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {exercise.movementPattern && (
-                            <Badge variant="cyan">{exercise.movementPattern}</Badge>
-                          )}
-                          {exercise.muscleGroup && (
-                            <Badge variant="neutral">
-                              <Dumbbell className="mr-1 h-3 w-3" />
-                              {exercise.muscleGroup}
-                            </Badge>
-                          )}
+                        {/* Clinical Safeguard Indicator / Toggle */}
+                        {safetyNotes.tips.length > 0 && (
+                          <div className="pt-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => toggleFormCue(index, e)}
+                              className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-400 hover:bg-amber-500/20"
+                            >
+                              <ShieldCheck className="size-3 text-amber-400" />
+                              <span>Clinical Cue</span>
+                              {isCueExpanded ? (
+                                <ChevronUp className="size-3" />
+                              ) : (
+                                <ChevronDown className="size-3" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Action Chevron Button */}
+                      <div className="shrink-0">
+                        <div className="flex size-9 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-zinc-400 transition-all group-hover:border-lime-400 group-hover:bg-lime-400 group-hover:text-zinc-950">
+                          <ChevronRight className="size-4" />
                         </div>
                       </div>
                     </div>
 
-                    {/* Collapsible Clinical Biomechanical Form Cues */}
-                    <div className="mt-4 border-t border-obsidian-800 pt-3">
-                      <button
-                        type="button"
-                        onClick={() => toggleFormCue(index)}
-                        className="flex w-full items-center justify-between text-xs font-bold text-amber-400 hover:text-amber-300"
+                    {/* Expanded Clinical Cue Drawer */}
+                    {isCueExpanded && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-3 animate-fade-in rounded-xl border border-amber-500/30 bg-amber-500/10 p-3"
                       >
-                        <span className="flex items-center gap-1.5">
-                          <ShieldCheck className="h-3.5 w-3.5" />
-                          Clinical Form Cues ({safetyNotes.tips.length})
-                        </span>
-                        {isCueExpanded ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
+                        <ul className="space-y-1">
+                          {safetyNotes.tips.map((tip, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-xs text-amber-200">
+                              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-amber-400" />
+                              <span>{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {exercise.notes && (
+                          <p className="mt-2 border-t border-amber-500/20 pt-2 text-xs text-amber-300/80">
+                            {exercise.notes}
+                          </p>
                         )}
-                      </button>
-
-                      {isCueExpanded && (
-                        <div className="mt-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 animate-fade-in">
-                          <ul className="space-y-1">
-                            {safetyNotes.tips.map((tip, idx) => (
-                              <li key={idx} className="flex items-start gap-2 text-xs text-amber-200">
-                                <span className="mt-1.5 size-1 shrink-0 rounded-full bg-amber-400" />
-                                <span>{tip}</span>
-                              </li>
-                            ))}
-                          </ul>
-                          {exercise.notes && (
-                            <p className="mt-2 text-xs text-amber-300/80 border-t border-amber-500/20 pt-2">
-                              {exercise.notes}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </section>
 
-          {/* Auxiliary Progression Rules & Feedback Accordion */}
-          <details className="group mt-8 rounded-2xl border border-obsidian-700 bg-obsidian-900 p-5 transition-all">
-            <summary className="flex cursor-pointer items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white list-none">
+          {/* Progressive Overload Protocol Card */}
+          <details className="group rounded-2xl border border-zinc-800 bg-zinc-900 p-5 transition-all">
+            <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-bold uppercase tracking-wider text-zinc-300 hover:text-white">
               <span className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-cyan-400" />
-                Progression Rules & Safety Guidelines
+                <Info className="h-4 w-4 text-lime-400" />
+                Progression Rules & Safety Protocol
               </span>
-              <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+              <ChevronDown className="h-4 w-4 text-zinc-400 transition-transform group-open:rotate-180" />
             </summary>
 
-            <div className="mt-4 space-y-4 border-t border-obsidian-800 pt-4">
+            <div className="mt-4 space-y-4 border-t border-zinc-800 pt-4">
               {planView?.plan?.progression?.progressionRule && (
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                     Progression Protocol
                   </h4>
-                  <p className="mt-1 text-sm text-slate-200 leading-relaxed">
+                  <p className="mt-1 text-sm leading-relaxed text-zinc-200">
                     {planView.plan.progression.progressionRule}
                   </p>
                 </div>
@@ -606,11 +541,11 @@ export function PlanPage() {
               {planView?.plan?.safetyNotes && planView.plan.safetyNotes.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                    Medical & Posture Safety Notes
+                    Clinical & Posture Safety Safeguards
                   </h4>
                   <ul className="mt-2 space-y-1">
                     {planView.plan.safetyNotes.map((note, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                      <li key={idx} className="flex items-start gap-2 text-xs text-zinc-300">
                         <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />
                         <span>{note}</span>
                       </li>
@@ -620,8 +555,8 @@ export function PlanPage() {
               )}
 
               {/* Plan Feedback */}
-              <div className="border-t border-obsidian-800 pt-4">
-                <span className="text-xs font-bold text-slate-400">How does this split feel?</span>
+              <div className="border-t border-zinc-800 pt-4">
+                <span className="text-xs font-bold text-zinc-400">How does this split feel?</span>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {['Optimal Balance', 'A Bit Heavy', 'Need More Rest', 'Perfect Pace'].map((opt) => (
                     <button
@@ -630,11 +565,11 @@ export function PlanPage() {
                       onClick={() => handleSaveFeedback(opt)}
                       className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
                         feedback === opt
-                          ? 'border-volt bg-volt/10 text-volt'
-                          : 'border-obsidian-700 bg-obsidian-950 text-slate-400 hover:text-white'
+                          ? 'border-lime-400 bg-lime-400/10 text-lime-400'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
                       }`}
                     >
-                      {feedback === opt && <CheckCircle2 className="h-3.5 w-3.5 text-volt" />}
+                      {feedback === opt && <CheckCircle2 className="h-3.5 w-3.5 text-lime-400" />}
                       {opt}
                     </button>
                   ))}
@@ -646,11 +581,11 @@ export function PlanPage() {
       ) : (
         !loading &&
         !error && (
-          <Card className="mt-10">
+          <Card className="mt-10 border-zinc-800 bg-zinc-900">
             <CardContent className="py-20 text-center">
-              <RefreshCw className="mx-auto h-12 w-12 text-slate-600 animate-pulse" />
+              <RefreshCw className="mx-auto h-12 w-12 animate-pulse text-zinc-600" />
               <h2 className="mt-4 text-2xl font-black text-white">No active workout plan</h2>
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-zinc-400">
                 Generate an intelligent, posture-aware training plan tailored to your profile.
               </p>
               <Button onClick={generateNewPlan} loading={generating} variant="volt" size="md" className="mt-6">
@@ -667,6 +602,18 @@ export function PlanPage() {
         exercise={previewExercise}
         onClose={() => setPreviewExercise(null)}
       />
+
+      {/* Toast Notifications */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        </div>
+      )}
     </main>
   );
 }
+

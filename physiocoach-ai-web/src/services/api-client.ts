@@ -1,5 +1,7 @@
 const API_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '');
 export const AUTH_TOKEN_KEY = 'physiocoach_auth_token';
+export const REFRESH_TOKEN_KEY = 'physiocoach_refresh_token';
+export const USER_KEY = 'physiocoach_auth_user';
 
 export interface ProblemDetails {
   type?: string;
@@ -23,11 +25,102 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   method?: string;
 }
 
+// Endpoints that manage their own session lifecycle never trigger the silent-refresh flow.
+const SESSION_PATHS = new Set(['auth/login', 'auth/register', 'auth/refresh']);
+
+const isSessionPath = (path: string): boolean => SESSION_PATHS.has(path.replace(/^\//, ''));
+
+function clearStoredTokens(): void {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+interface AuthAttempt {
+  response: Response;
+  payload: unknown;
+}
+
+async function sendRequest(path: string, method: string, options: ApiRequestOptions, token: string | null): Promise<AuthAttempt> {
+  const { body, headers, ...init } = options;
+  const response = await fetch(`${API_URL}/${path.replace(/^\//, '')}`, {
+    ...init,
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  const isJson = (response.headers.get('content-type') || '').includes('json');
+  const payload: unknown = isJson ? await response.json() : await response.text();
+  return { response, payload };
+}
+
+function toProblem(payload: unknown, response: Response): ProblemDetails {
+  const problem = typeof payload === 'object' && payload !== null ? (payload as Partial<ProblemDetails>) : {};
+  return {
+    ...problem,
+    title: problem.title || response.statusText || 'Request failed',
+    status: problem.status || response.status,
+    detail: problem.detail || (typeof payload === 'string' ? payload : undefined),
+  };
+}
+
+// Silent refresh mutex: at most one /auth/refresh call in flight; concurrent 401s join the shared promise.
+let refreshPromise: Promise<string | null> | null = null;
+
+interface RefreshResponse {
+  accessToken?: string;
+  refreshToken?: string;
+  user?: unknown;
+}
+
+async function performSilentRefresh(): Promise<string | null> {
+  try {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) {
+      clearStoredTokens();
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      return null;
+    }
+
+    const attempt = await sendRequest('auth/refresh', 'POST', { body: { refreshToken }, token: null }, null);
+    const data: RefreshResponse = typeof attempt.payload === 'object' && attempt.payload !== null ? attempt.payload : {};
+    if (!attempt.response.ok || !data.accessToken) {
+      throw new Error(toProblem(attempt.payload, attempt.response).detail || 'Silent refresh failed.');
+    }
+
+    localStorage.setItem(AUTH_TOKEN_KEY, data.accessToken);
+    if (data.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+    if (data.user !== undefined && data.user !== null) localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    window.dispatchEvent(new CustomEvent('auth:session-updated', { detail: data }));
+    return data.accessToken;
+  } catch {
+    clearStoredTokens();
+    window.dispatchEvent(new CustomEvent('auth:session-expired'));
+    return null;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
+function requestSilentRefresh(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = performSilentRefresh();
+  }
+  return refreshPromise;
+}
+
 // In-flight GET request deduplicator
 const inFlightGets = new Map<string, Promise<any>>();
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const method = (options.method || 'GET').toUpperCase();
+  const allowRefresh = !isSessionPath(path);
   const token = options.token !== undefined ? options.token : localStorage.getItem(AUTH_TOKEN_KEY);
   const cacheKey = method === 'GET' ? `${token || 'anon'}:${path}` : null;
 
@@ -37,36 +130,20 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   const promise = (async () => {
     try {
-      const { body, headers, ...init } = options;
-      const response = await fetch(`${API_URL}/${path.replace(/^\//, '')}`, {
-        ...init,
-        method,
-        headers: {
-          Accept: 'application/json',
-          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...headers,
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
+      let attempt = await sendRequest(path, method, options, token);
 
-      const isJson = (response.headers.get('content-type') || '').includes('json');
-      const payload: unknown = isJson ? await response.json() : await response.text();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem(AUTH_TOKEN_KEY);
+      if (attempt.response.status === 401 && allowRefresh) {
+        const refreshedToken = await requestSilentRefresh();
+        if (refreshedToken) {
+          attempt = await sendRequest(path, method, options, refreshedToken);
         }
-        const problem = typeof payload === 'object' && payload !== null ? (payload as Partial<ProblemDetails>) : {};
-        throw new ApiError({
-          ...problem,
-          title: problem.title || response.statusText || 'Request failed',
-          status: problem.status || response.status,
-          detail: problem.detail || (typeof payload === 'string' ? payload : undefined),
-        });
       }
 
-      return payload as T;
+      if (!attempt.response.ok) {
+        throw new ApiError(toProblem(attempt.payload, attempt.response));
+      }
+
+      return attempt.payload as T;
     } finally {
       if (cacheKey) {
         inFlightGets.delete(cacheKey);

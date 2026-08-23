@@ -7,6 +7,7 @@ import {
   Dumbbell,
   Minus,
   PartyPopper,
+  Pause,
   Play,
   Plus,
   RotateCcw,
@@ -63,7 +64,7 @@ export function SessionPage() {
   const { unitSystem, formatWeight, autoStartRestTimer } = usePreferences();
   const [exercises, setExercises] = useState<SessionExercise[]>([]);
   const [logs, setLogs] = useState<Record<number, LoggedSet[]>>({});
-  const [running, setRunning] = useState(true);
+  const [sessionState, setSessionState] = useState<'idle' | 'active' | 'paused'>('idle');
   const [seconds, setSeconds] = useState(0);
   const [sessionRpe, setSessionRpe] = useState(7);
   const [error, setError] = useState('');
@@ -156,10 +157,19 @@ export function SessionPage() {
 
   // Duration Timer
   useEffect(() => {
-    if (!running) return;
+    if (sessionState !== 'active') return;
     const interval = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(interval);
-  }, [running]);
+  }, [sessionState]);
+
+  const handleStartSession = () => {
+    setSessionState('active');
+    soundCueService.playSetCompleteBeep();
+  };
+
+  const handlePauseSession = () => {
+    setSessionState((prev) => (prev === 'active' ? 'paused' : 'active'));
+  };
 
   const totalSets = Object.values(logs).flat().length;
   const completedSets = Object.values(logs).flat().filter((x) => x.completed).length;
@@ -171,117 +181,117 @@ export function SessionPage() {
   const totalVolumeKg = useMemo(() => {
     return Object.values(logs)
       .flat()
-      .reduce((sum, s) => sum + (s.completed ? s.weight * s.reps : 0), 0);
+      .filter((s) => s.completed)
+      .reduce((sum, s) => sum + s.weight * s.reps, 0);
   }, [logs]);
 
-  const updateSet = (exIdx: number, setIdx: number, patch: Partial<LoggedSet>) => {
-    setLogs((prev) => {
-      const currentExLogs = [...(prev[exIdx] || [])];
-      currentExLogs[setIdx] = { ...currentExLogs[setIdx], ...patch };
-      return { ...prev, [exIdx]: currentExLogs };
-    });
+  const updateSet = (exIdx: number, setIdx: number, updates: Partial<LoggedSet>) => {
+    setLogs((prev) => ({
+      ...prev,
+      [exIdx]: prev[exIdx].map((s, i) => (i === setIdx ? { ...s, ...updates } : s)),
+    }));
   };
 
   const toggleSetComplete = (exIdx: number, setIdx: number) => {
-    const current = logs[exIdx]?.[setIdx];
-    if (!current) return;
+    const set = logs[exIdx]?.[setIdx];
+    if (!set) return;
 
-    const nextCompleted = !current.completed;
-    updateSet(exIdx, setIdx, { completed: nextCompleted });
+    // Auto-start workout if it was in idle state
+    if (sessionState === 'idle') {
+      setSessionState('active');
+    }
 
-    if (nextCompleted) {
+    const nowComplete = !set.completed;
+    updateSet(exIdx, setIdx, { completed: nowComplete });
+
+    if (nowComplete) {
       soundCueService.playSetCompleteBeep();
 
-      if (autoStartRestTimer) {
-        const exRest = exercises[exIdx]?.restSeconds || 90;
-        setRestTimerSeconds(exRest);
-        setRestTimerActiveKey((k) => k + 1); // Triggers RestTimerHUD auto-start
+      if (autoStartRestTimer && exercises[exIdx]?.restSeconds) {
+        setRestTimerSeconds(exercises[exIdx].restSeconds || 90);
+        setRestTimerActiveKey((k) => k + 1);
       }
     }
   };
 
   const handleAdjustWeight = (exIdx: number, setIdx: number, delta: number) => {
-    const currentWeight = logs[exIdx]?.[setIdx]?.weight || 0;
-    const next = Math.max(0, Math.round((currentWeight + delta) * 10) / 10);
-    updateSet(exIdx, setIdx, { weight: next });
+    const set = logs[exIdx]?.[setIdx];
+    if (!set) return;
+    const newWeight = Math.max(0, set.weight + delta);
+    updateSet(exIdx, setIdx, { weight: newWeight });
   };
 
   const handleAdjustReps = (exIdx: number, setIdx: number, delta: number) => {
-    const currentReps = logs[exIdx]?.[setIdx]?.reps || 0;
-    const next = Math.max(0, currentReps + delta);
-    updateSet(exIdx, setIdx, { reps: next });
+    const set = logs[exIdx]?.[setIdx];
+    if (!set) return;
+    const newReps = Math.max(0, set.reps + delta);
+    updateSet(exIdx, setIdx, { reps: newReps });
   };
 
   const handleAddSet = (exIdx: number) => {
-    setLogs((prev) => {
-      const exLogs = [...(prev[exIdx] || [])];
-      const last = exLogs[exLogs.length - 1];
-      exLogs.push({
-        setIndex: exLogs.length + 1,
-        setType: 'working',
-        weight: last?.weight || 20,
-        reps: last?.reps || 10,
-        rpe: last?.rpe || 7,
-        completed: false,
-      });
-      return { ...prev, [exIdx]: exLogs };
-    });
+    const currentSets = logs[exIdx] || [];
+    const lastSet = currentSets[currentSets.length - 1];
+    const newSet: LoggedSet = {
+      setIndex: currentSets.length + 1,
+      setType: 'working',
+      weight: lastSet?.weight || 20,
+      reps: lastSet?.reps || 10,
+      rpe: lastSet?.rpe || 7,
+      completed: false,
+    };
+    setLogs((prev) => ({ ...prev, [exIdx]: [...currentSets, newSet] }));
   };
 
-  const handleRemoveSet = (exIdx: number, setIdx: number) => {
-    setLogs((prev) => {
-      const exLogs = (prev[exIdx] || []).filter((_, i) => i !== setIdx);
-      return {
-        ...prev,
-        [exIdx]: exLogs.map((item, idx) => ({ ...item, setIndex: idx + 1 })),
-      };
-    });
-  };
-
-  // Exercise Swap
-  const handleConfirmSwap = (candidate: SwapCandidateItem) => {
+  const handleConfirmSwap = (selected: SwapCandidateItem) => {
     if (swapTargetIndex === null) return;
-    setExercises((prev) => {
-      const copy = [...prev];
-      copy[swapTargetIndex] = {
-        ...copy[swapTargetIndex],
-        masterExerciseId: candidate.masterExerciseId,
-        name: candidate.name,
-        movementPattern: candidate.movementPattern,
-        safetyLevel: candidate.safetyLevel || 'safe',
-      };
-      return copy;
-    });
+
+    setExercises((prev) =>
+      prev.map((ex, i) =>
+        i === swapTargetIndex
+          ? {
+              ...ex,
+              name: selected.name,
+              masterExerciseId: selected.masterExerciseId,
+              movementPattern: selected.movementPattern,
+              muscleGroup: selected.muscleGroups?.[0],
+            }
+          : ex,
+      ),
+    );
     setSwapTargetIndex(null);
   };
 
-  // Complete Workout Session
   const finishSession = async () => {
+    if (completedSets === 0) {
+      setError('No sets completed. Complete at least one set to finish.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
-      await apiClient.post('workout-sessions', {
-        workoutPlanId: 'current',
-        dayIndex: 0,
-        scheduledDate: new Date().toISOString().slice(0, 10),
-        status: 'completed',
-        completedAt: new Date().toISOString(),
+      const payload = {
         durationSeconds: seconds,
-        rpe: sessionRpe,
-        exercises: exercises.map((ex, idx) => ({
-          exerciseId: ex.id,
+        sessionRpe,
+        exercises: exercises.map((ex, exIdx) => ({
           masterExerciseId: ex.masterExerciseId,
           name: ex.name,
-          sets: logs[idx] || [],
+          sets: logs[exIdx]
+            ?.filter((s) => s.completed)
+            .map((s) => ({
+              setType: s.setType,
+              weight: s.weight,
+              reps: s.reps,
+              rpe: s.rpe,
+            })),
         })),
-      });
+      };
 
-      setRunning(false);
+      await apiClient.post('workout-logs', payload);
       setCompleteModalOpen(true);
+      soundCueService.playTimerCompleteChime();
     } catch (cause) {
-      // If endpoint requires active ID, still finish client session gracefully
-      setRunning(false);
-      setCompleteModalOpen(true);
+      setError(cause instanceof Error ? cause.message : 'Failed to save session.');
     } finally {
       setSaving(false);
     }
@@ -289,132 +299,200 @@ export function SessionPage() {
 
   const setTypeLabels: Record<SetType, string> = {
     warmup: 'W',
-    working: '1',
+    working: '',
     drop: 'D',
     failure: 'F',
   };
 
+  if (exercises.length === 0 && !error) {
+    return (
+      <main className="mx-auto min-h-screen max-w-screen-xl px-4 py-6">
+        <div className="grid min-h-[60vh] place-items-center">
+          <span className="h-10 w-10 animate-spin rounded-full border-4 border-lime-400 border-r-transparent" />
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="mx-auto max-w-5xl p-4 pb-32 sm:p-6 lg:p-8 space-y-6">
-      {/* Live Header with Session Timer HUD */}
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-obsidian-700 bg-obsidian-900 p-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full bg-volt animate-pulse" />
-            <p className="font-mono text-xs font-extrabold uppercase tracking-widest text-volt">
-              Live Session Tracker
-            </p>
-          </div>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-black text-white">Active Workout</h1>
-        </div>
-
-        {/* Stopwatch & State */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3 rounded-xl border border-obsidian-700 bg-obsidian-950 px-4 py-2 text-white">
-            <Clock className="h-5 w-5 text-volt" />
-            <span className="font-tabular text-2xl font-black">{timeFormatted}</span>
-          </div>
-
-          <Button
-            size="md"
-            variant={running ? 'danger' : 'volt'}
-            onClick={() => setRunning(!running)}
-          >
-            {running ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {running ? 'Pause' : 'Resume'}
-          </Button>
-        </div>
-      </header>
-
-      {/* Live Progress Bar */}
-      <div>
-        <Progress
-          value={totalSets ? (completedSets / totalSets) * 100 : 0}
-          label={`${completedSets} of ${totalSets} sets logged`}
-        />
-      </div>
-
-      {/* Live Mechanical Rest Timer HUD */}
-      <RestTimerHUD
-        key={restTimerActiveKey}
-        initialSeconds={restTimerSeconds}
-        autoStart={restTimerActiveKey > 0}
-      />
-
+    <main className="mx-auto min-h-screen max-w-2xl space-y-6 px-4 py-6 pb-28 text-zinc-50">
       {error && <Toast type="error" message={error} onClose={() => setError('')} />}
 
-      {/* Exercises Set Logging Cards */}
-      <div className="space-y-6">
+      {/* Top Active Workout Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
+        <div className="min-w-0 space-y-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                sessionState === 'active'
+                  ? 'bg-lime-400 animate-pulse'
+                  : sessionState === 'paused'
+                  ? 'bg-amber-400'
+                  : 'bg-zinc-500'
+              }`}
+            />
+            <h1 className="text-xs font-black uppercase tracking-wider text-zinc-400">
+              {sessionState === 'active'
+                ? 'Workout in Progress'
+                : sessionState === 'paused'
+                ? 'Workout Paused'
+                : 'Ready to Train'}
+            </h1>
+          </div>
+
+          <div
+            className={`font-mono text-3xl font-black tabular-nums sm:text-4xl ${
+              sessionState === 'active'
+                ? 'text-lime-400'
+                : sessionState === 'paused'
+                ? 'text-amber-400'
+                : 'text-zinc-400'
+            }`}
+          >
+            {timeFormatted}
+          </div>
+
+          <p className="text-xs font-bold text-zinc-400">
+            {completedSets} / {totalSets} Sets Complete
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {sessionState === 'idle' ? (
+            <Button
+              variant="volt"
+              size="lg"
+              pill={true}
+              onClick={handleStartSession}
+              className="shadow-lg shadow-lime-400/20 font-black px-6"
+            >
+              <Play className="mr-1.5 h-4 w-4 fill-current" /> Start Session
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="md"
+                pill={true}
+                onClick={handlePauseSession}
+                className="border-zinc-700 hover:border-zinc-500"
+                title={sessionState === 'paused' ? 'Resume workout' : 'Pause workout'}
+              >
+                {sessionState === 'paused' ? (
+                  <>
+                    <Play className="h-4 w-4 fill-current mr-1 text-lime-400" /> Resume
+                  </>
+                ) : (
+                  <>
+                    <Pause className="h-4 w-4 mr-1 text-zinc-300" /> Pause
+                  </>
+                )}
+              </Button>
+
+              <Button
+                variant="volt"
+                size="md"
+                pill={true}
+                onClick={finishSession}
+                loading={saving}
+                className="font-bold"
+              >
+                <PartyPopper className="h-4 w-4 mr-1" /> Finish
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Rest Timer HUD */}
+      <RestTimerHUD key={restTimerActiveKey} initialSeconds={restTimerSeconds} />
+
+      {/* Exercise Cards with Set Logging */}
+      <div className="space-y-5">
         {exercises.map((exercise, exIdx) => {
-          const exLogs = logs[exIdx] || [];
+          const safety = exercise.safetyLevel || 'safe';
           const safetyNotes = resolveExerciseSafetyNotes(exercise.name);
+          const exerciseSets = logs[exIdx] || [];
 
           return (
-            <Card key={exercise.id || `${exercise.name}-${exIdx}`} className="overflow-hidden">
-              <CardContent className="p-5 sm:p-6 space-y-4">
+            <Card key={exercise.id || exIdx} className="overflow-hidden">
+              <CardContent className="p-5">
                 {/* Exercise Header */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-obsidian-800 pb-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <ExerciseVisual
-                      name={exercise.name}
-                      masterExerciseId={exercise.masterExerciseId}
-                      movementPattern={exercise.movementPattern}
-                      compact={true}
-                    />
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-extrabold text-volt">
-                          EXERCISE {exIdx + 1}
-                        </span>
-                        {exercise.movementPattern && (
-                          <Badge variant="cyan">{exercise.movementPattern}</Badge>
-                        )}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex gap-3">
+                    <div className="shrink-0">
+                      <div className="size-14 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                        <ExerciseVisual
+                          name={exercise.name}
+                          masterExerciseId={exercise.masterExerciseId || exercise.id}
+                          movementPattern={exercise.movementPattern}
+                          muscleGroup={exercise.muscleGroup}
+                          compact={true}
+                        />
                       </div>
-                      <h2 className="truncate text-xl font-black text-white">{exercise.name}</h2>
+                    </div>
+
+                    <div className="flex-1">
+                      <h2 className="text-base font-extrabold text-white sm:text-lg">{exercise.name}</h2>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        {exercise.movementPattern && (
+                          <Badge variant="lime" className="text-[10px]">
+                            {exercise.movementPattern}
+                          </Badge>
+                        )}
+                        <Badge
+                          variant={safety === 'avoid' ? 'danger' : safety === 'caution' ? 'amber' : 'lime'}
+                          className="text-[10px]"
+                        >
+                          <ShieldCheck className="mr-1 h-3 w-3" />
+                          {safety.toUpperCase()}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Swap Exercise Trigger */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSwapTargetIndex(exIdx)}
-                    title="Swap exercise"
-                  >
-                    <ArrowLeftRight className="h-3.5 w-3.5 text-volt" /> Swap
-                  </Button>
-                </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPlateCalcTarget({
+                          exIdx,
+                          setIdx: 0,
+                          weight: exerciseSets[0]?.weight || 20,
+                          name: exercise.name,
+                        })
+                      }
+                      className="grid size-9 place-items-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+                      title="Barbell Plate Calculator"
+                    >
+                      <Dumbbell className="h-4 w-4" />
+                    </button>
 
-                {/* Biomechanical Safety Tip */}
-                <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-200">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-                  <span>{safetyNotes.tips[0] || 'Keep core braced and spine neutral.'}</span>
-                </div>
-
-                {/* Compact Gym-Floor Set Logging Table */}
-                <div className="space-y-2">
-                  {/* Table Column Headers */}
-                  <div className="grid grid-cols-[48px_1fr_1fr_48px] items-center gap-2 px-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                    <span className="text-center">SET</span>
-                    <span className="text-center">WEIGHT ({unitSystem === 'imperial' ? 'LBS' : 'KG'})</span>
-                    <span className="text-center">REPS</span>
-                    <span className="text-center">DONE</span>
+                    <button
+                      type="button"
+                      onClick={() => setSwapTargetIndex(exIdx)}
+                      className="grid size-9 place-items-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+                      title="Swap Exercise"
+                    >
+                      <ArrowLeftRight className="h-4 w-4" />
+                    </button>
                   </div>
+                </div>
 
-                  {/* Set Rows */}
-                  {exLogs.map((set, setIdx) => {
+                {/* Set Logging Rows */}
+                <div className="mt-5 space-y-2.5">
+                  {exerciseSets.map((set, setIdx) => {
                     const prevText = set.previousPerformance
-                      ? `Prev: ${formatWeight(set.previousPerformance.weight).value} × ${set.previousPerformance.reps}`
-                      : null;
+                      ? `Last: ${set.previousPerformance.weight}${unitSystem === 'metric' ? 'kg' : 'lb'} × ${set.previousPerformance.reps}`
+                      : '';
 
                     return (
                       <div
                         key={setIdx}
-                        className={`grid grid-cols-[48px_1fr_1fr_48px] items-center gap-2 rounded-xl p-2.5 transition-all ${
+                        className={`grid grid-cols-[36px_1fr_1fr_44px] items-center gap-2 sm:gap-3 rounded-2xl border p-2.5 sm:p-3 transition-all ${
                           set.completed
-                            ? 'border border-volt/40 bg-volt/10'
-                            : 'border border-obsidian-800 bg-obsidian-950/80 hover:border-obsidian-700'
+                            ? 'border-lime-400 bg-lime-400/5'
+                            : 'border-zinc-800 bg-zinc-950/80 hover:border-zinc-700'
                         }`}
                       >
                         {/* Set Type / Number Badge */}
@@ -426,14 +504,14 @@ export function SessionPage() {
                               const nextType = types[(types.indexOf(set.setType) + 1) % types.length];
                               updateSet(exIdx, setIdx, { setType: nextType });
                             }}
-                            className={`grid size-8 place-items-center rounded-lg border font-mono text-xs font-black transition-colors ${
+                            className={`grid size-9 place-items-center rounded-xl border font-mono text-xs font-black transition-colors ${
                               set.setType === 'warmup'
                                 ? 'border-amber-500/40 bg-amber-500/20 text-amber-300'
                                 : set.setType === 'drop'
                                 ? 'border-cyan-500/40 bg-cyan-500/20 text-cyan-300'
                                 : set.setType === 'failure'
                                 ? 'border-red-500/40 bg-red-500/20 text-red-300'
-                                : 'border-obsidian-700 bg-obsidian-900 text-white'
+                                : 'border-zinc-800 bg-zinc-900 text-white'
                             }`}
                             title="Click to cycle set type: Warmup (W), Working (1..), Drop (D), Failure (F)"
                           >
@@ -441,13 +519,13 @@ export function SessionPage() {
                           </button>
                         </div>
 
-                        {/* Weight Input & Steppers & Plate Calc Button */}
-                        <div className="space-y-1">
+                        {/* Weight Input & Steppers */}
+                        <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
                               onClick={() => handleAdjustWeight(exIdx, setIdx, -2.5)}
-                              className="grid size-8 shrink-0 place-items-center rounded-lg border border-obsidian-700 bg-obsidian-900 text-slate-300 hover:border-volt active:scale-90"
+                              className="grid size-8 shrink-0 place-items-center rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-lime-400 active:scale-90"
                               aria-label="Minus 2.5"
                             >
                               <Minus className="h-3 w-3" />
@@ -461,47 +539,33 @@ export function SessionPage() {
                               onChange={(e) =>
                                 updateSet(exIdx, setIdx, { weight: Number(e.target.value) })
                               }
-                              className="h-9 w-full min-w-0 rounded-lg border border-obsidian-700 bg-obsidian-900 px-2 text-center font-tabular text-sm font-extrabold text-white outline-none focus:border-volt"
+                              className="h-9 w-full min-w-0 rounded-xl border border-zinc-800 bg-zinc-950 px-1 text-center font-mono text-sm font-bold text-white outline-none focus:border-lime-400"
                             />
 
                             <button
                               type="button"
                               onClick={() => handleAdjustWeight(exIdx, setIdx, 2.5)}
-                              className="grid size-8 shrink-0 place-items-center rounded-lg border border-obsidian-700 bg-obsidian-900 text-slate-300 hover:border-volt active:scale-90"
+                              className="grid size-8 shrink-0 place-items-center rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-lime-400 active:scale-90"
                               aria-label="Plus 2.5"
                             >
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
 
-                          <div className="flex items-center justify-between px-1 text-[10px]">
-                            {prevText ? (
-                              <span className="truncate text-slate-500 font-mono">{prevText}</span>
-                            ) : <span />}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPlateCalcTarget({
-                                  exIdx,
-                                  setIdx,
-                                  weight: set.weight,
-                                  name: exercise.name,
-                                })
-                              }
-                              className="font-bold text-volt hover:underline"
-                            >
-                              Plates
-                            </button>
+                          <div className="px-0.5 text-center">
+                            <span className="block truncate font-mono text-[10px] text-zinc-500">
+                              {prevText || `${set.weight}kg load`}
+                            </span>
                           </div>
                         </div>
 
                         {/* Reps Input & Steppers */}
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
                               onClick={() => handleAdjustReps(exIdx, setIdx, -1)}
-                              className="grid size-8 shrink-0 place-items-center rounded-lg border border-obsidian-700 bg-obsidian-900 text-slate-300 hover:border-volt active:scale-90"
+                              className="grid size-8 shrink-0 place-items-center rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-lime-400 active:scale-90"
                               aria-label="Minus 1 rep"
                             >
                               <Minus className="h-3 w-3" />
@@ -514,32 +578,35 @@ export function SessionPage() {
                               onChange={(e) =>
                                 updateSet(exIdx, setIdx, { reps: Number(e.target.value) })
                               }
-                              className="h-9 w-full min-w-0 rounded-lg border border-obsidian-700 bg-obsidian-900 px-2 text-center font-tabular text-sm font-extrabold text-white outline-none focus:border-volt"
+                              className="h-9 w-full min-w-0 rounded-xl border border-zinc-800 bg-zinc-950 px-1 text-center font-mono text-sm font-bold text-white outline-none focus:border-lime-400"
                             />
 
                             <button
                               type="button"
                               onClick={() => handleAdjustReps(exIdx, setIdx, 1)}
-                              className="grid size-8 shrink-0 place-items-center rounded-lg border border-obsidian-700 bg-obsidian-900 text-slate-300 hover:border-volt active:scale-90"
+                              className="grid size-8 shrink-0 place-items-center rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-lime-400 active:scale-90"
                               aria-label="Plus 1 rep"
                             >
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
-                          <span className="block text-center text-[10px] text-slate-500 font-mono">
-                            Target: {exercise.reps}
-                          </span>
+
+                          <div className="px-0.5 text-center">
+                            <span className="block truncate font-mono text-[10px] text-zinc-500">
+                              Target: {exercise.reps}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Tactile Volt Green Completion Check Button */}
-                        <div className="flex justify-center">
+                        {/* Completion Check Button */}
+                        <div className="flex justify-center shrink-0">
                           <button
                             type="button"
                             onClick={() => toggleSetComplete(exIdx, setIdx)}
-                            className={`grid size-10 place-items-center rounded-xl border-2 transition-all duration-150 active:scale-90 ${
+                            className={`grid size-10 place-items-center rounded-xl border-2 font-black transition-all duration-150 active:scale-90 ${
                               set.completed
-                                ? 'border-volt bg-volt text-obsidian-950'
-                                : 'border-obsidian-700 bg-obsidian-900 text-slate-500 hover:border-volt hover:text-volt'
+                                ? 'border-lime-400 bg-lime-400 text-zinc-950 shadow-[0_0_12px_rgba(163,230,53,0.4)]'
+                                : 'border-zinc-800 bg-zinc-950 text-zinc-600 hover:border-lime-400 hover:text-lime-400'
                             }`}
                             aria-label={`Complete set ${setIdx + 1}`}
                           >
@@ -557,7 +624,7 @@ export function SessionPage() {
                     size="sm"
                     variant="ghost"
                     onClick={() => handleAddSet(exIdx)}
-                    className="w-full border border-dashed border-obsidian-700 hover:border-obsidian-500 text-slate-400"
+                    className="w-full border border-dashed border-zinc-800 text-zinc-400 hover:border-zinc-500"
                   >
                     <Plus className="h-4 w-4" /> Add Set
                   </Button>
@@ -574,11 +641,11 @@ export function SessionPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-black text-white">Overall Session Effort (RPE)</h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-zinc-400">
                 1 is light warm-up, 7 is moderate hard, 10 is maximum muscular exhaustion.
               </p>
             </div>
-            <span className="font-tabular text-3xl font-black text-volt">{sessionRpe}</span>
+            <span className="font-mono text-3xl font-black tabular-nums text-lime-400">{sessionRpe}</span>
           </div>
 
           <input
@@ -587,10 +654,10 @@ export function SessionPage() {
             max="10"
             value={sessionRpe}
             onChange={(e) => setSessionRpe(Number(e.target.value))}
-            className="mt-4 w-full accent-volt cursor-pointer"
+            className="mt-4 w-full cursor-pointer accent-lime-400"
           />
 
-          <div className="mt-2 flex justify-between text-[11px] font-bold text-slate-500">
+          <div className="mt-2 flex justify-between text-[11px] font-bold text-zinc-500">
             <span>Easy (1–3)</span>
             <span>Programmed Target (7–8)</span>
             <span>Max Effort (10)</span>
@@ -605,7 +672,7 @@ export function SessionPage() {
         onClick={finishSession}
         loading={saving}
         disabled={!completedSets}
-        className="w-full text-base font-black py-6"
+        className="w-full py-6 text-base font-black"
       >
         <PartyPopper className="h-5 w-5" /> Complete Workout Session
       </Button>
@@ -648,40 +715,40 @@ export function SessionPage() {
           </Button>
         }
       >
-        <div className="py-4 text-center space-y-5">
-          <div className="mx-auto grid size-20 place-items-center rounded-3xl bg-volt/10 border border-volt/30 text-volt">
+        <div className="space-y-5 py-4 text-center">
+          <div className="mx-auto grid size-20 place-items-center rounded-3xl border border-lime-400/30 bg-lime-400/10 text-lime-400">
             <Trophy className="h-10 w-10 stroke-[2.5]" />
           </div>
 
           <div>
             <h3 className="text-2xl font-black text-white">Outstanding Work!</h3>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-zinc-400">
               Session metrics successfully logged to your athletic training history.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 rounded-2xl border border-obsidian-700 bg-obsidian-950 p-4">
+          <div className="grid grid-cols-3 gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
             <div>
-              <strong className="block font-tabular text-2xl font-black text-white">
+              <strong className="block font-mono text-2xl font-black tabular-nums text-white">
                 {timeFormatted}
               </strong>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                 Duration
               </span>
             </div>
             <div>
-              <strong className="block font-tabular text-2xl font-black text-volt">
+              <strong className="block font-mono text-2xl font-black tabular-nums text-lime-400">
                 {completedSets}
               </strong>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                 Sets Done
               </span>
             </div>
             <div>
-              <strong className="block font-tabular text-2xl font-black text-cyan-400">
+              <strong className="block font-mono text-2xl font-black tabular-nums text-cyan-400">
                 {formatWeight(totalVolumeKg).value}
               </strong>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                 {formatWeight(totalVolumeKg).unit} Volume
               </span>
             </div>

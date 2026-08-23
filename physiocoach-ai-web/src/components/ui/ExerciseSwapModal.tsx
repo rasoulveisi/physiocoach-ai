@@ -63,8 +63,8 @@ export function ExerciseSwapModal({
       title="Swap Exercise"
       maxWidth="lg"
       footer={
-        <>
-          <Button variant="ghost" onClick={onClose} disabled={loading}>
+        <div className="flex w-full items-center justify-end gap-2.5">
+          <Button variant="ghost" onClick={onClose} disabled={loading} className="text-zinc-400 hover:text-white">
             Cancel
           </Button>
           <Button
@@ -72,35 +72,40 @@ export function ExerciseSwapModal({
             onClick={handleConfirm}
             disabled={!selectedCandidate || loading}
             loading={loading}
+            className="font-bold whitespace-nowrap"
           >
-            <ArrowLeftRight className="h-4 w-4" /> Swap for Selected
+            <ArrowLeftRight className="h-4 w-4 mr-1.5" /> Swap Exercise
           </Button>
-        </>
+        </div>
       }
     >
       <div className="space-y-4">
         {/* Current Exercise Context */}
-        <div className="flex items-center justify-between rounded-xl border border-obsidian-700 bg-obsidian-950 p-3.5">
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Replacing</span>
-            <p className="text-sm font-extrabold text-white">{currentExerciseName}</p>
+        <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-3.5">
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Replacing</span>
+            <p className="truncate text-sm font-extrabold text-white capitalize">{currentExerciseName}</p>
           </div>
-          {currentMovementPattern && <Badge variant="cyan">{currentMovementPattern}</Badge>}
+          {currentMovementPattern && (
+            <Badge variant="lime" className="text-[10px] uppercase shrink-0">
+              {currentMovementPattern}
+            </Badge>
+          )}
         </div>
 
         {/* Search Field */}
         <div className="relative">
-          <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-zinc-500" />
           <Input
-            className="pl-10"
-            placeholder="Search safe alternative exercises…"
+            className="pl-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-500 focus:border-lime-400"
+            placeholder="Search alternative exercises…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
 
         {/* Candidate List */}
-        <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-72 space-y-2.5 overflow-y-auto pr-1">
           {filtered.length > 0 ? (
             filtered.map((item) => {
               const isSelected =
@@ -114,29 +119,31 @@ export function ExerciseSwapModal({
                 <div
                   key={item.masterExerciseId || item.name}
                   onClick={() => setSelectedCandidate(item)}
-                  className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 transition-all ${
+                  className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 transition-all ${
                     isSelected
-                      ? 'border-volt bg-volt/10'
-                      : 'border-obsidian-700 bg-obsidian-950 hover:border-obsidian-600 hover:bg-obsidian-900'
+                      ? 'border-lime-400 bg-lime-400/10 shadow-sm'
+                      : 'border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 hover:bg-zinc-950'
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <ExerciseVisual
-                      name={item.name}
-                      masterExerciseId={item.masterExerciseId}
-                      movementPattern={item.movementPattern}
-                      compact={true}
-                    />
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="size-12 shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                      <ExerciseVisual
+                        name={item.name}
+                        masterExerciseId={item.masterExerciseId}
+                        movementPattern={item.movementPattern}
+                        compact={true}
+                      />
+                    </div>
 
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-extrabold text-white">{item.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-white capitalize">{item.name}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         {item.movementPattern && (
-                          <span className="text-[11px] text-slate-400">{item.movementPattern}</span>
+                          <span className="text-[10px] font-mono text-zinc-400 uppercase">{item.movementPattern}</span>
                         )}
                         {gear && (
-                          <span className="flex items-center text-[11px] text-slate-500">
-                            <Dumbbell className="mr-1 h-3 w-3" /> {gear}
+                          <span className="flex items-center text-[10px] text-zinc-500 truncate">
+                            <Dumbbell className="mr-1 h-3 w-3 shrink-0" /> {gear}
                           </span>
                         )}
                       </div>
@@ -146,14 +153,15 @@ export function ExerciseSwapModal({
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge
                       variant={
-                        safety === 'avoid' ? 'danger' : safety === 'caution' ? 'amber' : 'volt'
+                        safety === 'avoid' ? 'danger' : safety === 'caution' ? 'amber' : 'lime'
                       }
+                      className="text-[10px]"
                     >
                       <ShieldCheck className="mr-0.5 h-3 w-3" />
-                      {safety}
+                      {safety.toUpperCase()}
                     </Badge>
                     {isSelected && (
-                      <div className="grid size-6 place-items-center rounded-full bg-volt text-obsidian-950">
+                      <div className="grid size-6 place-items-center rounded-full bg-lime-400 text-zinc-950">
                         <Check className="h-3.5 w-3.5 stroke-[3]" />
                       </div>
                     )}
@@ -162,7 +170,7 @@ export function ExerciseSwapModal({
               );
             })
           ) : (
-            <p className="rounded-xl border border-obsidian-800 bg-obsidian-950 p-6 text-center text-xs text-slate-400">
+            <p className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-center text-xs text-zinc-400">
               No matching exercise candidates found.
             </p>
           )}

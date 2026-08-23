@@ -83,24 +83,24 @@ export function PlateCalculatorModal({
       title="Barbell Plate Calculator"
       maxWidth="md"
       footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
+        <div className="flex w-full items-center justify-end gap-2.5">
+          <Button variant="ghost" onClick={onClose} className="text-zinc-400 hover:text-white">
             Cancel
           </Button>
-          <Button variant="volt" onClick={handleApply}>
+          <Button variant="volt" onClick={handleApply} className="font-bold">
             Apply {targetWeight} kg
           </Button>
-        </>
+        </div>
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-5">
         {exerciseName && (
-          <p className="text-xs font-bold uppercase tracking-wider text-volt">{exerciseName}</p>
+          <p className="text-xs font-black uppercase tracking-wider text-lime-400 capitalize">{exerciseName}</p>
         )}
 
         {/* Target Weight & Steppers */}
-        <div className="rounded-xl border border-obsidian-700 bg-obsidian-950 p-4 text-center">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Target Weight</span>
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-center">
+          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Total Target Weight</span>
           <div className="my-2 flex items-center justify-center gap-3">
             <Button
               size="icon"
@@ -108,15 +108,22 @@ export function PlateCalculatorModal({
               onClick={() => handlePreset(-2.5)}
               disabled={targetWeight <= barWeight}
               aria-label="Decrease 2.5kg"
+              className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-white"
             >
               <Minus className="h-4 w-4" />
             </Button>
 
-            <span className="font-tabular text-4xl font-extrabold text-white">
-              {targetWeight} <span className="text-xl font-normal text-slate-400">kg</span>
+            <span className="font-mono text-3xl sm:text-4xl font-black text-white tabular-nums">
+              {targetWeight} <span className="text-lg font-normal text-zinc-400">kg</span>
             </span>
 
-            <Button size="icon" variant="secondary" onClick={() => handlePreset(2.5)} aria-label="Increase 2.5kg">
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={() => handlePreset(2.5)}
+              aria-label="Increase 2.5kg"
+              className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-white"
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -127,7 +134,7 @@ export function PlateCalculatorModal({
                 key={delta}
                 type="button"
                 onClick={() => handlePreset(delta)}
-                className="rounded-lg border border-obsidian-700 bg-obsidian-900 px-2.5 py-1 font-mono text-xs font-bold text-slate-300 transition-colors hover:border-volt hover:text-volt active:scale-95"
+                className="rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1 font-mono text-xs font-bold text-zinc-300 transition-colors hover:border-lime-400 hover:text-lime-400 active:scale-95"
               >
                 {delta > 0 ? `+${delta}` : delta} kg
               </button>
@@ -136,18 +143,18 @@ export function PlateCalculatorModal({
         </div>
 
         {/* Bar Weight Selector */}
-        <div className="flex items-center justify-between rounded-xl border border-obsidian-700 bg-obsidian-950/60 px-4 py-3">
-          <span className="text-xs font-bold text-slate-300">Barbell Weight Baseline:</span>
+        <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3">
+          <span className="text-xs font-bold text-zinc-300">Barbell Baseline:</span>
           <div className="flex gap-2">
             {[20, 15, 10].map((weight) => (
               <button
                 key={weight}
                 type="button"
                 onClick={() => setBarWeight(weight)}
-                className={`rounded-lg border px-3 py-1 font-mono text-xs font-bold transition-all ${
+                className={`rounded-xl border px-3 py-1 font-mono text-xs font-bold transition-all ${
                   barWeight === weight
-                    ? 'border-volt bg-volt/10 text-volt'
-                    : 'border-obsidian-700 bg-obsidian-900 text-slate-400 hover:text-white'
+                    ? 'border-lime-400 bg-lime-400/10 text-lime-400'
+                    : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white'
                 }`}
               >
                 {weight} kg
@@ -157,24 +164,20 @@ export function PlateCalculatorModal({
         </div>
 
         {/* Barbell Sleeve Visual Graphic */}
-        <div className="rounded-xl border border-obsidian-700 bg-obsidian-950 p-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Per-Side Sleeve View</span>
-            <span className="font-mono text-xs font-bold text-volt">
+            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Per-Side Sleeve View</span>
+            <span className="font-mono text-xs font-bold text-lime-400">
               {breakdown.sideWeight} kg / side
             </span>
           </div>
 
           {/* Graphical Barbell Sleeve Diagram */}
-          <div className="relative flex h-24 items-center justify-center overflow-x-auto rounded-lg border border-obsidian-800 bg-obsidian-900/80 px-4">
-            {/* Barbell Collar / Shaft Baseline */}
+          <div className="relative flex h-24 items-center justify-center overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/80 px-4">
             <div className="flex items-center gap-1">
-              {/* Inner Collar Stop */}
-              <div className="h-20 w-4 rounded-sm border border-slate-600 bg-slate-400" title="Barbell Collar Stop" />
+              <div className="h-20 w-4 rounded-sm border border-zinc-600 bg-zinc-500" title="Barbell Collar Stop" />
 
-              {/* Sleeve shaft running through */}
               <div className="relative flex items-center gap-1.5">
-                {/* Discs stacked from inside out */}
                 {plateDiscs.map((disc) => {
                   const style = PLATE_STYLES[disc.weight] || PLATE_STYLES[1.25];
                   return (
@@ -191,8 +194,7 @@ export function PlateCalculatorModal({
                   );
                 })}
 
-                {/* Empty Sleeve Continuation */}
-                <div className="h-6 w-16 rounded-r-md border border-slate-600 bg-slate-500/40" title="Outer Sleeve End" />
+                <div className="h-6 w-16 rounded-r-md border border-zinc-700 bg-zinc-600/40" title="Outer Sleeve End" />
               </div>
             </div>
           </div>
@@ -200,7 +202,7 @@ export function PlateCalculatorModal({
 
         {/* Plate Count List Breakdown */}
         <div>
-          <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+          <span className="mb-2 block text-[10px] font-black uppercase tracking-wider text-zinc-400">
             Plates Required (Each Side)
           </span>
           {breakdown.plates.length > 0 ? (
@@ -210,19 +212,19 @@ export function PlateCalculatorModal({
                 return (
                   <div
                     key={plate.weight}
-                    className="flex items-center justify-between rounded-xl border border-obsidian-700 bg-obsidian-950 p-3"
+                    className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-3"
                   >
                     <div className="flex items-center gap-2">
                       <span className={`size-3 rounded-full border ${style.bg} ${style.border}`} />
                       <span className="font-mono text-sm font-bold text-white">{plate.weight} kg</span>
                     </div>
-                    <span className="font-mono text-sm font-extrabold text-volt">× {plate.count}</span>
+                    <span className="font-mono text-sm font-black text-lime-400">× {plate.count}</span>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <p className="rounded-xl border border-obsidian-800 bg-obsidian-950 p-4 text-center text-xs text-slate-400">
+            <p className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-center text-xs text-zinc-400">
               Only the barbell ({barWeight} kg) is required. No plates needed.
             </p>
           )}

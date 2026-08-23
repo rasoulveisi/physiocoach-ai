@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, useMemo, type FormEvent } from 'react';
 import {
   LogOut,
   Moon,
@@ -11,9 +11,15 @@ import {
   VolumeX,
   Scale,
   Sparkles,
+  UserCheck,
+  Activity,
+  Check,
+  ChevronRight,
+  Flame,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Toast } from '../components/ui/Toast';
@@ -39,13 +45,17 @@ interface ProfileData {
   displayName?: string;
   email?: string;
   age?: number;
-  sex?: string;
-  experienceLevel?: string;
+  sex?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | string;
+  heightCm?: number;
+  weightKg?: number;
+  bodyFatEstimate?: number;
+  lifestyle?: 'desk_job' | 'standing_job' | 'active' | string;
+  experienceLevel?: 'beginner' | 'intermediate' | 'advanced' | string;
   availableEquipment?: string[];
 }
 
 export function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const {
     unitSystem,
@@ -58,10 +68,20 @@ export function SettingsPage() {
     setAutoStartRestTimer,
   } = usePreferences();
 
-  const [profile, setProfile] = useState<ProfileData>({});
+  const [profile, setProfile] = useState<ProfileData>({
+    displayName: user?.displayName || '',
+    email: user?.email || '',
+    age: 30,
+    sex: 'prefer_not_to_say',
+    heightCm: 175,
+    weightKg: 75,
+    lifestyle: 'active',
+    experienceLevel: 'intermediate',
+  });
   const [gear, setGear] = useState<string[]>([]);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,15 +89,40 @@ export function SettingsPage() {
       .get<any>('profile')
       .then((res) => {
         const data = res?.data || res;
-        setProfile(data || {});
-        if (Array.isArray(data?.availableEquipment)) {
-          setGear(data.availableEquipment);
+        if (data) {
+          setProfile((prev) => ({
+            ...prev,
+            ...data,
+            displayName: data.displayName || prev.displayName,
+            email: data.email || prev.email,
+          }));
+          if (Array.isArray(data.availableEquipment)) {
+            setGear(data.availableEquipment);
+          }
         }
       })
       .catch(() => {
-        setProfile({ displayName: user?.displayName || '', email: user?.email || '' });
-      });
-  }, [user]);
+        // Retain initial profile from auth state
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const athleteName = profile.displayName || user?.displayName || user?.email?.split('@')[0] || 'Athlete';
+  const athleteInitials =
+    athleteName
+      .split(' ')
+      .filter(Boolean)
+      .map((n) => n[0] ?? '')
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'RA';
+
+  const bmi = useMemo(() => {
+    if (!profile.heightCm || !profile.weightKg) return null;
+    const heightM = profile.heightCm / 100;
+    const calculated = profile.weightKg / (heightM * heightM);
+    return Math.round(calculated * 10) / 10;
+  }, [profile.heightCm, profile.weightKg]);
 
   const toggleEquipment = (item: string) => {
     setGear((prev) =>
@@ -85,20 +130,52 @@ export function SettingsPage() {
     );
   };
 
+  const applyPresetGear = (preset: 'full' | 'dumbbells' | 'bodyweight' | 'all' | 'none') => {
+    if (preset === 'full') {
+      setGear(['Bodyweight', 'Dumbbells', 'Barbell', 'Bench', 'Cable machine', 'Squat rack', 'Pull-up bar']);
+    } else if (preset === 'dumbbells') {
+      setGear(['Bodyweight', 'Dumbbells', 'Bench']);
+    } else if (preset === 'bodyweight') {
+      setGear(['Bodyweight', 'Pull-up bar']);
+    } else if (preset === 'all') {
+      setGear([...EQUIPMENT_CATALOG]);
+    } else {
+      setGear([]);
+    }
+  };
+
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
     setSaving(true);
     setNotice(null);
 
+    const displayName = (profile.displayName || '').trim();
+    const email = (profile.email || '').trim();
+    const ageVal = Number(profile.age);
+    const heightVal = Number(profile.heightCm);
+    const weightVal = Number(profile.weightKg);
+
     try {
-      await apiClient.patch('profile', {
-        displayName: data.get('displayName'),
-        email: data.get('email'),
-        age: Number(data.get('age')) || null,
-        experienceLevel: data.get('experienceLevel'),
+      const res = await apiClient.patch<any>('profile', {
+        displayName: displayName || undefined,
+        email: email || undefined,
+        age: Number.isFinite(ageVal) && ageVal > 0 ? ageVal : 30,
+        sex: profile.sex || 'prefer_not_to_say',
+        heightCm: Number.isFinite(heightVal) && heightVal > 0 ? heightVal : 175,
+        weightKg: Number.isFinite(weightVal) && weightVal > 0 ? weightVal : 75,
+        lifestyle: profile.lifestyle || 'active',
+        experienceLevel: profile.experienceLevel || 'intermediate',
         availableEquipment: gear,
       });
+
+      const updated = res?.data || res;
+      if (updated) {
+        setProfile((prev) => ({ ...prev, ...updated }));
+        updateUser({
+          displayName: updated.displayName || displayName,
+          email: updated.email || email,
+        });
+      }
 
       setNotice({ type: 'success', text: 'Athlete settings & preferences updated successfully.' });
     } catch (cause) {
@@ -112,114 +189,264 @@ export function SettingsPage() {
   };
 
   return (
-    <main className="mx-auto max-w-4xl p-4 pb-32 sm:p-6 lg:p-8 space-y-6">
-      <header className="border-b border-obsidian-800 pb-5">
-        <span className="font-mono text-xs font-bold uppercase tracking-widest text-volt">
-          Configuration
-        </span>
-        <h1 className="mt-1 text-3xl font-black text-white">Settings & Preferences</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Manage your biometric profile, unit systems, rest timer cues, and gym equipment inventory.
-        </p>
-      </header>
-
+    <main className="mx-auto min-h-screen max-w-2xl space-y-6 px-4 py-6 pb-32 text-zinc-50">
       {notice && (
         <Toast type={notice.type} message={notice.text} onClose={() => setNotice(null)} />
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
-        {/* Profile Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Biometric & Athlete Profile</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Display Name"
-              name="displayName"
-              defaultValue={profile.displayName || user?.displayName || ''}
-            />
-            <Input
-              label="Email Address"
-              name="email"
-              type="email"
-              defaultValue={profile.email || user?.email || ''}
-            />
-            <Input
-              label="Age"
-              name="age"
-              type="number"
-              min="13"
-              max="120"
-              defaultValue={profile.age || ''}
-            />
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                Experience Level
-              </label>
-              <select
-                name="experienceLevel"
-                defaultValue={profile.experienceLevel || 'intermediate'}
-                className="h-11 w-full rounded-xl border border-obsidian-700 bg-obsidian-950 px-3.5 text-sm font-semibold text-white outline-none focus:border-volt"
-              >
-                <option value="beginner">Beginner (0–1 year)</option>
-                <option value="intermediate">Intermediate (1–3 years)</option>
-                <option value="advanced">Advanced (3+ years)</option>
-              </select>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Athlete Header Card */}
+      <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-5 sm:p-6 shadow-xl">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-lime-400/10 blur-3xl" />
 
-        {/* Unit System & Rest Timer Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Timer className="h-5 w-5 text-volt" /> Training & Rest Timer Preferences
+        <div className="flex items-center gap-4">
+          <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-zinc-800 bg-zinc-950 font-mono text-xl font-black text-lime-400 shadow-md">
+            {athleteInitials}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-lg sm:text-xl font-black text-white capitalize">
+                {athleteName}
+              </h1>
+              <Badge variant="lime" className="text-[10px]">
+                ATHLETE
+              </Badge>
+            </div>
+            <p className="truncate text-xs font-medium text-zinc-400">{profile.email || user?.email}</p>
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-6">
+        {/* Section 1: Biometric & Athlete Profile */}
+        <Card className="rounded-3xl border-zinc-800 bg-zinc-900 shadow-lg">
+          <CardHeader className="p-5 pb-3 border-b border-zinc-800/80">
+            <CardTitle className="flex items-center gap-2 text-base font-black text-white">
+              <UserCheck className="h-4 w-4 text-lime-400" /> Biometric & Personal Profile
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
-            {/* Unit System */}
+
+          <CardContent className="p-5 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1.5">
+                  Display Name
+                </label>
+                <Input
+                  name="displayName"
+                  value={profile.displayName || ''}
+                  onChange={(e) => setProfile((p) => ({ ...p, displayName: e.target.value }))}
+                  placeholder="Your Name"
+                  className="border-zinc-800 bg-zinc-950 text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1.5">
+                  Email Address
+                </label>
+                <Input
+                  name="email"
+                  type="email"
+                  value={profile.email || ''}
+                  onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="name@example.com"
+                  className="border-zinc-800 bg-zinc-950 text-white font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1.5">
+                  Age (Years)
+                </label>
+                <Input
+                  name="age"
+                  type="number"
+                  min="13"
+                  max="100"
+                  value={profile.age || ''}
+                  onChange={(e) => setProfile((p) => ({ ...p, age: Number(e.target.value) }))}
+                  className="border-zinc-800 bg-zinc-950 text-white font-mono font-bold text-center"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1.5">
+                  Height ({unitSystem === 'metric' ? 'cm' : 'in'})
+                </label>
+                <Input
+                  name="heightCm"
+                  type="number"
+                  min="100"
+                  max="250"
+                  value={profile.heightCm || ''}
+                  onChange={(e) => setProfile((p) => ({ ...p, heightCm: Number(e.target.value) }))}
+                  className="border-zinc-800 bg-zinc-950 text-white font-mono font-bold text-center"
+                />
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1.5">
+                  Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                </label>
+                <Input
+                  name="weightKg"
+                  type="number"
+                  min="30"
+                  max="300"
+                  value={profile.weightKg || ''}
+                  onChange={(e) => setProfile((p) => ({ ...p, weightKg: Number(e.target.value) }))}
+                  className="border-zinc-800 bg-zinc-950 text-white font-mono font-bold text-center"
+                />
+              </div>
+            </div>
+
+            {/* Live BMI Calculation Badge */}
+            {bmi && (
+              <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-2.5">
+                <span className="text-xs font-bold text-zinc-400">Estimated Body Mass Index (BMI)</span>
+                <span className="font-mono text-sm font-black text-lime-400">{bmi} kg/m²</span>
+              </div>
+            )}
+
+            {/* Sex Selection */}
             <div>
-              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                Unit System
-              </span>
-              <div className="grid grid-cols-2 gap-3">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1.5">
+                Biological Sex
+              </label>
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { key: 'metric' as UnitSystem, label: 'Metric (kg)', desc: 'Kilograms & cm' },
-                  { key: 'imperial' as UnitSystem, label: 'Imperial (lbs)', desc: 'Pounds & inches' },
-                ].map((item) => (
+                  { key: 'male', label: 'Male' },
+                  { key: 'female', label: 'Female' },
+                  { key: 'prefer_not_to_say', label: 'Other' },
+                ].map((s) => (
                   <button
-                    key={item.key}
+                    key={s.key}
                     type="button"
-                    onClick={() => setUnitSystem(item.key)}
-                    className={`flex flex-col rounded-xl border p-4 text-left transition-all ${
-                      unitSystem === item.key
-                        ? 'border-volt bg-volt/10 text-volt'
-                        : 'border-obsidian-700 bg-obsidian-950 text-slate-400 hover:border-obsidian-600 hover:text-white'
+                    onClick={() => setProfile((p) => ({ ...p, sex: s.key }))}
+                    className={`rounded-2xl border p-2.5 text-xs font-bold transition-all ${
+                      profile.sex === s.key
+                        ? 'border-lime-400 bg-lime-400/10 text-lime-400 font-black'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
                     }`}
                   >
-                    <span className="text-sm font-black text-white">{item.label}</span>
-                    <span className="mt-0.5 text-xs text-slate-500">{item.desc}</span>
+                    {s.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Default Rest Interval */}
+            {/* Experience Level */}
             <div>
-              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1.5">
+                Training Experience Level
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: 'beginner', label: 'Beginner', desc: '0–1 yr' },
+                  { key: 'intermediate', label: 'Intermediate', desc: '1–3 yrs' },
+                  { key: 'advanced', label: 'Advanced', desc: '3+ yrs' },
+                ].map((lvl) => (
+                  <button
+                    key={lvl.key}
+                    type="button"
+                    onClick={() => setProfile((p) => ({ ...p, experienceLevel: lvl.key }))}
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all ${
+                      profile.experienceLevel === lvl.key
+                        ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold">{lvl.label}</span>
+                    <span className="text-[10px] font-mono text-zinc-500">{lvl.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Daily Lifestyle */}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1.5">
+                Daily Occupation & Lifestyle
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: 'desk_job', label: 'Desk Job', desc: 'Sedentary' },
+                  { key: 'standing_job', label: 'Standing', desc: 'Moderate' },
+                  { key: 'active', label: 'Athletic', desc: 'Active' },
+                ].map((act) => (
+                  <button
+                    key={act.key}
+                    type="button"
+                    onClick={() => setProfile((p) => ({ ...p, lifestyle: act.key }))}
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all ${
+                      profile.lifestyle === act.key
+                        ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold">{act.label}</span>
+                    <span className="text-[10px] font-mono text-zinc-500">{act.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section 2: Training & Rest Timer Preferences */}
+        <Card className="rounded-3xl border-zinc-800 bg-zinc-900 shadow-lg">
+          <CardHeader className="p-5 pb-3 border-b border-zinc-800/80">
+            <CardTitle className="flex items-center gap-2 text-base font-black text-white">
+              <Timer className="h-4 w-4 text-lime-400" /> Workout & Rest Timer Preferences
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="p-5 space-y-5">
+            {/* Unit System */}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-2">
+                Measurement System
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { key: 'metric' as UnitSystem, label: 'Metric (kg · cm)', desc: 'Kilograms, Centimeters' },
+                  { key: 'imperial' as UnitSystem, label: 'Imperial (lbs · in)', desc: 'Pounds, Inches' },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setUnitSystem(item.key)}
+                    className={`flex flex-col rounded-2xl border p-3.5 text-left transition-all ${
+                      unitSystem === item.key
+                        ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xs sm:text-sm font-black text-white">{item.label}</span>
+                    <span className="mt-0.5 text-[10px] text-zinc-500">{item.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Default Rest Duration */}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-2">
                 Default Rest Duration
-              </span>
+              </label>
               <div className="grid grid-cols-4 gap-2">
                 {[60, 90, 120, 180].map((secs) => (
                   <button
                     key={secs}
                     type="button"
                     onClick={() => setDefaultRestSeconds(secs)}
-                    className={`rounded-xl border p-3 font-mono text-sm font-extrabold transition-all ${
+                    className={`rounded-2xl border p-2.5 font-mono text-sm font-black transition-all ${
                       defaultRestSeconds === secs
-                        ? 'border-volt bg-volt/10 text-volt'
-                        : 'border-obsidian-700 bg-obsidian-950 text-slate-400 hover:text-white'
+                        ? 'border-lime-400 bg-lime-400 text-zinc-950 shadow-md scale-[1.02]'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
                     }`}
                   >
                     {secs}s
@@ -229,75 +456,118 @@ export function SettingsPage() {
             </div>
 
             {/* Sound & Auto-Start Toggles */}
-            <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-obsidian-800">
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-obsidian-700 bg-obsidian-950 p-4">
+            <div className="space-y-2.5 pt-2 border-t border-zinc-800/80">
+              <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-3.5 hover:border-zinc-700 transition-colors">
                 <div className="flex items-center gap-3">
-                  {soundEnabled ? (
-                    <Volume2 className="h-5 w-5 text-volt" />
-                  ) : (
-                    <VolumeX className="h-5 w-5 text-slate-500" />
-                  )}
+                  <div className="grid size-9 place-items-center rounded-xl bg-zinc-900 text-lime-400 border border-zinc-800">
+                    {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-zinc-500" />}
+                  </div>
                   <div>
-                    <span className="block text-sm font-bold text-white">Timer Sound Cues</span>
-                    <span className="text-xs text-slate-500">Audio chime on rest complete</span>
+                    <span className="block text-xs sm:text-sm font-bold text-white">Timer Audio Cues</span>
+                    <span className="text-[10px] text-zinc-500">Chime on set & rest completion</span>
                   </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={soundEnabled}
                   onChange={(e) => setSoundEnabled(e.target.checked)}
-                  className="size-5 accent-volt cursor-pointer"
+                  className="size-5 accent-lime-400 cursor-pointer rounded"
                 />
               </label>
 
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-obsidian-700 bg-obsidian-950 p-4">
+              <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-3.5 hover:border-zinc-700 transition-colors">
                 <div className="flex items-center gap-3">
-                  <Timer className="h-5 w-5 text-cyan-400" />
+                  <div className="grid size-9 place-items-center rounded-xl bg-zinc-900 text-lime-400 border border-zinc-800">
+                    <Timer className="h-4 w-4" />
+                  </div>
                   <div>
-                    <span className="block text-sm font-bold text-white">Auto-Start Rest Timer</span>
-                    <span className="text-xs text-slate-500">Starts automatically upon set check</span>
+                    <span className="block text-xs sm:text-sm font-bold text-white">Auto-Start Rest Clock</span>
+                    <span className="text-[10px] text-zinc-500">Triggers immediately upon set check</span>
                   </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={autoStartRestTimer}
                   onChange={(e) => setAutoStartRestTimer(e.target.checked)}
-                  className="size-5 accent-volt cursor-pointer"
+                  className="size-5 accent-lime-400 cursor-pointer rounded"
                 />
               </label>
             </div>
           </CardContent>
         </Card>
 
-        {/* Equipment Inventory Checklist */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Dumbbell className="h-5 w-5 text-volt" /> Available Gym Equipment Inventory
-            </CardTitle>
+        {/* Section 3: Available Equipment Inventory */}
+        <Card className="rounded-3xl border-zinc-800 bg-zinc-900 shadow-lg">
+          <CardHeader className="p-5 pb-3 border-b border-zinc-800/80">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base font-black text-white">
+                <Dumbbell className="h-4 w-4 text-lime-400" /> Gym Equipment Inventory
+              </CardTitle>
+              <Badge variant="lime" className="text-[10px]">
+                {gear.length} / {EQUIPMENT_CATALOG.length}
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent>
-            <p className="mb-4 text-xs text-slate-400">
-              AI plan generation and exercise swapping only propose movements with equipment you own.
-            </p>
-            <div className="grid gap-2.5 sm:grid-cols-2">
+
+          <CardContent className="p-5 space-y-4">
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => applyPresetGear('full')}
+                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+              >
+                Commercial Gym
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPresetGear('dumbbells')}
+                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+              >
+                Dumbbells Only
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPresetGear('bodyweight')}
+                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+              >
+                Bodyweight
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPresetGear('all')}
+                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPresetGear('none')}
+                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-500 hover:text-red-400 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+
+            {/* Equipment Grid */}
+            <div className="grid gap-2 sm:grid-cols-2">
               {EQUIPMENT_CATALOG.map((item) => {
                 const checked = gear.includes(item);
                 return (
                   <label
                     key={item}
-                    className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition-all ${
+                    className={`flex cursor-pointer items-center justify-between rounded-2xl border p-3 transition-all ${
                       checked
-                        ? 'border-volt/40 bg-volt/10 text-white'
-                        : 'border-obsidian-700 bg-obsidian-950 text-slate-400 hover:border-obsidian-600'
+                        ? 'border-lime-400/40 bg-lime-400/10 text-white'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700'
                     }`}
                   >
-                    <span className="text-sm font-bold">{item}</span>
+                    <span className="text-xs sm:text-sm font-bold">{item}</span>
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleEquipment(item)}
-                      className="size-5 accent-volt cursor-pointer"
+                      className="size-4 accent-lime-400 cursor-pointer rounded"
                     />
                   </label>
                 );
@@ -306,45 +576,54 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Theme Appearance */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Display Theme</CardTitle>
+        {/* Section 4: Display Theme */}
+        <Card className="rounded-3xl border-zinc-800 bg-zinc-900 shadow-lg">
+          <CardHeader className="p-5 pb-3 border-b border-zinc-800/80">
+            <CardTitle className="text-base font-black text-white">Display Theme</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-5">
             <div className="grid grid-cols-2 gap-3">
               {(['dark', 'light'] as const).map((mode) => (
                 <button
                   type="button"
                   key={mode}
                   onClick={() => setTheme(mode)}
-                  className={`flex items-center justify-center gap-2.5 rounded-xl border p-4 font-bold capitalize transition-all ${
+                  className={`flex items-center justify-center gap-2.5 rounded-2xl border p-3.5 font-bold capitalize transition-all ${
                     theme === mode
-                      ? 'border-volt bg-volt/10 text-volt'
-                      : 'border-obsidian-700 bg-obsidian-950 text-slate-400 hover:text-white'
+                      ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                      : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
                   }`}
                 >
                   {mode === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                  {mode === 'dark' ? 'Obsidian Dark (Default)' : 'Titanium Light'}
+                  <span className="text-xs sm:text-sm">{mode === 'dark' ? 'Dark Obsidian' : 'Light Titanium'}</span>
                 </button>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        {/* Bottom Actions Bar */}
+        <div className="flex items-center justify-between gap-3 pt-2">
           <Button
             type="button"
             variant="danger"
             size="lg"
+            pill={true}
             onClick={() => void logout().then(() => navigate('/auth'))}
+            className="text-xs sm:text-sm font-bold"
           >
-            <LogOut className="h-4 w-4" /> Log Out
+            <LogOut className="h-4 w-4 mr-1.5" /> Log Out
           </Button>
 
-          <Button type="submit" variant="volt" size="lg" loading={saving}>
-            <Save className="h-4 w-4" /> Save Preferences
+          <Button
+            type="submit"
+            variant="volt"
+            size="lg"
+            pill={true}
+            loading={saving}
+            className="shadow-lg shadow-lime-400/20 font-black text-xs sm:text-sm px-6"
+          >
+            <Save className="h-4 w-4 mr-1.5" /> Save Preferences
           </Button>
         </div>
       </form>
