@@ -416,7 +416,7 @@ export function SessionPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex gap-3">
                     <div className="shrink-0">
-                      <div className="size-14 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                      <div className="size-16 sm:size-20 overflow-hidden rounded-2xl border border-zinc-800 bg-white p-1 shadow-sm flex items-center justify-center">
                         <ExerciseVisual
                           name={exercise.name}
                           masterExerciseId={exercise.masterExerciseId || exercise.id}

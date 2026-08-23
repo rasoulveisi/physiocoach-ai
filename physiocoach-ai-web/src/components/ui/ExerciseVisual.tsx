@@ -53,7 +53,7 @@ export function ExerciseVisual({
   if (compact) {
     return (
       <div
-        className={`relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/80 p-1 ${className}`}
+        className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-white p-1 ${className}`}
       >
         <img
           src={currentSrc}
@@ -66,8 +66,8 @@ export function ExerciseVisual({
           loading="lazy"
         />
         {!loaded && (
-          <div className="absolute inset-0 grid place-items-center">
-            <Dumbbell className="h-5 w-5 text-zinc-600" />
+          <div className="absolute inset-0 grid place-items-center bg-zinc-900">
+            <Dumbbell className="h-5 w-5 text-zinc-600 animate-pulse" />
           </div>
         )}
       </div>
@@ -76,11 +76,11 @@ export function ExerciseVisual({
 
   return (
     <div
-      className={`relative flex flex-col items-center justify-center overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/90 p-3 sm:p-4 ${className}`}
+      className={`relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-zinc-800 bg-white p-2 sm:p-3 ${className}`}
     >
-      <div className="relative flex aspect-video w-full max-w-lg items-center justify-center overflow-hidden rounded-lg bg-zinc-950">
+      <div className="relative flex aspect-square sm:aspect-video w-full max-w-sm items-center justify-center overflow-hidden rounded-xl bg-white">
         {!loaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-lime-400 border-r-transparent" />
           </div>
         )}
@@ -89,7 +89,7 @@ export function ExerciseVisual({
           alt={name}
           onError={handleError}
           onLoad={handleLoad}
-          className={`max-h-full max-w-full object-contain transition-all duration-300 ${
+          className={`h-full w-full object-contain p-2 transition-all duration-300 ${
             loaded ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
           }`}
         />

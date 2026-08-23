@@ -394,7 +394,7 @@ export function PlanPage() {
                               >
                                 <div className="flex items-center gap-3.5 sm:gap-4">
                                   {/* Thumbnail */}
-                                  <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 sm:h-20 sm:w-32 flex items-center justify-center">
+                                  <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-2xl border border-zinc-800 bg-white flex items-center justify-center p-1 shadow-sm">
                                     <ExerciseVisual
                                       name={exercise.name}
                                       masterExerciseId={exercise.masterExerciseId || exercise.id}
