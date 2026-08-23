@@ -146,7 +146,11 @@ export function handleRouteError(
     stack: error instanceof Error ? error.stack : undefined,
   });
 
-  return internalServerError(c, fallbackMessage);
+  return internalServerError(
+    c,
+    fallbackMessage,
+    error instanceof Error ? { message: error.message, stack: error.stack } : undefined,
+  );
 }
 
 export function wrapRoute(

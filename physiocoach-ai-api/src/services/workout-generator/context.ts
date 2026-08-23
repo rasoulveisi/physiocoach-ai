@@ -49,6 +49,9 @@ export function buildWorkoutPlanContext(input: GeneratePlanInput): WorkoutPlanCo
     goal: input.assessment.goals[0] ?? 'posture_improvement',
     goals: input.assessment.goals,
     frequencyDays: input.assessment.frequencyDays,
+    ...(typeof input.assessment.sessionMinutes === 'number'
+      ? { sessionMinutes: input.assessment.sessionMinutes }
+      : {}),
     equipment: input.assessment.equipment,
     experienceLevel: input.profile.experienceLevel,
     limitations: legacySafety.limitations ?? [],

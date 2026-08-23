@@ -8,6 +8,7 @@ type ExperienceLevel = WorkoutPlanGenerationContext['experienceLevel'];
 const TARGET_EXERCISES_PER_DAY = 5;
 const MIN_PROMPT_CANDIDATE_MULTIPLIER = 5;
 const PREFERRED_PROMPT_CANDIDATE_MULTIPLIER = 6;
+const DEFAULT_SESSION_MINUTES = 45;
 
 export function getPromptCandidateTargets(frequencyDays: number) {
   const finalExerciseCount = frequencyDays * TARGET_EXERCISES_PER_DAY;
@@ -27,14 +28,80 @@ export function getPromptCandidateId(
   return candidate.sourceId ?? candidate.masterExerciseId;
 }
 
-export function getExperiencePlanGuidance(experienceLevel: ExperienceLevel): string {
+export interface SessionSizingGuidance {
+  /** Resolved target duration in minutes (defaults to DEFAULT_SESSION_MINUTES). */
+  sessionMinutes: number;
+  styleLabel: string;
+  minExercisesPerDay: number;
+  maxExercisesPerDay: number;
+  setsGuidance: string;
+  restGuidance: string;
+}
+
+export function getSessionSizingGuidance(
+  sessionMinutes: number | undefined,
+): SessionSizingGuidance {
+  const minutes =
+    typeof sessionMinutes === 'number' && Number.isFinite(sessionMinutes) && sessionMinutes > 0
+      ? sessionMinutes
+      : DEFAULT_SESSION_MINUTES;
+
+  if (minutes <= 30) {
+    return {
+      sessionMinutes: minutes,
+      styleLabel: 'High-density express session',
+      minExercisesPerDay: 3,
+      maxExercisesPerDay: 4,
+      setsGuidance: '2-3 sets per exercise (8-10 total sets)',
+      restGuidance: '45-60s rest between sets',
+    };
+  }
+
+  if (minutes < 60) {
+    return {
+      sessionMinutes: minutes,
+      styleLabel: 'Standard split',
+      minExercisesPerDay: 4,
+      maxExercisesPerDay: 5,
+      setsGuidance: '3 sets per exercise (12-15 total sets)',
+      restGuidance: '60-90s rest between sets',
+    };
+  }
+
+  if (minutes < 75) {
+    return {
+      sessionMinutes: minutes,
+      styleLabel: 'Full compound split',
+      minExercisesPerDay: 5,
+      maxExercisesPerDay: 6,
+      setsGuidance: '3-4 sets per exercise (18-22 total sets)',
+      restGuidance:
+        '90-120s rest on primary compound lifts (bench/squat/row/deadlift) and 60-75s on isolation',
+    };
+  }
+
+  return {
+    sessionMinutes: minutes,
+    styleLabel: 'Comprehensive session',
+    minExercisesPerDay: 6,
+    maxExercisesPerDay: 8,
+    setsGuidance: '3-4 sets per exercise',
+    restGuidance: '90-180s rest on heavy compounds and warmup sets',
+  };
+}
+
+export function getExperiencePlanGuidance(
+  experienceLevel: ExperienceLevel,
+  sessionMinutes?: number,
+): string {
+  const sizing = getSessionSizingGuidance(sessionMinutes);
   switch (experienceLevel) {
     case 'beginner':
-      return 'beginner; prioritize skill practice, simple setup, conservative volume, and usually 4-6 exercises per day';
+      return `beginner; prioritize skill practice, simple setup, conservative complexity, ${sizing.setsGuidance} with ${sizing.restGuidance}, and usually ${sizing.minExercisesPerDay}-${sizing.maxExercisesPerDay} exercises per day (${sizing.styleLabel})`;
     case 'intermediate':
-      return 'intermediate; use moderate volume and complexity, usually 5-7 exercises per day when recovery and focus allow';
+      return `intermediate; use moderate volume and complexity when recovery and focus allow, ${sizing.setsGuidance} with ${sizing.restGuidance}, usually ${sizing.minExercisesPerDay}-${sizing.maxExercisesPerDay} exercises per day (${sizing.styleLabel})`;
     case 'advanced':
-      return 'advanced; allow higher complexity or specialization when appropriate, usually 5-8 exercises per day when recovery and focus allow';
+      return `advanced; allow higher complexity or specialization when appropriate, ${sizing.setsGuidance} with ${sizing.restGuidance}, usually ${sizing.minExercisesPerDay}-${sizing.maxExercisesPerDay} exercises per day (${sizing.styleLabel})`;
   }
 }
 
@@ -121,6 +188,7 @@ export function buildWorkoutPlanPrompt(
     requiredMovementPatterns.length > 0
       ? requiredMovementPatterns.join(', ')
       : 'balanced full body';
+  const sizing = getSessionSizingGuidance(input.sessionMinutes);
 
   const rules: string[] = [];
   rules.push(`exactly ${input.frequencyDays} days`);
@@ -160,6 +228,16 @@ export function buildWorkoutPlanPrompt(
   }
 
   rules.push(
+    'SPLIT INTEGRITY: Upper Body days (e.g. Day 1 in Upper/Lower/Core or Push/Pull splits) MUST strictly contain UPPER BODY exercises: push (chest, shoulders, triceps) and pull (lats, upper back, biceps). NEVER include squats, deadlifts, or lower body leg exercises on an Upper Body day.',
+  );
+  rules.push(
+    'SPLIT INTEGRITY: Lower Body days (e.g. Day 2) MUST strictly contain LOWER BODY exercises: squat, hinge, and lunge (quads, glutes, hamstrings, calves).',
+  );
+  rules.push(
+    'SPLIT INTEGRITY: Torso & Core Stability days (e.g. Day 3) MUST focus on core anti-rotation/bracing, posture pulls, and spinal stability exercises.',
+  );
+
+  rules.push(
     'CRITICAL MANDATE: For every exercise, masterExerciseId and name MUST be copied verbatim from the Approved green exercise ID map ({movement:{id:name}}). Do not rename exercises or invent exercises outside the map.',
   );
   rules.push(`prefer movements ${requiredMovementPatternText}`);
@@ -167,10 +245,13 @@ export function buildWorkoutPlanPrompt(
     'Prefer green candidates; use at most one amber candidate per day and include its required modification verbatim in notes',
   );
   rules.push(
-    `Build a science-based ${getExperiencePlanGuidance(input.experienceLevel)} plan from the available profile`,
+    `Build a science-based ${getExperiencePlanGuidance(input.experienceLevel, input.sessionMinutes)} plan from the available profile`,
   );
   rules.push(
-    'CRITICAL: Every day MUST contain between 4 and 6 exercises (target 4-6 distinct exercises per day). NEVER output only 1 or 2 exercises per day.',
+    `CRITICAL SESSION DURATION: The athlete selected a target workout duration of ${sizing.sessionMinutes} minutes. Strictly calibrate total exercise count, working sets, and rest times to fit within this duration window.`,
+  );
+  rules.push(
+    `CRITICAL: Every day MUST contain between ${sizing.minExercisesPerDay} and ${sizing.maxExercisesPerDay} exercises (target ${sizing.minExercisesPerDay}-${sizing.maxExercisesPerDay} distinct exercises per day). NEVER output only 1 or 2 exercises per day.`,
   );
   rules.push(
     'Candidate count is choice breadth, not target workout size; do not output every candidate or pad with redundant variations',
@@ -194,7 +275,7 @@ export function buildWorkoutPlanPrompt(
   return `You are a safety-first senior physiotherapist and strength coach.
 Generate a high-quality, customized workout plan in JSON format.
 
-Profile: goals ${orderedGoals.join(' > ')}; level ${input.experienceLevel}; ${input.frequencyDays} days/week; session duration ${formatSessionDuration(input.sessionMinutes)}; equipment ${formatList(input.equipment, 'bodyweight')}; limits ${formatList(input.limitations, 'none')}; posture ${formatList(postureFlags, 'none')}.
+Profile: goals ${orderedGoals.join(' > ')}; level ${input.experienceLevel}; ${input.frequencyDays} days/week; session duration ${formatSessionDuration(sizing.sessionMinutes)}; equipment ${formatList(input.equipment, 'bodyweight')}; limits ${formatList(input.limitations, 'none')}; posture ${formatList(postureFlags, 'none')}.
 
 STRICT GENERATION RULES:
 ${rules.map((rule, idx) => `${idx + 1}. ${rule}`).join('\n')}
@@ -207,7 +288,7 @@ JSON OUTPUT SPECIFICATION:
 Return a JSON object containing a "days" array where each day object has:
 - "dayIndex": integer (1 to ${input.frequencyDays})
 - "name": string (e.g., "Day 1: Upper Body Focus")
-- "exercises": array of 4 to 6 exercise objects, each containing:
+- "exercises": array of ${sizing.minExercisesPerDay} to ${sizing.maxExercisesPerDay} exercise objects, each containing:
   - "masterExerciseId": string (MUST match an exercise ID from the approved maps verbatim)
   - "name": string (exercise name copied verbatim from the map)
   - "movementPattern": string

@@ -1,4 +1,6 @@
+import { decodeJwt } from 'jose';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 
 import { AuthError, isAuthError } from '../auth/errors';
 import { getAuthKeyConfig } from '../auth/keys';
@@ -234,10 +236,24 @@ export function createAuthRoutes() {
     return c.json({ success: true });
   });
 
-  route.get('/auth/me', (c) => {
+  route.get('/auth/me', async (c) => {
     const user = (c as unknown as { get?: (key: string) => unknown }).get?.('authUser');
     if (!isAuthenticatedUser(user)) {
       return unauthorized(c, 'Missing authenticated user.');
+    }
+
+    const db = getAuthDb(c.env);
+    if (db) {
+      const userRows = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+      if (userRows[0]) {
+        return c.json({
+          user: {
+            ...user,
+            displayName: userRows[0].displayName ?? user.displayName ?? null,
+            email: userRows[0].email ?? user.email,
+          },
+        });
+      }
     }
 
     return c.json({ user });
@@ -363,8 +379,7 @@ export function createAuthRoutes() {
 
     try {
       await verifyOAuthState(c.env, parsed.data.state);
-      const googleTokens = await exchangeGoogleAuthorizationCode(config, parsed.data.code);
-      const googleUser = await fetchGoogleUserInfo(googleTokens.accessToken);
+      const { userInfo: googleUser } = await exchangeGoogleAuthorizationCode(config, parsed.data.code);
       const now = new Date().toISOString();
       const user = await upsertOAuthUser(
         db,
@@ -644,7 +659,7 @@ function constantTimeEqual(left: string, right: string): boolean {
 async function exchangeGoogleAuthorizationCode(
   config: GoogleOAuthConfig,
   code: string,
-): Promise<GoogleTokenResponse> {
+): Promise<{ accessToken: string; userInfo: GoogleUserInfo }> {
   const body = new URLSearchParams({
     code,
     client_id: config.clientId,
@@ -658,12 +673,35 @@ async function exchangeGoogleAuthorizationCode(
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   });
-  const payload = (await response.json().catch(() => null)) as { access_token?: unknown } | null;
+  const payload = (await response.json().catch(() => null)) as {
+    access_token?: unknown;
+    id_token?: unknown;
+  } | null;
   if (!response.ok || typeof payload?.access_token !== 'string') {
     throw new AuthError('oauth_exchange_failed', 'Google authorization code exchange failed.');
   }
 
-  return { accessToken: payload.access_token };
+  // Fast path: decode user info directly from id_token to save 1 full network roundtrip
+  if (typeof payload.id_token === 'string') {
+    try {
+      const claims = decodeJwt(payload.id_token);
+      if (typeof claims.sub === 'string' && typeof claims.email === 'string') {
+        return {
+          accessToken: payload.access_token,
+          userInfo: {
+            sub: claims.sub,
+            email: claims.email,
+            name: typeof claims.name === 'string' ? claims.name : null,
+          },
+        };
+      }
+    } catch {
+      // Fall back to userinfo endpoint below
+    }
+  }
+
+  const userInfo = await fetchGoogleUserInfo(payload.access_token);
+  return { accessToken: payload.access_token, userInfo };
 }
 
 async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {

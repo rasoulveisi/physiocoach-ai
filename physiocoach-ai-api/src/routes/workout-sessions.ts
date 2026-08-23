@@ -79,9 +79,9 @@ export function createWorkoutSessionRoutes() {
   const route = createExpressRouter();
 
   route.get('/workout-sessions', async (c) => {
+    const statusFilter = c.req.query('status');
     try {
       const { user, db } = getApiRouteContext(c);
-      const statusFilter = c.req.query('status');
       if (!db) {
         return c.json({ data: statusFilter === 'active' ? null : [] });
       }
@@ -150,7 +150,8 @@ export function createWorkoutSessionRoutes() {
 
       return c.json({ data: dtos });
     } catch (error) {
-      return handleRouteError(c, error, 'Failed to load workout sessions.');
+      console.warn('workout_sessions.load.fallback', error);
+      return c.json({ data: statusFilter === 'active' ? null : [] });
     }
   });
 

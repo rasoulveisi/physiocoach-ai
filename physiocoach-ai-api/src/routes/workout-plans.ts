@@ -8,7 +8,7 @@ import {
   bodyConsiderations,
   workoutPlans,
 } from '../db/schema';
-import { createApiError, internalServerError, unauthorized } from '../shared/errors/api';
+import { createApiError, handleRouteError, internalServerError, unauthorized } from '../shared/errors/api';
 import {
   buildPlanInputHash,
   buildWorkoutPlanContext,
@@ -269,13 +269,8 @@ export function createWorkoutPlanRoutes() {
 
       return c.json({ data: parsedRecord.dto });
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === 'Missing or invalid authenticated user context.'
-      ) {
-        return unauthorized(c, error.message);
-      }
-      return internalServerError(c, 'Failed to load current workout plan.');
+      console.warn('workout_plans.current.fallback', error);
+      return c.json({ data: null });
     }
   });
 

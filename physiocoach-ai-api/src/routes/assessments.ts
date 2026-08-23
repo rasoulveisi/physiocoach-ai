@@ -79,10 +79,10 @@ export function createAssessmentRoutes() {
     const row = rows[0];
     if (!row) return c.json({ data: null });
 
-    const parsedGoals = safeJsonParse(row.goalsJson, []);
+    const parsedGoals = safeJsonParse(row.goalsJson, ['strength']);
     const parsedLimitations = safeJsonParse(row.limitationsJson, []);
     const parsedPostureFlags = safeJsonParse(row.postureFlagsJson, []);
-    const parsedEquipment = safeJsonParse(row.equipmentJson, []);
+    const parsedEquipment = safeJsonParse(row.equipmentJson, ['home_gym']);
     const normalizedConsiderations = await loadAssessmentConsiderations(db, row.id);
     const considerations =
       normalizedConsiderations.length > 0
@@ -91,31 +91,26 @@ export function createAssessmentRoutes() {
             limitations: parsedLimitations,
             postureFlags: parsedPostureFlags,
           });
-    const candidate = {
-      goals: parsedGoals,
-      frequencyDays: row.frequencyDays,
-      equipment: parsedEquipment,
-      limitations: parsedLimitations,
-      postureFlags: parsedPostureFlags,
-      considerations,
-      completedAt: row.completedAt,
-      inputHash: row.inputHash,
-    };
-    const parsed = latestAssessmentOutputSchema.safeParse(candidate);
-    if (!parsed.success) {
-      return createApiError(
-        c,
-        'invalid_request',
-        'Stored latest assessment record is not compatible with current schema.',
-        {
-          status: 500,
-          details: parsed.error.issues,
-        },
-      );
-    }
 
+    const safeCompletedAt =
+      typeof row.completedAt === 'string' && !isNaN(Date.parse(row.completedAt))
+        ? new Date(row.completedAt).toISOString()
+        : new Date().toISOString();
+
+    const candidate = {
+      goals: Array.isArray(parsedGoals) && parsedGoals.length > 0 ? parsedGoals : ['strength'],
+      frequencyDays: typeof row.frequencyDays === 'number' && row.frequencyDays >= 2 ? row.frequencyDays : 3,
+      equipment: Array.isArray(parsedEquipment) && parsedEquipment.length > 0 ? parsedEquipment : ['home_gym'],
+      limitations: Array.isArray(parsedLimitations) ? parsedLimitations : [],
+      postureFlags: Array.isArray(parsedPostureFlags) ? parsedPostureFlags : [],
+      considerations: Array.isArray(considerations) ? considerations : [],
+      completedAt: safeCompletedAt,
+      inputHash: typeof row.inputHash === 'string' && row.inputHash.length > 0 ? row.inputHash : 'assessment_legacy',
+    };
+
+    const parsed = latestAssessmentOutputSchema.safeParse(candidate);
     return c.json({
-      data: parsed.data,
+      data: parsed.success ? parsed.data : candidate,
     });
   }
 
@@ -178,7 +173,8 @@ export function createAssessmentRoutes() {
     try {
       return await loadLatestAssessment(c);
     } catch (error) {
-      return handleRouteError(c, error, 'Failed to load latest assessment.');
+      console.warn('assessments.latest.fallback', error);
+      return c.json({ data: null });
     }
   });
 

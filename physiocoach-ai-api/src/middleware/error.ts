@@ -42,8 +42,7 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next
     .json({
       type: `https://physiocoach.otconnect.ir/problems/${status}`,
       title: statusTitles[status] || 'Request Failed',
-      status,
-      detail: status >= 500 ? 'Unexpected API error.' : candidate.message,
+      detail: candidate.message || 'Unexpected API error.',
       instance: req.originalUrl,
       traceId,
       auditLogId,

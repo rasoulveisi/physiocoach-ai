@@ -60,6 +60,22 @@ const WORKOUT_PLAN_EXPERIENCE_ORDER: Record<ExperienceLevel, number> = {
 
 const VALID_MOVEMENT_PATTERNS = new Set(WORKOUT_PLAN_MOVEMENT_PATTERNS);
 
+/**
+ * Per-pattern candidate caps for balanced multi-pattern sampling so push/pull
+ * stay strongly represented alongside squat/hinge instead of being crowded out
+ * by a single dominant pattern in the catalog.
+ */
+const BALANCED_CANDIDATE_QUOTAS: Record<WorkoutPlanMovementPattern, number> = {
+  push: 20,
+  pull: 20,
+  squat: 20,
+  hinge: 20,
+  lunge: 15,
+  carry: 15,
+  core: 15,
+  mobility: 15,
+};
+
 export const BODYWEIGHT_EQUIPMENT_IDS = new Set([
   'bodyweight',
   'body_weight',
@@ -245,30 +261,22 @@ export function isCandidateLevelCompatible(
   );
 }
 
-export function deriveMovementPatternNeeds(
-  context: WorkoutPlanGenerationContext,
-): WorkoutPlanMovementPattern[] {
-  const orderedGoals = getNormalizedGoals(context);
-  const needSet = new Set<WorkoutPlanMovementPattern>(['squat', 'hinge', 'pull']);
+const DEFAULT_MOVEMENT_PATTERN_NEEDS: readonly WorkoutPlanMovementPattern[] = [
+  'push',
+  'pull',
+  'squat',
+  'hinge',
+  'lunge',
+  'core',
+  'mobility',
+];
 
-  if (orderedGoals.includes('strength')) {
-    needSet.add('push');
-  }
-  if (orderedGoals.includes('fat_loss')) {
-    needSet.add('core');
-    needSet.add('mobility');
-  }
-  if (orderedGoals.includes('mobility')) {
-    needSet.add('mobility');
-  }
-  if (context.postureFlags.roundedShoulders) {
-    needSet.add('pull');
-  }
-  if (getNormalizedLimitations(context).includes('knee_pain')) {
-    needSet.add('lunge');
-  }
-
-  return WORKOUT_PLAN_MOVEMENT_PATTERNS.filter((pattern) => needSet.has(pattern));
+export function deriveMovementPatternNeeds(): WorkoutPlanMovementPattern[] {
+  // Every fundamental resistance training movement pattern is required for all
+  // plans so candidate selection stays balanced across upper/lower/core days.
+  return WORKOUT_PLAN_MOVEMENT_PATTERNS.filter((pattern) =>
+    DEFAULT_MOVEMENT_PATTERN_NEEDS.includes(pattern),
+  );
 }
 
 export function buildCandidateExerciseSet(
@@ -281,7 +289,7 @@ export function buildCandidateExerciseSet(
   );
   const userEquipment = getUserEquipmentTokens(context);
 
-  const movementNeeds = deriveMovementPatternNeeds(context);
+  const movementNeeds = deriveMovementPatternNeeds();
 
   const baseFiltered = catalogCandidates.filter((candidate) => {
     if (!isCandidateLevelCompatible(context.experienceLevel, candidate.recommendedLevel)) {
@@ -335,7 +343,7 @@ export function buildCandidateExerciseSet(
   );
   const availableRequiredSet = new Set(availableRequiredPatterns);
 
-  const movementSortedCandidates = [...safeCandidates].sort((left, right) => {
+  const compareSafeCandidates = (left: CatalogCandidate, right: CatalogCandidate): number => {
     const leftClusterOrder = left.cluster === 'green' ? 0 : 1;
     const rightClusterOrder = right.cluster === 'green' ? 0 : 1;
     if (leftClusterOrder !== rightClusterOrder) {
@@ -346,12 +354,6 @@ export function buildCandidateExerciseSet(
     const rightIsRequired = availableRequiredSet.has(right.movementPattern);
     if (leftIsRequired !== rightIsRequired) {
       return leftIsRequired ? -1 : 1;
-    }
-
-    const leftOrder = movementNeeds.indexOf(left.movementPattern);
-    const rightOrder = movementNeeds.indexOf(right.movementPattern);
-    if (leftOrder !== rightOrder) {
-      return leftOrder - rightOrder;
     }
 
     const leftGoalMatched = left.goalTags?.some((goal) =>
@@ -369,12 +371,39 @@ export function buildCandidateExerciseSet(
     }
 
     return left.name.localeCompare(right.name);
-  });
+  };
 
-  const fallbackCandidates = movementSortedCandidates.length > 0 ? movementSortedCandidates : [];
+  // Balanced multi-pattern sampling: rank safe candidates within each movement
+  // pattern, cap each pattern at its quota, then round-robin interleave the
+  // per-pattern queues. Every movement pattern keeps strong representation in
+  // the output instead of one dominant pattern starving the others once
+  // downstream code takes a slice from the head of the array.
+  const patternQueues = WORKOUT_PLAN_MOVEMENT_PATTERNS.map((pattern) => ({
+    pattern,
+    cursor: 0,
+    candidates: safeCandidates
+      .filter((candidate) => candidate.movementPattern === pattern)
+      .sort(compareSafeCandidates)
+      .slice(0, BALANCED_CANDIDATE_QUOTAS[pattern]),
+  })).filter((queue) => queue.candidates.length > 0);
+
+  const interleavedCandidates: CatalogCandidate[] = [];
+  let consumedCandidateInPass = true;
+  while (consumedCandidateInPass) {
+    consumedCandidateInPass = false;
+    for (const queue of patternQueues) {
+      const nextCandidate = queue.candidates[queue.cursor];
+      if (!nextCandidate) {
+        continue;
+      }
+      interleavedCandidates.push(nextCandidate);
+      queue.cursor += 1;
+      consumedCandidateInPass = true;
+    }
+  }
 
   return {
-    candidates: fallbackCandidates,
+    candidates: interleavedCandidates,
     allCandidates: [...clusters.green, ...clusters.amber, ...clusters.red],
     clusters,
     requiredMovementPatterns: movementNeeds,
