@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "physiocoach-ai-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "physiocoach-ai-api.otconnect.ir",
+      "custom_domain": true,
+    },
+  ],
+  "vars": {
+    "APP_ENV": "production",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_REFERER": "https://physiocoach.otconnect.ir",
+    "OPENROUTER_TITLE": "PhysioCoach AI",
+    "WORKOUT_MODEL_PRIMARY": "gemini-3.7-flash",
+    "WORKOUT_MODEL_FALLBACKS": "gemini-3.5-flash-lite,meta-llama/llama-3.1-8b-instruct",
+    "OPENROUTER_TIMEOUT_MS": "15000",
+    "OPENROUTER_MAX_RETRIES": "0",
+    "CORS_ORIGIN": "https://physiocoach.otconnect.ir,http://localhost:4200,http://localhost:4300,http://localhost:8787",
+    "DATABASE_URL": "postgresql://neondb_owner:npg_T7m0LDSedrvi@ep-quiet-thunder-ax8hxhfy-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require",
+  },
+  "observability": {
+    "logs": {
+      "enabled": false,
+      "invocation_logs": true,
+    },
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "385f7148d4c94f748473afc78dc4cac9",
+      "localConnectionString": "postgresql://neondb_owner:npg_T7m0LDSedrvi@ep-quiet-thunder-ax8hxhfy-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require",
+    },
+  ],
+  "triggers": {
+    "crons": ["0 3 * * SUN"],
+  },
+}

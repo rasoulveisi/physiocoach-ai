@@ -11,13 +11,17 @@ describe('Behavior-Driven E2E: Medical Error Traceability & Audit Logging', () =
   it('returns structured traceable error details on invalid generation request body', async () => {
     const app = createApp();
 
-    const response = await app.request('/api/v1/workout-plans/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await app.fetch(
+      '/api/v1/workout-plans/generate',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ invalid: 'payload' }),
       },
-      body: JSON.stringify({ invalid: 'payload' }),
-    }, mockEnv);
+      mockEnv,
+    );
 
     expect([400, 409]).toContain(response.status);
     const json = (await response.json()) as { error?: { code?: string; message?: string } };

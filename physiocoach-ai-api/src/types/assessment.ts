@@ -48,6 +48,15 @@ export function normalizeLegacyAssessmentConsiderations(
   });
 }
 
+export function hasExplicitConsiderations(input: unknown): boolean {
+  if (!input || typeof input !== 'object') return false;
+  return (
+    'considerations' in input &&
+    Array.isArray((input as { considerations?: unknown }).considerations) &&
+    (input as { considerations: unknown[] }).considerations.length > 0
+  );
+}
+
 export function resolveAssessmentConsiderations(input: {
   considerations?: Array<z.input<typeof assessmentConsiderationSchema>> | undefined;
   limitations?: string[] | undefined;
@@ -110,6 +119,7 @@ export const assessmentInputSchema = z
       )
       .min(1),
     frequencyDays: z.number().int().min(2).max(5),
+    sessionMinutes: z.number().int().min(15).max(180).optional(),
     equipment: z
       .array(z.enum(['full_gym', 'dumbbells_only', 'home_gym', 'resistance_bands']))
       .min(1),
@@ -144,6 +154,7 @@ export type AssessmentInput = z.input<typeof assessmentInputSchema>;
 export const latestAssessmentOutputSchema = z.object({
   goals: z.array(z.string()),
   frequencyDays: z.number().int().min(2).max(5),
+  sessionMinutes: z.number().int().min(15).max(180).optional(),
   equipment: z.array(z.string()),
   limitations: z.array(z.string()),
   postureFlags: z.array(z.string()),

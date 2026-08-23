@@ -1,5 +1,6 @@
 import { and, desc, eq, lte } from 'drizzle-orm';
 import { createDb } from '../db/client';
+import { getDb } from '../db';
 import { aiAuditLogs } from '../db/schema';
 
 type DbClient = ReturnType<typeof createDb>;
@@ -29,10 +30,17 @@ export async function logAiAuditEntry(
   entry: AiAuditLogInput,
 ): Promise<string> {
   const auditId = entry.id ?? `audit_${crypto.randomUUID()}`;
+  let auditDb = db;
+  let ownsClient = false;
 
-  if (!db) {
-    console.debug('ai_audit_logger.skip', { reason: 'no_db_instance', task: entry.task, auditId });
-    return auditId;
+  if (!auditDb) {
+    try {
+      auditDb = getDb();
+      ownsClient = true;
+    } catch {
+      console.debug('ai_audit_logger.skip', { reason: 'no_db_instance', task: entry.task, auditId });
+      return auditId;
+    }
   }
 
   const record = {
@@ -56,7 +64,7 @@ export async function logAiAuditEntry(
   };
 
   try {
-    await db.insert(aiAuditLogs).values(record);
+    await auditDb.insert(aiAuditLogs).values(record);
     console.info('ai_audit_logger.success', {
       id: record.id,
       traceId: record.traceId,
@@ -70,6 +78,8 @@ export async function logAiAuditEntry(
       task: entry.task,
       reason: error instanceof Error ? error.message : String(error),
     });
+  } finally {
+    if (ownsClient) await auditDb.$client.end();
   }
 
   return auditId;
@@ -138,4 +148,3 @@ export async function getAuditLogById(db: DbClient | undefined, id: string) {
   const rows = await db.select().from(aiAuditLogs).where(eq(aiAuditLogs.id, id)).limit(1);
   return rows[0] ?? null;
 }
-

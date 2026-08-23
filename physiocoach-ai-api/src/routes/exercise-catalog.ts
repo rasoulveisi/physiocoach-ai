@@ -1,11 +1,15 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
-import { Hono } from 'hono';
+import { and, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { exerciseMedia, masterExercises } from '../db/schema';
-import type { WorkerBindings } from '../env';
+import {
+  bodyConsiderations,
+  exerciseConsiderationRatings,
+  exerciseMedia,
+  masterExercises,
+} from '../db/schema';
+import { createExpressRouter } from './express-adapter';
 import { getApiRouteContext } from './context';
-import { handleRouteError } from '../shared/errors/api';
+import { handleRouteError, notFound } from '../shared/errors/api';
 
 const PUBLIC_MEDIA_OWNERSHIP_STATUSES = ['owned', 'commissioned', 'generated_approved', 'licensed'];
 
@@ -24,7 +28,165 @@ const exerciseCatalogMediaBatchSchema = z.object({
 });
 
 export function createExerciseCatalogRoutes() {
-  const route = new Hono<{ Bindings: WorkerBindings }>();
+  const route = createExpressRouter();
+
+  route.get('/exercise-catalog/exercises', async (c) => {
+    try {
+      const { db } = getApiRouteContext(c);
+      if (!db) {
+        return c.json({ data: [] });
+      }
+
+      const q = c.req.query('q')?.trim().toLowerCase();
+      const category = c.req.query('category')?.trim();
+      const muscle = c.req.query('muscle')?.trim();
+      const pattern = c.req.query('movementPattern')?.trim();
+      const limitStr = c.req.query('limit');
+      const limit = limitStr ? Math.min(100, Math.max(1, Number(limitStr))) : 50;
+
+      let queryBuilder = db
+        .select({
+          id: masterExercises.id,
+          canonicalId: masterExercises.canonicalId,
+          name: masterExercises.name,
+          bodyPart: masterExercises.bodyPart,
+          primaryMuscle: masterExercises.primaryMuscle,
+          movementPattern: masterExercises.movementPattern,
+          recommendedLevel: masterExercises.recommendedLevel,
+        })
+        .from(masterExercises);
+
+      const conditions = [];
+      if (q) {
+        conditions.push(
+          or(
+            like(sql`lower(${masterExercises.name})`, `%${q}%`),
+            like(sql`lower(${masterExercises.movementPattern})`, `%${q}%`),
+            like(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, `%${q}%`),
+            like(sql`lower(coalesce(${masterExercises.bodyPart}, ''))`, `%${q}%`),
+          ),
+        );
+      }
+      if (category && category !== 'all') {
+        conditions.push(eq(masterExercises.bodyPart, category));
+      }
+      if (muscle && muscle !== 'all') {
+        conditions.push(eq(masterExercises.primaryMuscle, muscle));
+      }
+      if (pattern && pattern !== 'all') {
+        conditions.push(eq(masterExercises.movementPattern, pattern));
+      }
+
+      const rows =
+        conditions.length > 0
+          ? await queryBuilder.where(and(...conditions)).limit(limit)
+          : await queryBuilder.limit(limit);
+
+      return c.json({ data: rows });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to list catalog exercises.');
+    }
+  });
+
+  route.get('/exercise-catalog/exercises/:id', async (c) => {
+    try {
+      const { db } = getApiRouteContext(c);
+      if (!db) return notFound(c, 'Exercise not found.');
+
+      const id = c.req.param('id')?.trim();
+      const rows = await db
+        .select()
+        .from(masterExercises)
+        .where(
+          or(
+            eq(masterExercises.id, id),
+            eq(masterExercises.canonicalId, id),
+            sql`lower(${masterExercises.name}) = lower(${id})`,
+          ),
+        )
+        .limit(1);
+
+      const exercise = rows[0];
+      if (!exercise) {
+        return notFound(c, `Exercise not found for id: ${id}`);
+      }
+
+      const ratings = await db
+        .select({
+          condition: bodyConsiderations.displayName,
+          severity: exerciseConsiderationRatings.severity,
+          rating: exerciseConsiderationRatings.rating,
+          reason: exerciseConsiderationRatings.reason,
+          requiredModification: exerciseConsiderationRatings.requiredModification,
+        })
+        .from(exerciseConsiderationRatings)
+        .innerJoin(
+          bodyConsiderations,
+          eq(exerciseConsiderationRatings.considerationId, bodyConsiderations.id),
+        )
+        .where(eq(exerciseConsiderationRatings.exerciseId, exercise.id))
+        .limit(25);
+
+      return c.json({
+        data: {
+          ...exercise,
+          safetyConsiderations: ratings,
+        },
+      });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to fetch exercise details.');
+    }
+  });
+
+  route.get('/exercise-catalog/swap-candidates', async (c) => {
+    try {
+      const { db } = getApiRouteContext(c);
+      if (!db) {
+        return c.json({ data: [] });
+      }
+
+      const pattern = c.req.query('movementPattern')?.trim();
+      const muscle = c.req.query('muscleGroup')?.trim();
+
+      const conditions = [];
+      if (pattern) {
+        conditions.push(eq(masterExercises.movementPattern, pattern));
+      }
+      if (muscle) {
+        conditions.push(
+          or(
+            eq(masterExercises.primaryMuscle, muscle),
+            eq(masterExercises.bodyPart, muscle),
+          ),
+        );
+      }
+
+      const rows = await db
+        .select({
+          id: masterExercises.id,
+          masterExerciseId: masterExercises.canonicalId,
+          name: masterExercises.name,
+          movementPattern: masterExercises.movementPattern,
+          primaryMuscle: masterExercises.primaryMuscle,
+          bodyPart: masterExercises.bodyPart,
+        })
+        .from(masterExercises)
+        .where(conditions.length > 0 ? or(...conditions) : undefined)
+        .limit(20);
+
+      const mapped = rows.map((r) => ({
+        id: r.id,
+        masterExerciseId: r.masterExerciseId,
+        name: r.name,
+        movementPattern: r.movementPattern,
+        muscleGroups: [r.primaryMuscle || r.bodyPart || 'target'],
+      }));
+
+      return c.json({ data: mapped });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to find swap candidates.');
+    }
+  });
 
   route.get('/exercise-catalog/media', async (c) => {
     try {
@@ -83,6 +245,8 @@ export function createExerciseCatalogRoutes() {
 
   return route;
 }
+
+export const exerciseCatalogRouter = createExerciseCatalogRoutes();
 
 export interface ExerciseCatalogMediaRow {
   exerciseId: string | null;

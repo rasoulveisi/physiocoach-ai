@@ -1,4 +1,4 @@
-import type { Context } from 'hono';
+import type { ExpressRouteContext } from '../../routes/express-adapter';
 
 export type ErrorStatusCode = 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500 | 501 | 503;
 
@@ -25,7 +25,7 @@ interface ErrorResponsePayload {
 
 const AUTH_CONTEXT_ERROR_MESSAGE = 'Missing or invalid authenticated user context.';
 
-function withRequestId(c: Context, payload: ErrorResponsePayload): ErrorResponsePayload {
+function withRequestId(c: ExpressRouteContext, payload: ErrorResponsePayload): ErrorResponsePayload {
   const precomputedRequestId = (c as { get?: (key: string) => unknown }).get?.('requestId');
   if (typeof precomputedRequestId === 'string' && precomputedRequestId.length > 0) {
     return {
@@ -61,7 +61,7 @@ function withRequestId(c: Context, payload: ErrorResponsePayload): ErrorResponse
 }
 
 export function createApiError(
-  c: Context,
+  c: ExpressRouteContext,
   code: ErrorCode,
   message: string,
   options: {
@@ -108,31 +108,31 @@ function errorStatusByCode(code: ErrorCode): ErrorStatusCode {
 }
 
 export function internalServerError(
-  c: Context,
+  c: ExpressRouteContext,
   message = 'Unexpected API error.',
   details?: unknown,
 ) {
   return createApiError(c, 'internal_server_error', message, { details });
 }
 
-export function invalidRequest(c: Context, message: string, details?: unknown) {
+export function invalidRequest(c: ExpressRouteContext, message: string, details?: unknown) {
   return createApiError(c, 'invalid_request', message, { details });
 }
 
-export function notFound(c: Context, message: string) {
+export function notFound(c: ExpressRouteContext, message: string) {
   return createApiError(c, 'not_found', message);
 }
 
-export function unauthorized(c: Context, message: string) {
+export function unauthorized(c: ExpressRouteContext, message: string) {
   return createApiError(c, 'unauthorized', message);
 }
 
-export function forbidden(c: Context, message: string) {
+export function forbidden(c: ExpressRouteContext, message: string) {
   return createApiError(c, 'forbidden', message);
 }
 
 export function handleRouteError(
-  c: Context,
+  c: ExpressRouteContext,
   error: unknown,
   fallbackMessage = 'Unexpected API error.',
 ) {
@@ -150,10 +150,9 @@ export function handleRouteError(
 }
 
 export function wrapRoute(
-  c: Context,
+  c: ExpressRouteContext,
   operation: () => Promise<Response>,
   fallbackMessage = 'Unexpected API error.',
 ) {
   return operation().catch((error) => handleRouteError(c, error, fallbackMessage));
 }
-

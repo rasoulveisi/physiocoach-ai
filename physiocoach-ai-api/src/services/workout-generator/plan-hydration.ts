@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { matchExerciseToCatalog } from '../exercise-matching';
-import { CANONICAL_PROGRESSION_RULE, WORKOUT_PLAN_MOVEMENT_PATTERNS } from '../../types/workout-plan-contract';
+import {
+  CANONICAL_PROGRESSION_RULE,
+  WORKOUT_PLAN_MOVEMENT_PATTERNS,
+} from '../../types/workout-plan-contract';
 import { DISCLAIMER, workoutPlanSchema, type WorkoutPlan } from '../../types/workout';
 import type { WorkoutPlanGenerationContext } from '../../types/ai';
 import type { CatalogCandidate } from '../../types/workout-generator';
@@ -272,7 +275,8 @@ export function buildMinimalInvalidPlan(candidateBuild: CandidateBuildResult): W
 }
 
 export function buildLocalWorkoutPlan(candidateBuild: CandidateBuildResult, frequencyDays: number) {
-  const pool = candidateBuild.candidates.length > 0 ? candidateBuild.candidates : candidateBuild.allCandidates;
+  const pool =
+    candidateBuild.candidates.length > 0 ? candidateBuild.candidates : candidateBuild.allCandidates;
 
   const byMovement = new Map<string, CatalogCandidate[]>();
   for (const candidate of pool) {
@@ -303,7 +307,10 @@ export function buildLocalWorkoutPlan(candidateBuild: CandidateBuildResult, freq
     for (let offset = 0; selected.length < 5 && offset < pool.length * 2; offset += 1) {
       const candidateIndex = (dayIndex * 3 + offset) % pool.length;
       const candidate = pool[candidateIndex];
-      if (candidate && (!usedIds.has(candidate.masterExerciseId) || selected.length < pool.length)) {
+      if (
+        candidate &&
+        (!usedIds.has(candidate.masterExerciseId) || selected.length < pool.length)
+      ) {
         usedIds.add(candidate.masterExerciseId);
         selected.push(candidate);
       }
@@ -644,7 +651,9 @@ export function buildDayExerciseFingerprint(day: WorkoutDayWithExercises): strin
     .join('|');
 }
 
-export function allWorkoutDaysHaveSameExerciseFingerprint(days: WorkoutDayWithExercises[]): boolean {
+export function allWorkoutDaysHaveSameExerciseFingerprint(
+  days: WorkoutDayWithExercises[],
+): boolean {
   if (days.length <= 1) {
     return false;
   }

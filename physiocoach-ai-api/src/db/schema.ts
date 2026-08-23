@@ -1,12 +1,13 @@
 import {
+  boolean,
   index,
   integer,
+  pgTable,
   primaryKey,
   real,
-  sqliteTable,
   text,
   uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
+} from 'drizzle-orm/pg-core';
 
 const timestamps = {
   createdAt: text('created_at').notNull(),
@@ -22,7 +23,7 @@ const sourceMetadataColumns = {
   attributionText: text('attribution_text'),
 };
 
-export const users = sqliteTable(
+export const users = pgTable(
   'users',
   {
     id: text('id').primaryKey(),
@@ -34,7 +35,7 @@ export const users = sqliteTable(
 );
 
 // Password-based credentials for email/password users.
-export const authCredentials = sqliteTable(
+export const authCredentials = pgTable(
   'auth_credentials',
   {
     id: text('id').primaryKey(),
@@ -48,7 +49,7 @@ export const authCredentials = sqliteTable(
 );
 
 // Linked third-party OAuth providers (e.g. Google).
-export const authOauthAccounts = sqliteTable(
+export const authOauthAccounts = pgTable(
   'auth_oauth_accounts',
   {
     id: text('id').primaryKey(),
@@ -69,7 +70,7 @@ export const authOauthAccounts = sqliteTable(
 );
 
 // Refresh-token sessions (rotating, with reuse detection).
-export const authSessions = sqliteTable(
+export const authSessions = pgTable(
   'auth_sessions',
   {
     id: text('id').primaryKey(),
@@ -93,7 +94,7 @@ export const authSessions = sqliteTable(
   ],
 );
 
-export const authRefreshTokenHistory = sqliteTable(
+export const authRefreshTokenHistory = pgTable(
   'auth_refresh_token_history',
   {
     id: text('id').primaryKey(),
@@ -109,7 +110,7 @@ export const authRefreshTokenHistory = sqliteTable(
   ],
 );
 
-export const profiles = sqliteTable('profiles', {
+export const profiles = pgTable('profiles', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
@@ -124,7 +125,7 @@ export const profiles = sqliteTable('profiles', {
   ...timestamps,
 });
 
-export const assessments = sqliteTable('assessments', {
+export const assessments = pgTable('assessments', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
@@ -138,7 +139,7 @@ export const assessments = sqliteTable('assessments', {
   inputHash: text('input_hash').notNull(),
 });
 
-export const workoutPlans = sqliteTable('workout_plans', {
+export const workoutPlans = pgTable('workout_plans', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
@@ -155,7 +156,7 @@ export const workoutPlans = sqliteTable('workout_plans', {
   createdAt: text('created_at').notNull(),
 });
 
-export const workoutSessions = sqliteTable(
+export const workoutSessions = pgTable(
   'workout_sessions',
   {
     id: text('id').primaryKey(),
@@ -184,7 +185,7 @@ export const workoutSessions = sqliteTable(
   ],
 );
 
-export const exerciseLogs = sqliteTable('exercise_logs', {
+export const exerciseLogs = pgTable('exercise_logs', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
@@ -201,13 +202,13 @@ export const exerciseLogs = sqliteTable('exercise_logs', {
   reps: integer('reps').notNull(),
   weight: real('weight').notNull(),
   rpe: real('rpe'),
-  completed: integer('completed').notNull().default(0),
+  completed: boolean('completed').notNull().default(false),
   notes: text('notes'),
   exerciseType: text('exercise_type').notNull().default('working'),
   previousPerformanceJson: text('previous_performance_json'),
 });
 
-export const userSettings = sqliteTable(
+export const userSettings = pgTable(
   'user_settings',
   {
     id: text('id').primaryKey(),
@@ -217,21 +218,17 @@ export const userSettings = sqliteTable(
     theme: text('theme').notNull(),
     unitSystem: text('unit_system').notNull(),
     defaultWorkoutView: text('default_workout_view').notNull(),
-    remindersEnabled: integer('reminders_enabled').notNull().default(0),
+    remindersEnabled: boolean('reminders_enabled').notNull().default(false),
     restTimerSeconds: integer('rest_timer_seconds').notNull().default(90),
-    autoStartRestTimer: integer('auto_start_rest_timer').notNull().default(1),
-    restTimerSoundEnabled: integer('rest_timer_sound_enabled').notNull().default(1),
+    autoStartRestTimer: boolean('auto_start_rest_timer').notNull().default(true),
+    restTimerSoundEnabled: boolean('rest_timer_sound_enabled').notNull().default(true),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
   (table) => [uniqueIndex('user_settings_user_id_unique').on(table.userId)],
 );
 
-
-
-
-
-export const masterMuscles = sqliteTable('master_muscles', {
+export const masterMuscles = pgTable('master_muscles', {
   id: text('id').primaryKey(),
   canonicalId: text('canonical_id').notNull(),
   name: text('name').notNull(),
@@ -240,7 +237,7 @@ export const masterMuscles = sqliteTable('master_muscles', {
   ...timestamps,
 });
 
-export const masterEquipment = sqliteTable('master_equipment', {
+export const masterEquipment = pgTable('master_equipment', {
   id: text('id').primaryKey(),
   canonicalId: text('canonical_id').notNull(),
   name: text('name').notNull(),
@@ -249,7 +246,7 @@ export const masterEquipment = sqliteTable('master_equipment', {
   ...timestamps,
 });
 
-export const exerciseCatalogVersions = sqliteTable('exercise_catalog_versions', {
+export const exerciseCatalogVersions = pgTable('exercise_catalog_versions', {
   id: text('id').primaryKey(),
   source: text('source').notNull(),
   sourceRepository: text('source_repository').notNull(),
@@ -265,24 +262,7 @@ export const exerciseCatalogVersions = sqliteTable('exercise_catalog_versions', 
   activatedAt: text('activated_at'),
 });
 
-export const exerciseDuplicateReviewGroups = sqliteTable(
-  'exercise_duplicate_review_groups',
-  {
-    catalogVersionId: text('catalog_version_id')
-      .notNull()
-      .references(() => exerciseCatalogVersions.id),
-    normalizedName: text('normalized_name').notNull(),
-    sourceIdsJson: text('source_ids_json').notNull(),
-    status: text('status').notNull().default('pending'),
-    reason: text('reason'),
-    reviewedBy: text('reviewed_by'),
-    reviewedAt: text('reviewed_at'),
-    createdAt: text('created_at').notNull(),
-  },
-  (table) => [primaryKey({ columns: [table.catalogVersionId, table.normalizedName] })],
-);
-
-export const masterExercises = sqliteTable('master_exercises', {
+export const masterExercises = pgTable('master_exercises', {
   id: text('id').primaryKey(),
   canonicalId: text('canonical_id').notNull(),
   name: text('name').notNull(),
@@ -303,7 +283,7 @@ export const masterExercises = sqliteTable('master_exercises', {
   ...timestamps,
 });
 
-export const exerciseMuscles = sqliteTable(
+export const exerciseMuscles = pgTable(
   'exercise_muscles',
   {
     exerciseId: text('exercise_id')
@@ -312,12 +292,12 @@ export const exerciseMuscles = sqliteTable(
     muscleId: text('muscle_id')
       .notNull()
       .references(() => masterMuscles.id),
-    isPrimary: integer('is_primary').notNull().default(1),
+    isPrimary: boolean('is_primary').notNull().default(true),
   },
   (table) => [primaryKey({ columns: [table.exerciseId, table.muscleId] })],
 );
 
-export const exerciseEquipment = sqliteTable(
+export const exerciseEquipment = pgTable(
   'exercise_equipment',
   {
     exerciseId: text('exercise_id')
@@ -330,7 +310,7 @@ export const exerciseEquipment = sqliteTable(
   (table) => [primaryKey({ columns: [table.exerciseId, table.equipmentId] })],
 );
 
-export const exerciseMedia = sqliteTable('exercise_media', {
+export const exerciseMedia = pgTable('exercise_media', {
   id: text('id').primaryKey(),
   exerciseId: text('exercise_id')
     .notNull()
@@ -350,7 +330,7 @@ export const exerciseMedia = sqliteTable('exercise_media', {
   ...timestamps,
 });
 
-export const bodyConsiderations = sqliteTable(
+export const bodyConsiderations = pgTable(
   'body_considerations',
   {
     id: text('id').primaryKey(),
@@ -359,14 +339,14 @@ export const bodyConsiderations = sqliteTable(
     groupCode: text('group_code').notNull(),
     bodyRegion: text('body_region').notNull(),
     kind: text('kind').notNull(),
-    active: integer('active').notNull().default(1),
-    severityEnabled: integer('severity_enabled').notNull().default(1),
+    active: boolean('active').notNull().default(true),
+    severityEnabled: boolean('severity_enabled').notNull().default(true),
     ...timestamps,
   },
   (table) => [uniqueIndex('body_considerations_code_unique').on(table.code)],
 );
 
-export const assessmentConsiderations = sqliteTable(
+export const assessmentConsiderations = pgTable(
   'assessment_considerations',
   {
     assessmentId: text('assessment_id')
@@ -378,13 +358,13 @@ export const assessmentConsiderations = sqliteTable(
     severity: text('severity').notNull(),
     side: text('side').notNull().default('unspecified'),
     notes: text('notes'),
-    inferred: integer('inferred').notNull().default(0),
+    inferred: boolean('inferred').notNull().default(false),
     createdAt: text('created_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.assessmentId, table.considerationId] })],
 );
 
-export const exerciseSafetyProfiles = sqliteTable(
+export const exerciseSafetyProfiles = pgTable(
   'exercise_safety_profiles',
   {
     exerciseId: text('exercise_id')
@@ -393,11 +373,11 @@ export const exerciseSafetyProfiles = sqliteTable(
     analysisVersion: text('analysis_version').notNull(),
     reviewStatus: text('review_status').notNull(),
     globalRating: text('global_rating').notNull(),
-    coverageComplete: integer('coverage_complete').notNull().default(0),
+    coverageComplete: boolean('coverage_complete').notNull().default(false),
     confidence: real('confidence'),
     summaryReason: text('summary_reason'),
     analysisSource: text('analysis_source').notNull(),
-    manualOverride: integer('manual_override').notNull().default(0),
+    manualOverride: boolean('manual_override').notNull().default(false),
     reviewedBy: text('reviewed_by'),
     reviewedAt: text('reviewed_at'),
     ...timestamps,
@@ -405,7 +385,7 @@ export const exerciseSafetyProfiles = sqliteTable(
   (table) => [primaryKey({ columns: [table.exerciseId, table.analysisVersion] })],
 );
 
-export const exerciseConsiderationRatings = sqliteTable(
+export const exerciseConsiderationRatings = pgTable(
   'exercise_consideration_ratings',
   {
     id: text('id').primaryKey(),
@@ -423,7 +403,7 @@ export const exerciseConsiderationRatings = sqliteTable(
     analysisSource: text('analysis_source').notNull(),
     ruleCodesJson: text('rule_codes_json'),
     analysisVersion: text('analysis_version').notNull(),
-    manualOverride: integer('manual_override').notNull().default(0),
+    manualOverride: boolean('manual_override').notNull().default(false),
     ...timestamps,
   },
   (table) => [
@@ -436,47 +416,7 @@ export const exerciseConsiderationRatings = sqliteTable(
   ],
 );
 
-export const exerciseAnalysisRuns = sqliteTable('exercise_analysis_runs', {
-  id: text('id').primaryKey(),
-  catalogVersionId: text('catalog_version_id')
-    .notNull()
-    .references(() => exerciseCatalogVersions.id),
-  analysisVersion: text('analysis_version').notNull(),
-  status: text('status').notNull(),
-  processedCount: integer('processed_count').notNull().default(0),
-  approvedCount: integer('approved_count').notNull().default(0),
-  rejectedCount: integer('rejected_count').notNull().default(0),
-  reviewRequiredCount: integer('review_required_count').notNull().default(0),
-  startedAt: text('started_at'),
-  completedAt: text('completed_at'),
-  lastError: text('last_error'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
-});
-
-export const exerciseAnalysisEvidence = sqliteTable('exercise_analysis_evidence', {
-  id: text('id').primaryKey(),
-  exerciseId: text('exercise_id')
-    .notNull()
-    .references(() => masterExercises.id),
-  analysisRunId: text('analysis_run_id').references(() => exerciseAnalysisRuns.id),
-  analysisVersion: text('analysis_version').notNull(),
-  evidenceJson: text('evidence_json').notNull(),
-  createdAt: text('created_at').notNull(),
-});
-
-export const exerciseAliases = sqliteTable('exercise_aliases', {
-  id: text('id').primaryKey(),
-  exerciseId: text('exercise_id')
-    .notNull()
-    .references(() => masterExercises.id),
-  alias: text('alias').notNull(),
-  locale: text('locale'),
-  ...sourceMetadataColumns,
-  ...timestamps,
-});
-
-export const aiAuditLogs = sqliteTable(
+export const aiAuditLogs = pgTable(
   'ai_audit_logs',
   {
     id: text('id').primaryKey(),
@@ -503,4 +443,3 @@ export const aiAuditLogs = sqliteTable(
     index('ai_audit_logs_user_id_idx').on(table.userId),
   ],
 );
-

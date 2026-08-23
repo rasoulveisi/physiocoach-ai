@@ -1,7 +1,7 @@
-import type { Context } from 'hono';
 import type { z } from 'zod';
 
 import { invalidRequest } from '../shared/errors/api';
+import type { ExpressRouteContext } from './express-adapter';
 
 type ParseResult<T> =
   | {
@@ -15,7 +15,7 @@ type ParseResult<T> =
     };
 
 export async function parseJsonPayload<TSchema extends z.ZodTypeAny>(
-  c: Context,
+  c: ExpressRouteContext,
   schema: TSchema,
 ): Promise<ParseResult<z.output<TSchema>>> {
   const payload = await c.req.json().catch(() => undefined);

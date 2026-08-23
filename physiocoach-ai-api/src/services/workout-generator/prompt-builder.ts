@@ -218,4 +218,3 @@ Return a JSON object containing a "days" array where each day object has:
 
 OUTPUT ONLY VALID JSON MATCHING THIS SPECIFICATION.`;
 }
-

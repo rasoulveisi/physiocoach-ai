@@ -7,12 +7,12 @@ describe('createApp', () => {
     const app = createApp();
     const env = { CORS_ORIGIN: 'http://localhost:4200' } as WorkerBindings;
 
-    const localhostResponse = await app.request(
+    const localhostResponse = await app.fetch(
       '/api/v1/health',
       { headers: { Origin: 'http://localhost:4200' } },
       env,
     );
-    const loopbackResponse = await app.request(
+    const loopbackResponse = await app.fetch(
       '/api/v1/health',
       { headers: { Origin: 'http://127.0.0.1:4200' } },
       env,
@@ -30,7 +30,7 @@ describe('createApp', () => {
     const app = createApp();
     const env = { CORS_ORIGIN: 'http://localhost:4200' } as WorkerBindings;
 
-    const response = await app.request(
+    const response = await app.fetch(
       '/api/v1/workout-plans/generate',
       {
         method: 'POST',
@@ -76,7 +76,7 @@ describe('createApp', () => {
     const app = createApp();
     const env = { APP_ENV: 'local' } as WorkerBindings;
 
-    const response = await app.request(
+    const response = await app.fetch(
       '/api/v1/assessments',
       {
         method: 'POST',

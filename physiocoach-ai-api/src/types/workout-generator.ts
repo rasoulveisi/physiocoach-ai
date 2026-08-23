@@ -55,11 +55,7 @@ export interface WorkoutPlanOrchestrationResult {
   generation?: {
     fallbackUsed: boolean;
     errorCode?:
-      | 'rate_limited'
-      | 'provider_timeout'
-      | 'provider_error'
-      | 'fallback_used'
-      | undefined;
+      'rate_limited' | 'provider_timeout' | 'provider_error' | 'fallback_used' | undefined;
   };
 }
 
@@ -102,11 +98,7 @@ export interface WorkoutPlanRecordInput {
     generation?: {
       fallbackUsed: boolean;
       errorCode?:
-        | 'rate_limited'
-        | 'provider_timeout'
-        | 'provider_error'
-        | 'fallback_used'
-        | undefined;
+        'rate_limited' | 'provider_timeout' | 'provider_error' | 'fallback_used' | undefined;
     };
     providerMetadata?: {
       attempts?: number;
@@ -190,11 +182,7 @@ export interface WorkoutPlanDto {
   generation?: {
     fallbackUsed: boolean;
     errorCode?:
-      | 'rate_limited'
-      | 'provider_timeout'
-      | 'provider_error'
-      | 'fallback_used'
-      | undefined;
+      'rate_limited' | 'provider_timeout' | 'provider_error' | 'fallback_used' | undefined;
   };
   createdAt: string;
   inputHash: string;
@@ -208,5 +196,4 @@ export interface WorkoutPlanParseError {
 }
 
 export type WorkoutPlanParseResult =
-  | { ok: true; dto: WorkoutPlanDto }
-  | { ok: false; error: WorkoutPlanParseError };
+  { ok: true; dto: WorkoutPlanDto } | { ok: false; error: WorkoutPlanParseError };

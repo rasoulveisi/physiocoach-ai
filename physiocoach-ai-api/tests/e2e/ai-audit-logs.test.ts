@@ -5,7 +5,7 @@ describe('E2E Behavior: AI Audit Logs Inspection', () => {
   it('allows querying AI audit log entries by traceId and task', async () => {
     const app = createApp();
 
-    const response = await app.request('/api/v1/ai-audit-logs?limit=5', {
+    const response = await app.fetch('/api/v1/ai-audit-logs?limit=5', {
       method: 'GET',
       headers: {
         Authorization: 'Bearer test-token',
@@ -21,7 +21,7 @@ describe('E2E Behavior: AI Audit Logs Inspection', () => {
   it('returns 404 for non-existent audit log ID', async () => {
     const app = createApp();
 
-    const response = await app.request('/api/v1/ai-audit-logs/audit_non_existent_123', {
+    const response = await app.fetch('/api/v1/ai-audit-logs/audit_non_existent_123', {
       method: 'GET',
       headers: {
         Authorization: 'Bearer test-token',

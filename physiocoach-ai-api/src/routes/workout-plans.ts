@@ -1,18 +1,14 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { Hono } from 'hono';
 import { z } from 'zod';
-import type { WorkerBindings } from '../env';
+import { createExpressRouter } from './express-adapter';
 import { createDb } from '../db/client';
 import {
   assessmentConsiderations,
   assessments,
   bodyConsiderations,
-  profiles,
-  users,
   workoutPlans,
 } from '../db/schema';
 import { createApiError, internalServerError, unauthorized } from '../shared/errors/api';
-import type { AuthenticatedUser } from '../types/auth';
 import {
   buildPlanInputHash,
   buildWorkoutPlanContext,
@@ -26,20 +22,23 @@ import {
   type WorkoutPlanRecord,
   WorkoutPlanGenerationError,
 } from '../services/workout-generator';
-import type { ProfileInput } from '../types/profile';
 import {
+  hasExplicitConsiderations,
   legacySafetyContextFromConsiderations,
   resolveAssessmentConsiderations,
 } from '../types/assessment';
-import { withTransactionFallback } from './transactions';
+import { loadAssessmentConsiderations } from './assessments';
+import {
+  getLatestProfileForUser,
+  mapProfileRecordToInput,
+  upsertUserAndProfile,
+} from '../services/user-profile';
 import { getApiRouteContext, hasDbClient } from './context';
 
 type DbClient = ReturnType<typeof createDb>;
 
-type ProfileRow = typeof profiles.$inferSelect;
-
 export function createWorkoutPlanRoutes() {
-  const route = new Hono<{ Bindings: WorkerBindings }>();
+  const route = createExpressRouter();
 
   route.post('/workout-plans/generate', async (c) => {
     try {
@@ -62,42 +61,85 @@ export function createWorkoutPlanRoutes() {
         );
       }
 
-      const parsed = generatePlanInputSchema.safeParse(generatePayload);
-      if (!parsed.success) {
-        const validationIssues = parsed.error.issues.map((issue: z.ZodIssue) => ({
-          path: issue.path.join('.'),
-          message: issue.message,
-        }));
-
-        return createApiError(c, 'invalid_request', 'Request payload failed validation.', {
-          details: {
-            issues: validationIssues,
-          },
-        });
-      }
-
       const routeContext = getApiRouteContext(c);
       const { user, env, db } = routeContext;
       const now = new Date().toISOString();
-      const profileRow = hasDbClient(routeContext)
-        ? await getLatestProfileForUser(routeContext.db, user.id)
-        : null;
-      const resolvedProfile = mapProfileRecordToInput(profileRow) ?? parsed.data.profile;
-      if (!resolvedProfile) {
-        return createApiError(
-          c,
-          'profile_not_found',
-          'No active profile snapshot is available. Save onboarding profile first.',
-          { status: 409 },
-        );
+
+      let resolvedAssessment =
+        generatePayload && typeof generatePayload === 'object' && 'assessment' in generatePayload
+          ? generatePayload.assessment
+          : null;
+
+      if (!resolvedAssessment && hasDbClient(routeContext)) {
+        const assessmentRows = await routeContext.db
+          .select()
+          .from(assessments)
+          .where(eq(assessments.userId, user.id))
+          .orderBy(desc(assessments.completedAt))
+          .limit(1);
+
+        if (assessmentRows[0]) {
+          const row = assessmentRows[0];
+          const goals =
+            typeof row.goalsJson === 'string' ? JSON.parse(row.goalsJson) : row.goalsJson;
+          const equipment =
+            typeof row.equipmentJson === 'string' ? JSON.parse(row.equipmentJson) : row.equipmentJson;
+          const limitations =
+            typeof row.limitationsJson === 'string'
+              ? JSON.parse(row.limitationsJson)
+              : row.limitationsJson;
+          const postureFlags =
+            typeof row.postureFlagsJson === 'string'
+              ? JSON.parse(row.postureFlagsJson)
+              : row.postureFlagsJson;
+          const loadedConsiderations = await loadAssessmentConsiderations(routeContext.db, row.id);
+          resolvedAssessment = {
+            goals: Array.isArray(goals) && goals.length > 0 ? goals : ['strength'],
+            frequencyDays: row.frequencyDays || 3,
+            equipment: Array.isArray(equipment) && equipment.length > 0 ? equipment : ['home_gym'],
+            considerations: loadedConsiderations,
+            limitations: Array.isArray(limitations) ? limitations : [],
+            postureFlags: Array.isArray(postureFlags) ? postureFlags : [],
+          };
+        }
       }
 
-      const traceId = crypto.randomUUID();
+      if (!resolvedAssessment) {
+        resolvedAssessment = {
+          goals: ['strength'],
+          frequencyDays: 3,
+          equipment: ['home_gym'],
+          limitations: [],
+          postureFlags: [],
+        };
+      }
+
+      const payloadProfile =
+        generatePayload && typeof generatePayload === 'object' && 'profile' in generatePayload
+          ? generatePayload.profile
+          : null;
+      const profileRow =
+        !payloadProfile && hasDbClient(routeContext)
+          ? await getLatestProfileForUser(routeContext.db, user.id)
+          : null;
+      let resolvedProfile = payloadProfile ?? mapProfileRecordToInput(profileRow);
+
+      if (!resolvedProfile) {
+        resolvedProfile = {
+          age: 30,
+          sex: 'prefer_not_to_say',
+          heightCm: 175,
+          weightKg: 75,
+          lifestyle: 'active',
+          experienceLevel: 'beginner',
+        };
+      }
+
+      const traceId = routeContext.requestId;
       const generationInput: GeneratePlanInput = {
-        ...parsed.data,
-        assessment: hasExplicitConsiderations(generatePayload.assessment)
-          ? parsed.data.assessment
-          : { ...parsed.data.assessment, considerations: undefined },
+        assessment: hasExplicitConsiderations(resolvedAssessment)
+          ? resolvedAssessment
+          : { ...resolvedAssessment, considerations: undefined },
         profile: resolvedProfile,
       };
       const inputHash = await buildPlanInputHash(generationInput);
@@ -188,7 +230,10 @@ export function createWorkoutPlanRoutes() {
         },
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Missing or invalid authenticated user context.') {
+      if (
+        error instanceof Error &&
+        error.message === 'Missing or invalid authenticated user context.'
+      ) {
         return unauthorized(c, error.message);
       }
       return internalServerError(c, 'Failed to generate workout plan.');
@@ -224,7 +269,10 @@ export function createWorkoutPlanRoutes() {
 
       return c.json({ data: parsedRecord.dto });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Missing or invalid authenticated user context.') {
+      if (
+        error instanceof Error &&
+        error.message === 'Missing or invalid authenticated user context.'
+      ) {
         return unauthorized(c, error.message);
       }
       return internalServerError(c, 'Failed to load current workout plan.');
@@ -260,7 +308,10 @@ export function createWorkoutPlanRoutes() {
 
       return c.json({ data: parsedRecord.dto });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Missing or invalid authenticated user context.') {
+      if (
+        error instanceof Error &&
+        error.message === 'Missing or invalid authenticated user context.'
+      ) {
         return unauthorized(c, error.message);
       }
       return internalServerError(c, 'Failed to load workout plan.');
@@ -293,7 +344,10 @@ export function createWorkoutPlanRoutes() {
 
       return c.json({ data: { id: current.id, deleted: true } });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Missing or invalid authenticated user context.') {
+      if (
+        error instanceof Error &&
+        error.message === 'Missing or invalid authenticated user context.'
+      ) {
         return unauthorized(c, error.message);
       }
       return internalServerError(c, 'Failed to delete current workout plan.');
@@ -303,9 +357,7 @@ export function createWorkoutPlanRoutes() {
   return route;
 }
 
-function hasExplicitConsiderations(input: unknown): boolean {
-  return typeof input === 'object' && input !== null && Object.hasOwn(input, 'considerations');
-}
+export const workoutPlansRouter = createWorkoutPlanRoutes();
 
 export async function persistAssessmentAndPlan(
   db: DbClient,
@@ -343,7 +395,7 @@ export async function persistAssessmentAndPlan(
         severity: consideration.severity,
         side: consideration.side,
         notes: consideration.notes ?? null,
-        inferred: consideration.inferred ? 1 : 0,
+        inferred: Boolean(consideration.inferred),
         createdAt: record.createdAt,
       })),
     );
@@ -363,7 +415,7 @@ async function loadActiveConsiderationIds(
   const rows = await db
     .select({ id: bodyConsiderations.id, code: bodyConsiderations.code })
     .from(bodyConsiderations)
-    .where(eq(bodyConsiderations.active, 1));
+    .where(eq(bodyConsiderations.active, true));
   const idsByCode = new Map(rows.map((row) => [row.code, row.id]));
   const invalidCodes = considerations
     .map(({ code }) => code)
@@ -378,91 +430,4 @@ async function loadActiveConsiderationIds(
     );
   }
   return idsByCode;
-}
-
-function mapProfileRecordToInput(profile: ProfileRow | null): ProfileInput | null {
-  if (!profile) {
-    return null;
-  }
-
-  return {
-    age: profile.age,
-    sex: profile.sex as ProfileInput['sex'],
-    heightCm: profile.heightCm,
-    weightKg: profile.weightKg,
-    ...(profile.bodyFatEstimate === null ? {} : { bodyFatEstimate: profile.bodyFatEstimate }),
-    lifestyle: profile.lifestyle as ProfileInput['lifestyle'],
-    experienceLevel: profile.experienceLevel as ProfileInput['experienceLevel'],
-  };
-}
-
-async function getLatestProfileForUser(db: DbClient, userId: string): Promise<ProfileRow | null> {
-  const rows = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, userId))
-    .orderBy(desc(profiles.createdAt))
-    .limit(1);
-
-  return rows[0] ?? null;
-}
-
-async function upsertUserAndProfile(
-  db: DbClient,
-  user: AuthenticatedUser,
-  profile: ProfileInput | null,
-  now: string,
-): Promise<void> {
-  const profileId = `profile_${crypto.randomUUID()}`;
-  if (!profile) {
-    return;
-  }
-
-  await withTransactionFallback(
-    db,
-    async (tx) => {
-      const client = tx as DbClient;
-      await upsertUserForContext(client, user, now);
-      await client.insert(profiles).values({
-        id: profileId,
-        userId: user.id,
-        age: profile.age,
-        sex: profile.sex,
-        heightCm: profile.heightCm,
-        weightKg: profile.weightKg,
-        bodyFatEstimate: profile.bodyFatEstimate ?? null,
-        lifestyle: profile.lifestyle,
-        experienceLevel: profile.experienceLevel,
-        createdAt: now,
-        updatedAt: now,
-      });
-    },
-    'profile-upsert',
-  );
-}
-
-async function upsertUserForContext(
-  db: DbClient,
-  user: AuthenticatedUser,
-  now: string,
-): Promise<void> {
-  const safeDisplayName = user.displayName ?? null;
-
-  await db
-    .insert(users)
-    .values({
-      id: user.id,
-      email: user.email,
-      displayName: safeDisplayName,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: users.id,
-      set: {
-        email: user.email,
-        displayName: safeDisplayName,
-        updatedAt: now,
-      },
-    });
 }

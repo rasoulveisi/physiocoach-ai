@@ -20,10 +20,7 @@ import type {
 } from '../types/workout-generator';
 import { createDb } from '../db/client';
 
-import {
-  buildWorkoutPlanModelConfig,
-  createWorkoutPlanProvider,
-} from './workout-generator/config';
+import { buildWorkoutPlanModelConfig, createWorkoutPlanProvider } from './workout-generator/config';
 import {
   generatePlanInputSchema,
   type GeneratePlanInput,
@@ -40,7 +37,10 @@ import {
   buildCandidateExerciseSet,
   loadCatalogCandidatesFromDb,
 } from './workout-generator/candidates';
-import { buildWorkoutPlanPrompt, getPromptCandidateTargets } from './workout-generator/prompt-builder';
+import {
+  buildWorkoutPlanPrompt,
+  getPromptCandidateTargets,
+} from './workout-generator/prompt-builder';
 import {
   hydratePlanFromCatalog,
   leanAiWorkoutPlanSchema,
@@ -349,7 +349,7 @@ export async function generateWorkoutPlanWithSafety(
         modelIndex,
         reason:
           error instanceof WorkoutPlanGenerationError
-            ? error.details?.reason ?? 'workout_plan_generation_error'
+            ? (error.details?.reason ?? 'workout_plan_generation_error')
             : error instanceof Error
               ? error.name
               : typeof error,

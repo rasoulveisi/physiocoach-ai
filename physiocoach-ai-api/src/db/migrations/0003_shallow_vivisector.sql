@@ -1,1 +1,0 @@
-ALTER TABLE `exercise_logs` ADD `master_exercise_id` text;

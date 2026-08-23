@@ -30,6 +30,7 @@ node scripts/analyze-exercise-safety.mjs \
 ```
 
 ### Command Flags:
+
 - `--catalog`: Path to the source exercise dataset JSON file.
 - `--out`: Destination path for generated safety matrix analysis JSON.
 - `--state`: State cache file path for incremental analysis runs.
@@ -42,11 +43,13 @@ node scripts/analyze-exercise-safety.mjs \
 Once the safety analysis and catalog dataset are generated:
 
 1. **Generate D1 Migration**:
+
    ```bash
    npx drizzle-kit generate
    ```
 
 2. **Apply Local Migration**:
+
    ```bash
    npx wrangler d1 migrations apply physiocoach_prod --config ./wrangler.toml --local
    ```

@@ -21,6 +21,7 @@ export const envSchema = z.object({
   OPENROUTER_TIMEOUT_MS: z.coerce.number().int().min(1).max(180_000).default(180000),
   OPENROUTER_MAX_RETRIES: z.coerce.number().int().min(0).max(0).default(0),
   CORS_ORIGIN: z.string().min(1),
+  DATABASE_URL: z.string().optional(),
   LOCAL_AUTH_BYPASS_TOKEN: z.string().optional(),
   DEV_SWAGGER_TOKEN: z.string().optional(),
 });
@@ -28,7 +29,9 @@ export const envSchema = z.object({
 export type AppEnv = z.infer<typeof envSchema>;
 
 export type WorkerBindings = AppEnv & {
-  DB: D1Database;
+  HYPERDRIVE?: { connectionString: string };
+  DATABASE_URL?: string;
+  DB?: unknown;
 };
 
 export interface AppVariables {

@@ -20,11 +20,7 @@ export interface ProgressionSuggestion {
 }
 
 export type LimitationRiskName =
-  | 'rounded_shoulders'
-  | 'shoulder_pain'
-  | 'knee_pain'
-  | 'lower_back_pain'
-  | 'neck_pain';
+  'rounded_shoulders' | 'shoulder_pain' | 'knee_pain' | 'lower_back_pain' | 'neck_pain';
 
 export interface PostureFlags {
   roundedShoulders?: boolean;

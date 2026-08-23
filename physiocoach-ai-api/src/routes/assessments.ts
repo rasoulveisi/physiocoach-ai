@@ -1,11 +1,12 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
-import { Hono, type Context } from 'hono';
 
 import { assessmentConsiderations, assessments, bodyConsiderations } from '../db/schema';
-import type { WorkerBindings } from '../env';
+import type { ExpressRouteContext } from './express-adapter';
+import { createExpressRouter } from './express-adapter';
 import { createApiError, handleRouteError } from '../shared/errors/api';
 import {
   assessmentInputSchema,
+  hasExplicitConsiderations,
   legacySafetyContextFromConsiderations,
   latestAssessmentOutputSchema,
   normalizeLegacyAssessmentConsiderations,
@@ -60,13 +61,11 @@ const BODY_CONSIDERATION_OPTIONS = [
 ] as const;
 
 export function createAssessmentRoutes() {
-  const route = new Hono<{ Bindings: WorkerBindings }>();
-
-  route.get('/assessments', (c) => c.json({ data: [] }));
+  const route = createExpressRouter();
 
   route.get('/considerations', (c) => c.json({ data: BODY_CONSIDERATION_OPTIONS }));
 
-  async function loadLatestAssessment(c: Context<{ Bindings: WorkerBindings }>) {
+  async function loadLatestAssessment(c: ExpressRouteContext) {
     const { user, db } = getApiRouteContext(c);
     if (!db) return c.json({ data: null });
 
@@ -186,16 +185,14 @@ export function createAssessmentRoutes() {
   return route;
 }
 
+export const assessmentsRouter = createAssessmentRoutes();
+
 function normalizedAssessmentConsiderations(input: {
   considerations?: AssessmentConsideration[] | undefined;
   limitations?: string[] | undefined;
   postureFlags?: string[] | undefined;
 }): AssessmentConsideration[] {
   return resolveAssessmentConsiderations(input);
-}
-
-function hasExplicitConsiderations(input: unknown): boolean {
-  return typeof input === 'object' && input !== null && Object.hasOwn(input, 'considerations');
 }
 
 async function findInactiveOrUnknownCodes(
@@ -212,7 +209,7 @@ async function findInactiveOrUnknownCodes(
           bodyConsiderations.code,
           considerations.map(({ code }) => code),
         ),
-        eq(bodyConsiderations.active, 1),
+        eq(bodyConsiderations.active, true),
       ),
     );
   const activeCodes = new Set(rows.map((row) => row.code));
@@ -243,13 +240,13 @@ async function insertAssessmentConsiderations(
       severity: consideration.severity,
       side: consideration.side,
       notes: consideration.notes ?? null,
-      inferred: consideration.inferred ? 1 : 0,
+      inferred: Boolean(consideration.inferred),
       createdAt,
     })),
   );
 }
 
-async function loadAssessmentConsiderations(
+export async function loadAssessmentConsiderations(
   db: NonNullable<ReturnType<typeof getApiRouteContext>['db']>,
   assessmentId: string,
 ): Promise<AssessmentConsideration[]> {
@@ -272,7 +269,7 @@ async function loadAssessmentConsiderations(
     severity: row.severity as AssessmentConsideration['severity'],
     side: row.side as AssessmentConsideration['side'],
     ...(row.notes ? { notes: row.notes } : {}),
-    inferred: row.inferred === 1,
+    inferred: Boolean(row.inferred),
   }));
 }
 

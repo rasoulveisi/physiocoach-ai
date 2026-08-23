@@ -1,35 +1,18 @@
-import { desc, eq } from 'drizzle-orm';
-import { Hono } from 'hono';
-
-import { profiles, users } from '../db/schema';
-import { createDb } from '../db/client';
-import type { WorkerBindings } from '../env';
+import { createExpressRouter } from './express-adapter';
 import { createApiError } from '../shared/errors/api';
-import { type ProfileInput, profileInputSchema } from '../types/profile';
-import type { AuthenticatedUser } from '../types/auth';
+import { profileInputSchema } from '../types/profile';
 import { getApiRouteContext, hasDbClient } from './context';
 import { parseJsonPayload } from './validation';
-import { withTransactionFallback } from './transactions';
+import {
+  getLatestProfileForUser,
+  mapProfileRecordToInput,
+  upsertUserAndProfile,
+} from '../services/user-profile';
 
-type DbClient = ReturnType<typeof createDb>;
-type ProfileRow = typeof profiles.$inferSelect;
-type ProfileInsert = typeof profiles.$inferInsert;
-type UserRow = typeof users.$inferSelect;
+export { mapProfileRecordToInput };
 
 export function createProfileRoutes() {
-  const route = new Hono<{ Bindings: WorkerBindings }>();
-
-  route.get('/me', (c) => {
-    const { user } = getApiRouteContext(c);
-    return c.json({
-      data: {
-        id: user.id,
-        email: user.email,
-        ...(user.role === undefined ? {} : { role: user.role }),
-        roles: user.roles ?? [],
-      },
-    });
-  });
+  const route = createExpressRouter();
 
   route.get('/profile', async (c) => {
     const context = getApiRouteContext(c);
@@ -38,68 +21,60 @@ export function createProfileRoutes() {
     }
 
     const profile = await getLatestProfileForUser(context.db, context.user.id);
-    if (!profile) {
-      return c.json({ data: null });
-    }
-
     return c.json({
       data: {
-        age: profile.age,
-        sex: profile.sex,
-        heightCm: profile.heightCm,
-        weightKg: profile.weightKg,
-        ...(profile.bodyFatEstimate === null
+        displayName: (context.user as any).displayName || (context.user as any).name || undefined,
+        email: context.user.email || undefined,
+        age: profile?.age ?? null,
+        sex: profile?.sex ?? 'prefer_not_to_say',
+        heightCm: profile?.heightCm ?? null,
+        weightKg: profile?.weightKg ?? null,
+        ...(profile?.bodyFatEstimate === null || profile?.bodyFatEstimate === undefined
           ? {}
           : { bodyFatEstimate: profile.bodyFatEstimate }),
-        lifestyle: profile.lifestyle,
-        experienceLevel: profile.experienceLevel,
+        lifestyle: profile?.lifestyle ?? 'active',
+        experienceLevel: profile?.experienceLevel ?? 'beginner',
       },
     });
   });
 
   route.patch('/profile', async (c) => {
+    const raw = await c.req.json().catch(() => ({}));
     const context = getApiRouteContext(c);
-    const parsed = await parseJsonPayload(c, profileInputSchema);
-    if (!parsed.success) {
-      return parsed.response;
-    }
+    const now = new Date().toISOString();
 
     if (!hasDbClient(context)) {
-      return c.json({
-        data: {
-          age: parsed.data.age,
-          sex: parsed.data.sex,
-          heightCm: parsed.data.heightCm,
-          weightKg: parsed.data.weightKg,
-          ...(parsed.data.bodyFatEstimate === undefined
-            ? {}
-            : { bodyFatEstimate: parsed.data.bodyFatEstimate }),
-          lifestyle: parsed.data.lifestyle,
-          experienceLevel: parsed.data.experienceLevel,
-        },
-      });
+      return c.json({ data: raw });
     }
 
-    const now = new Date().toISOString();
-    await upsertUserAndProfile(context.db, context.user, parsed.data, now);
-    const profile = await getLatestProfileForUser(context.db, context.user.id);
-    if (!profile) {
-      return createApiError(c, 'internal_server_error', 'Profile row was not persisted.', {
-        status: 500,
-      });
-    }
+    const existingProfile = await getLatestProfileForUser(context.db, context.user.id);
+    const mergedProfile = {
+      age: typeof raw.age === 'number' ? raw.age : existingProfile?.age ?? 30,
+      sex: typeof raw.sex === 'string' ? (raw.sex as any) : existingProfile?.sex ?? 'prefer_not_to_say',
+      heightCm: typeof raw.heightCm === 'number' ? raw.heightCm : existingProfile?.heightCm ?? 175,
+      weightKg: typeof raw.weightKg === 'number' ? raw.weightKg : existingProfile?.weightKg ?? 75,
+      bodyFatEstimate: typeof raw.bodyFatEstimate === 'number' ? raw.bodyFatEstimate : existingProfile?.bodyFatEstimate ?? undefined,
+      lifestyle: typeof raw.lifestyle === 'string' ? (raw.lifestyle as any) : existingProfile?.lifestyle ?? 'active',
+      experienceLevel: typeof raw.experienceLevel === 'string' ? (raw.experienceLevel as any) : existingProfile?.experienceLevel ?? 'beginner',
+    };
+
+    await upsertUserAndProfile(context.db, context.user, mergedProfile, now);
+    const updated = await getLatestProfileForUser(context.db, context.user.id);
 
     return c.json({
       data: {
-        age: profile.age,
-        sex: profile.sex,
-        heightCm: profile.heightCm,
-        weightKg: profile.weightKg,
-        ...(profile.bodyFatEstimate === null
-          ? {}
-          : { bodyFatEstimate: profile.bodyFatEstimate }),
-        lifestyle: profile.lifestyle,
-        experienceLevel: profile.experienceLevel,
+        displayName:
+          typeof raw.displayName === 'string'
+            ? raw.displayName
+            : (context.user as any).displayName || (context.user as any).name,
+        email: typeof raw.email === 'string' ? raw.email : context.user.email,
+        age: updated?.age ?? mergedProfile.age,
+        sex: updated?.sex ?? mergedProfile.sex,
+        heightCm: updated?.heightCm ?? mergedProfile.heightCm,
+        weightKg: updated?.weightKg ?? mergedProfile.weightKg,
+        ...(updated?.bodyFatEstimate ? { bodyFatEstimate: updated.bodyFatEstimate } : {}),
+        lifestyle: updated?.lifestyle ?? mergedProfile.lifestyle,
+        experienceLevel: updated?.experienceLevel ?? mergedProfile.experienceLevel,
       },
     });
   });
@@ -107,98 +82,4 @@ export function createProfileRoutes() {
   return route;
 }
 
-export function mapProfileRecordToInput(profile: ProfileRow | null): ProfileInput | null {
-  if (!profile) {
-    return null;
-  }
-
-  const mapped: ProfileInput = {
-    age: profile.age,
-    sex: profile.sex as ProfileInput['sex'],
-    heightCm: profile.heightCm,
-    weightKg: profile.weightKg,
-    ...(profile.bodyFatEstimate === null ? {} : { bodyFatEstimate: profile.bodyFatEstimate }),
-    lifestyle: profile.lifestyle as ProfileInput['lifestyle'],
-    experienceLevel: profile.experienceLevel as ProfileInput['experienceLevel'],
-  };
-
-  return mapped;
-}
-
-async function getLatestProfileForUser(db: DbClient, userId: string): Promise<ProfileRow | null> {
-  const rows = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, userId))
-    .orderBy(desc(profiles.createdAt))
-    .limit(1);
-
-  return rows[0] ?? null;
-}
-
-async function upsertUserAndProfile(
-  db: DbClient,
-  user: AuthenticatedUser,
-  profile: ProfileInput,
-  now: string,
-): Promise<void> {
-  const profileId = `profile_${crypto.randomUUID()}`;
-
-  await withTransactionFallback(
-    db,
-    async (tx) => {
-      const client = tx as DbClient;
-      await upsertUserForContext(client, user, now);
-      await client.insert(profiles).values(profileRowFromInput(profileId, user.id, profile, now));
-    },
-    'profile-upsert',
-  );
-}
-
-function profileRowFromInput(
-  profileId: string,
-  userId: string,
-  profile: ProfileInput,
-  now: string,
-): ProfileInsert {
-  return {
-    id: profileId,
-    userId,
-    age: profile.age,
-    sex: profile.sex,
-    heightCm: profile.heightCm,
-    weightKg: profile.weightKg,
-    bodyFatEstimate: profile.bodyFatEstimate ?? null,
-    lifestyle: profile.lifestyle,
-    experienceLevel: profile.experienceLevel,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-async function upsertUserForContext(
-  db: DbClient,
-  user: AuthenticatedUser,
-  now: string,
-): Promise<void> {
-  const safeDisplayName = user.displayName ?? null;
-  const userInsert = {
-    id: user.id,
-    email: user.email,
-    displayName: safeDisplayName,
-    createdAt: now,
-    updatedAt: now,
-  } satisfies UserRow;
-
-  await db
-    .insert(users)
-    .values(userInsert)
-    .onConflictDoUpdate({
-      target: users.id,
-      set: {
-        email: user.email,
-        displayName: safeDisplayName,
-        updatedAt: now,
-      },
-    });
-}
+export const profilesRouter = createProfileRoutes();

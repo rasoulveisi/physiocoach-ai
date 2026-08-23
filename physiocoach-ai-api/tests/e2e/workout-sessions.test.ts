@@ -11,7 +11,7 @@ describe('Behavior-Driven E2E: Workout Sessions & Exercise Logs Workflow', () =>
   it('retrieves empty active workout session when none exists', async () => {
     const app = createApp();
 
-    const response = await app.request(
+    const response = await app.fetch(
       '/api/v1/workout-sessions?status=active',
       {
         method: 'GET',
@@ -27,7 +27,7 @@ describe('Behavior-Driven E2E: Workout Sessions & Exercise Logs Workflow', () =>
   it('retrieves empty recent workout sessions list when none exists', async () => {
     const app = createApp();
 
-    const response = await app.request(
+    const response = await app.fetch(
       '/api/v1/workout-sessions?status=recent',
       {
         method: 'GET',
@@ -43,7 +43,7 @@ describe('Behavior-Driven E2E: Workout Sessions & Exercise Logs Workflow', () =>
   it('validates invalid workout session creation request body', async () => {
     const app = createApp();
 
-    const response = await app.request(
+    const response = await app.fetch(
       '/api/v1/workout-sessions',
       {
         method: 'POST',

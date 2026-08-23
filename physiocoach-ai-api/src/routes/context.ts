@@ -1,12 +1,12 @@
-import type { Context } from 'hono';
-
-import { createDb } from '../db/client';
+import { getDb } from '../db';
 import type { WorkerBindings } from '../env';
 import type { AuthenticatedUser } from '../types/auth';
 
 const REQUEST_ID_HEADER_KEYS = ['x-request-id', 'traceparent'];
 
-export type ApiDbClient = ReturnType<typeof createDb>;
+import type { ExpressRouteContext } from './express-adapter';
+
+export type ApiDbClient = ReturnType<typeof getDb>;
 
 export interface ApiRouteContext {
   requestId: string;
@@ -15,7 +15,9 @@ export interface ApiRouteContext {
   db: ApiDbClient | undefined;
 }
 
-export function getApiRouteContext(c: Context<{ Bindings: WorkerBindings }>): ApiRouteContext {
+type RouteContext = ExpressRouteContext;
+
+export function getApiRouteContext(c: RouteContext): ApiRouteContext {
   const env = c.env ?? {};
   const requestId = getRequestId(c);
   const resolvedUser = resolveRequestUser(c);
@@ -23,7 +25,7 @@ export function getApiRouteContext(c: Context<{ Bindings: WorkerBindings }>): Ap
   return {
     requestId,
     user: resolvedUser,
-    db: getDbClient(env.DB),
+    db: getDbClient(c),
     env,
   };
 }
@@ -34,7 +36,7 @@ export function hasDbClient(
   return context.db !== undefined;
 }
 
-function getRequestId(c: Context): string {
+function getRequestId(c: RouteContext): string {
   const precomputed = (c as unknown as { get?: (key: string) => unknown }).get?.('requestId');
   if (typeof precomputed === 'string' && precomputed.length > 0) {
     return precomputed;
@@ -57,20 +59,15 @@ function getRequestId(c: Context): string {
   return crypto.randomUUID();
 }
 
-function getDbClient(db: unknown): ApiDbClient | undefined {
-  if (!db || typeof db !== 'object') {
+function getDbClient(c: RouteContext): ApiDbClient | undefined {
+  try {
+    return c.get('db') as ApiDbClient;
+  } catch {
     return undefined;
   }
-
-  const candidate = db as { prepare?: unknown };
-  if (typeof candidate.prepare !== 'function') {
-    return undefined;
-  }
-
-  return createDb(db as D1Database);
 }
 
-function resolveRequestUser(c: Context): AuthenticatedUser {
+function resolveRequestUser(c: RouteContext): AuthenticatedUser {
   const authUser = (c as unknown as { get?: (key: string) => unknown }).get?.('authUser');
   if (
     authUser &&

@@ -28,7 +28,7 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'meta-llama/llama-3.1-8b-instruct';
+export const DEFAULT_WORKOUT_MODEL = 'meta-llama/llama-3.3-70b-instruct';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 15_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
@@ -39,19 +39,29 @@ export const ALLOWED_WORKOUT_MODELS = [
   'gemini-3.5-flash',
   'gemini-3.1-flash-lite',
   'gemini-3.1-pro',
+  'google/gemini-2.0-flash-001',
+  'google/gemini-2.5-flash',
+  'google/gemini-flash-1.5',
+  'google/gemini-2.0-flash-exp:free',
   'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-2-9b-it:free',
   'meta-llama/llama-3.1-8b-instruct',
+  'meta-llama/llama-3.1-8b-instruct:free',
   'meta-llama/llama-3.3-70b-instruct',
+  'meta-llama/llama-3.3-70b-instruct:free',
   'nvidia/nemotron-3-nano-30b-a3b:free',
+  'nvidia/nemotron-3.5-lightning:free',
   'poolside/laguna-s-2.1:free',
   'liquid/lfm-2.5-2.6b:free',
-  'nvidia/nemotron-3.5-lightning:free',
+  'deepseek/deepseek-chat',
+  'qwen/qwen-2.5-72b-instruct',
 ] as const;
 export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
+  'meta-llama/llama-3.1-8b-instruct',
+  'google/gemini-2.0-flash-001',
+  'meta-llama/llama-3.3-70b-instruct',
   'gemini-3.7-flash',
   'gemini-3.5-flash-lite',
-  'meta-llama/llama-3.1-8b-instruct',
-  'meta-llama/llama-3.3-70b-instruct',
   'nvidia/nemotron-3-nano-30b-a3b:free',
 ] as const;
 export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([...ALLOWED_WORKOUT_MODELS]);
@@ -77,15 +87,18 @@ function resolveMaxRetries(maxRetries: ConfigNumericValue): number {
   return Math.max(0, Math.min(parsed, WORKOUT_MAX_RETRIES_CAP));
 }
 
+const DEPRECATED_MODELS = new Set(['openrouter/owl-alpha', 'owl-alpha']);
+
 function resolvePrimaryModel(primaryModelRaw: string | undefined): string {
-  return primaryModelRaw && WORKOUT_PRIMARY_ALLOWLIST.has(primaryModelRaw)
-    ? primaryModelRaw
-    : DEFAULT_WORKOUT_MODEL;
+  if (primaryModelRaw && !DEPRECATED_MODELS.has(primaryModelRaw) && WORKOUT_PRIMARY_ALLOWLIST.has(primaryModelRaw)) {
+    return primaryModelRaw;
+  }
+  return DEFAULT_WORKOUT_MODEL;
 }
 
 function resolveFallbackModels(fallbackRaw: string | undefined, primaryModel: string): string[] {
-  const explicitFallbacks = splitModelList(fallbackRaw).filter((model) =>
-    WORKOUT_MODEL_ALLOWLIST.has(model),
+  const explicitFallbacks = splitModelList(fallbackRaw).filter(
+    (model) => !DEPRECATED_MODELS.has(model) && WORKOUT_MODEL_ALLOWLIST.has(model),
   );
   const fallbackSet = new Set(explicitFallbacks);
   fallbackSet.delete(primaryModel);
@@ -161,7 +174,9 @@ export function createWorkoutPlanProvider(env: Partial<WorkoutPlanProviderConfig
       : null;
 
   if (!googleProvider && !openRouterProvider) {
-    return createUnavailableProvider('Neither GEMINI_API_KEY nor OPENROUTER_API_KEY is configured.');
+    return createUnavailableProvider(
+      'Neither GEMINI_API_KEY nor OPENROUTER_API_KEY is configured.',
+    );
   }
 
   console.info('workout_plan.provider.configuration', {

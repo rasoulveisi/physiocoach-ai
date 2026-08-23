@@ -1,6 +1,4 @@
-import { Hono } from 'hono';
-
-import type { WorkerBindings } from '../env';
+import { createExpressRouter } from './express-adapter';
 import { getApiRouteContext } from './context';
 import { forbidden, handleRouteError, notFound } from '../shared/errors/api';
 
@@ -23,7 +21,7 @@ interface AdminSummary {
 }
 
 export function createAdminRoutes() {
-  const route = new Hono<{ Bindings: WorkerBindings }>();
+  const route = createExpressRouter();
 
   route.get('/admin', async (c) => {
     try {
@@ -70,8 +68,6 @@ export function createAdminRoutes() {
       return handleRouteError(c, error, 'Failed to load admin health summary.');
     }
   });
-
-  route.get('/admin/not-found', async (c) => notFound(c, 'Admin endpoint does not exist.'));
 
   route.get('/ai-audit-logs', async (c) => {
     try {
@@ -148,6 +144,8 @@ export function createAdminRoutes() {
 
   return route;
 }
+
+export const adminRouter = createAdminRoutes();
 
 export function hasAdminRole(user: AuthenticatedUser): boolean {
   const normalizedRoles = new Set<string>([

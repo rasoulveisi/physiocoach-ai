@@ -3,7 +3,7 @@ name: physiocoach-smart-e2e
 description: >-
   Smart end-to-end integration testing skill for PhysioCoach AI.
   Guides full-stack testing combining Angular frontend workflow, Cloudflare Worker backend execution,
-  real production D1 database validation, and OpenRouter AI audit log verification.
+  live Neon PostgreSQL database validation via Hyperdrive, and OpenRouter AI audit log verification.
 ---
 
 # PhysioCoach AI: Smart End-to-End Testing Skill
@@ -14,8 +14,8 @@ This skill governs how to perform **Smart End-to-End (E2E) Integration Testing**
 
 ## E2E Architecture & Concurrent Execution
 
-1. **Single Production Database**: Always connect to the live production Cloudflare D1 database (`physiocoach_prod`).
-2. **Concurrent Monorepo Launcher**: Run both local backend Worker (connected to production D1) and Angular PWA concurrently:
+1. **Neon PostgreSQL via Hyperdrive**: Always connect to the live Neon PostgreSQL database via Cloudflare Hyperdrive connection pooling.
+2. **Concurrent Monorepo Launcher**: Run both local backend Worker (connected to Hyperdrive/Neon PostgreSQL) and Angular PWA concurrently:
    ```bash
    npm start # or npm run dev (in project root)
    ```
@@ -60,7 +60,7 @@ Inspect returned payload:
 - Confirm `data.generation.fallbackUsed === false`.
 
 ### Step 5: Query AI Provider Audit Logs via API (`GET /api/v1/ai-audit-logs`)
-Fetch exact LLM prompt, prompt tokens, completion tokens, latency, and raw response from D1 table `ai_audit_logs`:
+Fetch exact LLM prompt, prompt tokens, completion tokens, latency, and raw response from PostgreSQL table `ai_audit_logs`:
 ```bash
 curl -sS -H "Authorization: Bearer $TOKEN" \
   "http://localhost:8787/api/v1/ai-audit-logs?limit=1"

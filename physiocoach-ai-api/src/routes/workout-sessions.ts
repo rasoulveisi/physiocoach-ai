@@ -1,10 +1,9 @@
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
-import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { createDb } from '../db/client';
 import { exerciseLogs, workoutPlans, workoutSessions } from '../db/schema';
-import type { WorkerBindings } from '../env';
+import { createExpressRouter } from './express-adapter';
 import { parseWorkoutPlanRecordOrError } from '../services/workout-generator';
 import { createApiError, handleRouteError, notFound } from '../shared/errors/api';
 import { MovementPatternSchema } from '../types/workout';
@@ -77,7 +76,7 @@ export const exerciseLogInputSchema = z
   .strict();
 
 export function createWorkoutSessionRoutes() {
-  const route = new Hono<{ Bindings: WorkerBindings }>();
+  const route = createExpressRouter();
 
   route.get('/workout-sessions', async (c) => {
     try {
@@ -266,12 +265,9 @@ export function createWorkoutSessionRoutes() {
 
       const parsedPlanResult = parseWorkoutPlanRecordOrError(planRow);
       if (!parsedPlanResult.ok) {
-        return createApiError(
-          c,
-          'invalid_workout_plan_record',
-          parsedPlanResult.error.message,
-          { status: 409 },
-        );
+        return createApiError(c, 'invalid_workout_plan_record', parsedPlanResult.error.message, {
+          status: 409,
+        });
       }
 
       const targetDay = parsedPlanResult.dto.plan.days[parsed.data.dayIndex];
@@ -332,7 +328,7 @@ export function createWorkoutSessionRoutes() {
             reps: 0,
             weight: 0,
             rpe: exercise.rpe ?? null,
-            completed: 0,
+            completed: false,
             notes: null,
             exerciseType: 'working',
             previousPerformanceJson: previousPerf ? JSON.stringify(previousPerf) : null,
@@ -532,7 +528,7 @@ export function createWorkoutSessionRoutes() {
         reps: parsed.data.reps,
         weight: parsed.data.weightKg,
         rpe: parsed.data.rpe ?? null,
-        completed: parsed.data.completed ? 1 : 0,
+        completed: Boolean(parsed.data.completed),
         notes: parsed.data.notes ?? null,
         exerciseType: parsed.data.setType ?? 'working',
         previousPerformanceJson: null,
@@ -540,11 +536,7 @@ export function createWorkoutSessionRoutes() {
 
       await db.insert(exerciseLogs).values(insertRecord);
 
-      const rows = await db
-        .select()
-        .from(exerciseLogs)
-        .where(eq(exerciseLogs.id, logId))
-        .limit(1);
+      const rows = await db.select().from(exerciseLogs).where(eq(exerciseLogs.id, logId)).limit(1);
 
       return c.json({ data: buildExerciseLogDto(rows[0]!) }, 201);
     } catch (error) {
@@ -577,7 +569,9 @@ export function createWorkoutSessionRoutes() {
           reps: parsed.data.reps,
           weight: parsed.data.weightKg,
           rpe: parsed.data.rpe ?? null,
-          completed: parsed.data.completed ? 1 : 0,
+          ...(parsed.data.completed !== undefined
+            ? { completed: Boolean(parsed.data.completed) }
+            : {}),
           notes: parsed.data.notes ?? null,
           ...(parsed.data.setType ? { exerciseType: parsed.data.setType } : {}),
         })
@@ -613,6 +607,8 @@ export function createWorkoutSessionRoutes() {
 
   return route;
 }
+
+export const workoutSessionsRouter = createWorkoutSessionRoutes();
 
 export function parseMuscleGroups(raw: string | null): string[] {
   if (!raw) return [];
@@ -659,7 +655,7 @@ export function buildExerciseLogDto(
     reps: row.reps,
     weightKg: row.weight,
     rpe: row.rpe,
-    completed: row.completed === 1,
+    completed: Boolean(row.completed),
     notes: row.notes,
     setType: (row.exerciseType as ExerciseSetType) || 'working',
     previousPerformance: storedPrevious ?? previousPerformanceOverride ?? null,
@@ -723,7 +719,7 @@ async function findPreviousPerformanceByExercises(
     .where(
       and(
         eq(exerciseLogs.userId, userId),
-        eq(exerciseLogs.completed, 1),
+        eq(exerciseLogs.completed, true),
         inArray(exerciseLogs.masterExerciseId, uniqueIds),
         ...(excludeSessionId ? [ne(exerciseLogs.workoutSessionId, excludeSessionId)] : []),
       ),

@@ -68,7 +68,8 @@ export class OpenRouterProvider implements AIProvider {
     this.baseUrl = (config.baseUrl ?? 'https://openrouter.ai/api/v1').replace(/\/$/, '');
     this.referer = config.referer ?? 'https://physiocoach.otconnect.ir';
     this.title = config.title ?? 'PhysioCoach AI';
-    this.defaultPrimaryModel = config.defaultPrimaryModel ?? 'meta-llama/llama-3.3-70b-instruct:free';
+    this.defaultPrimaryModel =
+      config.defaultPrimaryModel ?? 'meta-llama/llama-3.3-70b-instruct:free';
     this.defaultFallbackModels = config.defaultFallbackModels ?? [
       'google/gemma-2-9b-it:free',
       'qwen/qwen-2.5-72b-instruct:free',

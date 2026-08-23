@@ -636,7 +636,17 @@ export function createOpenApiDocument() {
         },
         AiAuditLog: {
           type: 'object',
-          required: ['id', 'traceId', 'task', 'provider', 'model', 'prompt', 'status', 'latencyMs', 'createdAt'],
+          required: [
+            'id',
+            'traceId',
+            'task',
+            'provider',
+            'model',
+            'prompt',
+            'status',
+            'latencyMs',
+            'createdAt',
+          ],
           properties: {
             id: { type: 'string' },
             traceId: { type: 'string', nullable: true },
@@ -998,7 +1008,10 @@ export function createOpenApiDocument() {
               enum: ['full_body', 'upper_lower', 'push_pull_legs', 'custom'],
             },
             frequencyDays: { type: 'number', minimum: 2, maximum: 5 },
-            weeklySetTargets: { type: 'object', additionalProperties: { type: 'number', minimum: 0 } },
+            weeklySetTargets: {
+              type: 'object',
+              additionalProperties: { type: 'number', minimum: 0 },
+            },
             days: {
               type: 'array',
               minItems: 1,
@@ -1046,7 +1059,16 @@ export function createOpenApiDocument() {
         },
         WorkoutPlanResult: {
           type: 'object',
-          required: ['id', 'source', 'model', 'plan', 'warnings', 'createdAt', 'inputHash', 'cached'],
+          required: [
+            'id',
+            'source',
+            'model',
+            'plan',
+            'warnings',
+            'createdAt',
+            'inputHash',
+            'cached',
+          ],
           properties: {
             id: { type: 'string' },
             source: { type: 'string', enum: ['ai', 'fallback'] },
@@ -1082,7 +1104,11 @@ export function createOpenApiDocument() {
             features: { type: 'array', items: { type: 'string' } },
             dataQuality: {
               type: 'object',
-              required: ['plateauDetectionEnabled', 'trustSignalsTracked', 'postureAnalysisAvailable'],
+              required: [
+                'plateauDetectionEnabled',
+                'trustSignalsTracked',
+                'postureAnalysisAvailable',
+              ],
               properties: {
                 plateauDetectionEnabled: { type: 'boolean' },
                 trustSignalsTracked: { type: 'boolean' },

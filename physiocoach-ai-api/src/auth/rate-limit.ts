@@ -1,7 +1,5 @@
-import type { Context } from 'hono';
-
-import type { WorkerBindings } from '../env';
 import { createApiError } from '../shared/errors/api';
+import type { ExpressRouteContext } from '../routes/express-adapter';
 
 const AUTH_WINDOW_MS = 60_000;
 const AUTH_MAX_ATTEMPTS = 5;
@@ -14,7 +12,7 @@ type AuthRateLimitBucket = {
 const authBuckets = new Map<string, AuthRateLimitBucket>();
 
 export function checkAuthRateLimit(
-  c: Context<{ Bindings: WorkerBindings }>,
+  c: ExpressRouteContext,
   routeKey: string,
 ): Response | null {
   const now = Date.now();
@@ -40,7 +38,7 @@ export function checkAuthRateLimit(
   return createApiError(c, 'rate_limited', 'Too many auth attempts. Please retry shortly.');
 }
 
-function getClientKey(c: Context<{ Bindings: WorkerBindings }>): string {
+function getClientKey(c: ExpressRouteContext): string {
   const cfConnectingIp = c.req.header('cf-connecting-ip');
   if (cfConnectingIp) {
     return cfConnectingIp;

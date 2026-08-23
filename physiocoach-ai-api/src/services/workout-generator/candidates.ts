@@ -40,7 +40,7 @@ type DbCatalogCandidateRow = {
   equipmentCanonicalId: string | null;
   equipmentName: string | null;
   muscleName: string | null;
-  isPrimaryMuscle: number | null;
+  isPrimaryMuscle: boolean | number | null;
   recommendedLevel: string | null;
   goalTagsJson: string | null;
   excludedLimitationsJson: string | null;
@@ -100,20 +100,18 @@ export const CATALOG_EQUIPMENT_TOKENS_BY_ASSESSMENT_VALUE: Record<string, readon
   resistance_bands: ['resistance_band', 'resistance_bands', 'band', 'bands'],
 };
 
-
-
-export function normalizeText(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+export function normalizeText(value: string | undefined | null): string {
+  return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-export function normalizeEquipment(value: string): string {
-  return value
+export function normalizeEquipment(value: string | undefined | null): string {
+  return (value ?? '')
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_');
 }
 
-export function normalizeGoalTag(value: string): string {
+export function normalizeGoalTag(value: string | undefined | null): string {
   return normalizeText(value).replace(/[\s-]+/g, '_');
 }
 
@@ -390,7 +388,10 @@ export async function loadCatalogCandidatesFromDb(
   provisionalNoRuleCautions = false,
 ): Promise<readonly CatalogCandidate[]> {
   const exactSeverityConditions = considerations.map(({ code, severity }) =>
-    and(eq(bodyConsiderations.code, code), eq(exerciseConsiderationRatings.severity, severity)),
+    and(
+      eq(exerciseConsiderationRatings.considerationId, `bc_${code}`),
+      eq(exerciseConsiderationRatings.severity, severity),
+    ),
   );
   const exactSafetyCondition =
     exactSeverityConditions.length > 0
@@ -431,21 +432,26 @@ export async function loadCatalogCandidatesFromDb(
         eq(exerciseSafetyProfiles.exerciseId, masterExercises.id),
         eq(exerciseSafetyProfiles.analysisVersion, exerciseCatalogVersions.analysisVersion),
         eq(exerciseSafetyProfiles.reviewStatus, 'approved'),
-        eq(exerciseSafetyProfiles.coverageComplete, 1),
+        eq(exerciseSafetyProfiles.coverageComplete, true),
       ),
     )
     .leftJoin(exerciseEquipment, eq(exerciseEquipment.exerciseId, masterExercises.id))
     .leftJoin(masterEquipment, eq(exerciseEquipment.equipmentId, masterEquipment.id))
     .leftJoin(exerciseMuscles, eq(exerciseMuscles.exerciseId, masterExercises.id))
     .leftJoin(masterMuscles, eq(exerciseMuscles.muscleId, masterMuscles.id))
-    .leftJoin(bodyConsiderations, eq(bodyConsiderations.active, 1))
     .leftJoin(
       exerciseConsiderationRatings,
       and(
         eq(exerciseConsiderationRatings.exerciseId, masterExercises.id),
-        eq(exerciseConsiderationRatings.considerationId, bodyConsiderations.id),
         eq(exerciseConsiderationRatings.analysisVersion, exerciseCatalogVersions.analysisVersion),
         exactSafetyCondition,
+      ),
+    )
+    .leftJoin(
+      bodyConsiderations,
+      and(
+        eq(bodyConsiderations.id, exerciseConsiderationRatings.considerationId),
+        eq(bodyConsiderations.active, true),
       ),
     )) as DbCatalogCandidateRow[];
 
@@ -499,7 +505,7 @@ export async function loadCatalogCandidatesFromDb(
           candidate.recommendedLevel = parsed;
         }
       }
-      if (!candidate.primaryMuscleGroup && row.isPrimaryMuscle === 1 && row.muscleName) {
+      if (!candidate.primaryMuscleGroup && Boolean(row.isPrimaryMuscle) && row.muscleName) {
         candidate.primaryMuscleGroup = row.muscleName;
       }
       addCandidateSafetyRating(
@@ -536,7 +542,7 @@ export async function loadCatalogCandidatesFromDb(
       ...(maxLevel ? { recommendedLevel: maxLevel } : {}),
       ...(row.sourceId ? { sourceId: row.sourceId } : {}),
     };
-    if (row.isPrimaryMuscle === 1 && row.muscleName) {
+    if (Boolean(row.isPrimaryMuscle) && row.muscleName) {
       dbCandidate.primaryMuscleGroup = row.muscleName;
     }
     addCandidateSafetyRating(

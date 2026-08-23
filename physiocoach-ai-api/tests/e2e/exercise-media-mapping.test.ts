@@ -10,9 +10,13 @@ describe('Behavior-Driven E2E: Exercise Media Mapping & Assets Resolution', () =
   it('resolves exercise media lookup cleanly', async () => {
     const app = createApp();
 
-    const response = await app.request('/api/v1/exercise-catalog/media?exerciseId=master_ex_1', {
-      method: 'GET',
-    }, mockEnv);
+    const response = await app.fetch(
+      '/api/v1/exercise-catalog/media?exerciseId=master_ex_1',
+      {
+        method: 'GET',
+      },
+      mockEnv,
+    );
 
     expect(response.status).toBe(200);
     const json = (await response.json()) as { data?: unknown };
@@ -22,18 +26,22 @@ describe('Behavior-Driven E2E: Exercise Media Mapping & Assets Resolution', () =
   it('handles batch exercise media lookup request without synthetic fallback SVGs', async () => {
     const app = createApp();
 
-    const response = await app.request('/api/v1/exercise-catalog/media/batch', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await app.fetch(
+      '/api/v1/exercise-catalog/media/batch',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: [
+            { key: 'ex_1', exerciseId: 'master_ex_1' },
+            { key: 'ex_2', name: 'Goblet Squat' },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        items: [
-          { key: 'ex_1', exerciseId: 'master_ex_1' },
-          { key: 'ex_2', name: 'Goblet Squat' },
-        ],
-      }),
-    }, mockEnv);
+      mockEnv,
+    );
 
     expect(response.status).toBe(200);
     const json = (await response.json()) as { data?: unknown };

@@ -1,5 +1,3 @@
-import type { Context } from 'hono';
-import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { AuthError, isAuthError } from '../auth/errors';
@@ -22,6 +20,8 @@ import { authCredentials, users } from '../db/schema';
 import type { WorkerBindings } from '../env';
 import { createApiError, unauthorized } from '../shared/errors/api';
 import type { AuthenticatedUser } from '../types/auth';
+import type { ExpressRouteContext } from './express-adapter';
+import { createExpressRouter } from './express-adapter';
 import { withTransactionFallback } from './transactions';
 import { parseJsonPayload } from './validation';
 
@@ -64,7 +64,7 @@ export interface PasswordUserInsert {
 }
 
 export function createAuthRoutes() {
-  const route = new Hono<{ Bindings: WorkerBindings }>();
+  const route = createExpressRouter();
 
   route.post('/auth/register', async (c) => {
     const parsed = await parseJsonPayload(c, registerSchema);
@@ -153,18 +153,12 @@ export function createAuthRoutes() {
     const user = await getUserByEmail(db, normalizeEmail(parsed.data.email));
     if (!user) {
       await verifyPassword(parsed.data.password, DUMMY_PASSWORD_HASH);
-      return authRouteError(
-        c,
-        new AuthError('invalid_credentials', 'Invalid email or password.'),
-      );
+      return authRouteError(c, new AuthError('invalid_credentials', 'Invalid email or password.'));
     }
 
     const storedHash = await getCredentialHashForUser(db, user.userId);
     if (!(await verifyStoredPasswordForLogin(parsed.data.password, storedHash))) {
-      return authRouteError(
-        c,
-        new AuthError('invalid_credentials', 'Invalid email or password.'),
-      );
+      return authRouteError(c, new AuthError('invalid_credentials', 'Invalid email or password.'));
     }
 
     return c.json(await issueTokenEnvelope(db, c.env, user, requestSessionContext(c)));
@@ -222,9 +216,7 @@ export function createAuthRoutes() {
   });
 
   route.post('/auth/logout', async (c) => {
-    const sessionId = (c as unknown as { get?: (key: string) => unknown }).get?.(
-      'authSessionId',
-    );
+    const sessionId = (c as unknown as { get?: (key: string) => unknown }).get?.('authSessionId');
     if (typeof sessionId !== 'string' || sessionId.length === 0) {
       return unauthorized(c, 'Missing authenticated session.');
     }
@@ -251,16 +243,19 @@ export function createAuthRoutes() {
     return c.json({ user });
   });
 
-  route.get('/auth/google/start', async (c) => {
+  const handleGoogleStart = async (c: ExpressRouteContext) => {
     const config = getGoogleOAuthConfig(c.env);
     const returnTo = resolveOAuthReturnTo(c);
 
     if (!config) {
       if (c.env.APP_ENV === 'local' || !c.env.APP_ENV) {
-        const localReturn = returnTo || 'http://localhost:4300/oauth-callback';
+        const localReturn = returnTo || 'http://localhost:5173/oauth-callback';
         const targetUrl = new URL(localReturn);
         targetUrl.searchParams.set('code', 'local-dev-code');
         targetUrl.searchParams.set('state', 'local-dev-state');
+        if (c.req.header('accept')?.includes('text/html') || !c.req.header('accept')?.includes('application/json')) {
+          return c.redirect(targetUrl.toString(), 302);
+        }
         return c.json({ authorizationUrl: targetUrl.toString(), state: 'local-dev-state' });
       }
       return createApiError(c, 'invalid_request', 'Google OAuth is not configured.');
@@ -280,8 +275,14 @@ export function createAuthRoutes() {
     authorizationUrl.searchParams.set('access_type', 'offline');
     authorizationUrl.searchParams.set('prompt', 'select_account');
 
+    if (c.req.header('accept')?.includes('text/html') || !c.req.header('accept')?.includes('application/json')) {
+      return c.redirect(authorizationUrl.toString(), 302);
+    }
     return c.json({ authorizationUrl: authorizationUrl.toString(), state });
-  });
+  };
+
+  route.get('/auth/google', handleGoogleStart);
+  route.get('/auth/google/start', handleGoogleStart);
 
   route.get('/auth/google/callback', async (c) => {
     const code = c.req.query('code');
@@ -311,7 +312,10 @@ export function createAuthRoutes() {
     const config = getGoogleOAuthConfig(c.env);
     const db = getAuthDb(c.env);
 
-    if (parsed.data.code === 'local-dev-code' || (!config && (c.env.APP_ENV === 'local' || !c.env.APP_ENV))) {
+    if (
+      parsed.data.code === 'local-dev-code' ||
+      (!config && (c.env.APP_ENV === 'local' || !c.env.APP_ENV))
+    ) {
       if (db) {
         const user = await upsertOAuthUser(
           db,
@@ -385,6 +389,8 @@ export function createAuthRoutes() {
   return route;
 }
 
+export const authRouter = createAuthRoutes();
+
 export async function createPasswordUser(
   db: Pick<DbClient, 'transaction'> & { insert?: unknown },
   user: PasswordUserInsert,
@@ -424,19 +430,13 @@ function normalizeEmail(email: string): string {
 }
 
 function getAuthDb(env: WorkerBindings | undefined): DbClient | undefined {
-  if (!env?.DB || typeof env.DB !== 'object') {
-    return undefined;
-  }
+  const connectionString =
+    env?.HYPERDRIVE?.connectionString ?? env?.DATABASE_URL ?? process.env.DATABASE_URL;
 
-  const candidate = env.DB as { prepare?: unknown };
-  if (typeof candidate.prepare !== 'function') {
-    return undefined;
-  }
-
-  return createDb(env.DB);
+  return createDb(connectionString);
 }
 
-function requestSessionContext(c: Context<{ Bindings: WorkerBindings }>) {
+function requestSessionContext(c: ExpressRouteContext) {
   return {
     userAgent: c.req.header('user-agent') ?? null,
     ipHash: null,
@@ -476,10 +476,21 @@ function getGoogleOAuthConfig(env: WorkerBindings): GoogleOAuthConfig | null {
   return { clientId, clientSecret, redirectUri };
 }
 
-function resolveOAuthReturnTo(c: Context<{ Bindings: WorkerBindings }>): string | null {
+function resolveOAuthReturnTo(c: ExpressRouteContext): string | null {
   const requested = c.req.query('returnTo');
   const origin = c.req.header('origin');
-  const fallback = origin ? `${origin.replace(/\/$/, '')}/oauth-callback` : null;
+  const referer = c.req.header('referer');
+  let refererOrigin: string | null = null;
+  if (referer) {
+    try {
+      refererOrigin = new URL(referer).origin;
+    } catch {}
+  }
+  const fallback = origin
+    ? `${origin.replace(/\/$/, '')}/oauth-callback`
+    : refererOrigin
+      ? `${refererOrigin.replace(/\/$/, '')}/oauth-callback`
+      : 'http://localhost:5173/oauth-callback';
   const candidate = requested || fallback;
   if (!candidate) {
     return null;
@@ -491,7 +502,7 @@ function resolveOAuthReturnTo(c: Context<{ Bindings: WorkerBindings }>): string 
       return null;
     }
 
-    if (!isAllowedOAuthReturnOrigin(parsed.origin, c.env.CORS_ORIGIN)) {
+    if (!isAllowedOAuthReturnOrigin(parsed.origin, c.env.CORS_ORIGIN ?? '')) {
       return null;
     }
 
@@ -503,6 +514,14 @@ function resolveOAuthReturnTo(c: Context<{ Bindings: WorkerBindings }>): string 
 }
 
 function isAllowedOAuthReturnOrigin(origin: string, corsOrigins: string): boolean {
+  if (
+    origin === 'http://localhost:5173' ||
+    origin === 'http://localhost:4300' ||
+    origin === 'http://localhost:4200' ||
+    origin === 'http://localhost:8787'
+  ) {
+    return true;
+  }
   return corsOrigins
     .split(',')
     .map((value) => value.trim())
@@ -695,7 +714,7 @@ async function issueTokenEnvelope(
   };
 }
 
-function authRouteError(c: Context<{ Bindings: WorkerBindings }>, error: AuthError) {
+function authRouteError(c: ExpressRouteContext, error: AuthError) {
   switch (error.code) {
     case 'email_taken':
       return createApiError(c, 'conflict', error.message);

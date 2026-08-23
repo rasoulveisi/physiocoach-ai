@@ -47,9 +47,11 @@ export function loadOpenRouterIntegrationEnv(): Partial<WorkerBindings> {
     OPENROUTER_REFERER: String(merged.OPENROUTER_REFERER ?? 'http://localhost:4200'),
     OPENROUTER_TITLE: String(merged.OPENROUTER_TITLE ?? 'PhysioCoach AI Integration Test'),
     WORKOUT_MODEL_PRIMARY: String(
-      merged.WORKOUT_MODEL_PRIMARY ?? 'nvidia/nemotron-3-nano-30b-a3b:free',
+      merged.WORKOUT_MODEL_PRIMARY ?? 'meta-llama/llama-3.3-70b-instruct',
     ),
-    WORKOUT_MODEL_FALLBACKS: String(merged.WORKOUT_MODEL_FALLBACKS ?? 'openrouter/owl-alpha'),
+    WORKOUT_MODEL_FALLBACKS: String(
+      merged.WORKOUT_MODEL_FALLBACKS ?? 'meta-llama/llama-3.1-8b-instruct,google/gemini-2.0-flash-001',
+    ),
     OPENROUTER_TIMEOUT_MS: resolveIntegrationTimeoutMs(merged.OPENROUTER_TIMEOUT_MS),
     OPENROUTER_MAX_RETRIES: Number(merged.OPENROUTER_MAX_RETRIES ?? '0'),
     CORS_ORIGIN: String(merged.CORS_ORIGIN ?? 'http://localhost:4200'),
