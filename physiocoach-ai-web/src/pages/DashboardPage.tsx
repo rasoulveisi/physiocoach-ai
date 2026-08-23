@@ -12,6 +12,7 @@ import { Button } from '../components/ui/Button';
 import { SemiGauge } from '../components/ui/SemiGauge';
 import { CalendarStrip, generateCalendarDays } from '../components/ui/CalendarStrip';
 import { Toast } from '../components/ui/Toast';
+import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { apiClient } from '../services/api-client';
 
 interface PlanExercise {
@@ -271,6 +272,10 @@ export function DashboardPage() {
     (plan?.progression?.progressionRule
       ? `AI progressive overload active: +${plan.progression.increasePercent ?? 10}% load on pain-free lifts`
       : 'Retract scapulae and brace core during compound movements to protect lumbar spine');
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <main className="h-full w-full max-w-2xl mx-auto flex-1 overflow-y-auto min-h-0 space-y-7 p-4 pb-8 sm:p-6 select-none selection:bg-lime-400 selection:text-zinc-950">

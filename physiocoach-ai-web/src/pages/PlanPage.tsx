@@ -19,6 +19,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { ExercisePreviewModal, type ExercisePreviewItem } from '../components/ui/ExercisePreviewModal';
+import { PlanSkeleton } from '../components/ui/Skeleton';
 import { resolveExerciseSafetyNotes } from '../services/exercise-safety-notes';
 import { apiClient } from '../services/api-client';
 
@@ -247,13 +248,7 @@ export function PlanPage() {
   };
 
   if (loading) {
-    return (
-      <main className="mx-auto min-h-screen max-w-2xl px-4 py-6">
-        <div className="grid min-h-[60vh] place-items-center">
-          <span className="h-10 w-10 animate-spin rounded-full border-4 border-lime-400 border-r-transparent" />
-        </div>
-      </main>
-    );
+    return <PlanSkeleton />;
   }
 
   if (error) {

@@ -23,6 +23,7 @@ import { Badge } from '../components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Toast } from '../components/ui/Toast';
+import { SettingsSkeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { usePreferences, type UnitSystem } from '../context/PreferencesContext';
@@ -187,6 +188,10 @@ export function SettingsPage() {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return <SettingsSkeleton />;
+  }
 
   return (
     <form onSubmit={handleSave} className="h-full w-full max-w-2xl mx-auto flex flex-col overflow-hidden text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950">
