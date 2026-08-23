@@ -6,6 +6,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Toast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
+import { API_URL } from '../services/api-client';
 
 export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -38,9 +39,8 @@ export function AuthPage() {
   }
 
   function google() {
-    window.location.assign(
-      `${(import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '')}/auth/google`,
-    );
+    const returnTo = encodeURIComponent(`${window.location.origin}/oauth-callback`);
+    window.location.assign(`${API_URL}/auth/google?returnTo=${returnTo}`);
   }
 
   return (

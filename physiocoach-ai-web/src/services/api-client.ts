@@ -1,4 +1,17 @@
-const API_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '');
+export function getApiBaseUrl(): string {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+  }
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ) {
+    return '/api/v1';
+  }
+  return 'https://physiocoach-ai-api.otconnect.ir/api/v1';
+}
+
+export const API_URL = getApiBaseUrl();
 export const AUTH_TOKEN_KEY = 'physiocoach_auth_token';
 export const REFRESH_TOKEN_KEY = 'physiocoach_refresh_token';
 export const USER_KEY = 'physiocoach_auth_user';
