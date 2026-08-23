@@ -4,7 +4,12 @@
   "private": true,
   "type": "module",
   "packageManager": "npm@11.9.0",
-  "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "deploy": "wrangler pages deploy dist --project-name physiocoach-ai-web"
+  },
   "dependencies": {
     "clsx": "^2.1.1", "lucide-react": "^0.468.0", "react": "^19.0.0",
     "react-dom": "^19.0.0", "react-router-dom": "^7.0.0", "tailwind-merge": "^2.6.0"
