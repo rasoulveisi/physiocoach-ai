@@ -84,7 +84,7 @@ export function SliderStepper({
       </header>
 
       {/* 2. Scrollable Middle Content Viewport */}
-      <main className="flex-1 overflow-y-auto min-h-0 px-4 py-4 sm:px-6 sm:py-6 flex flex-col items-center text-center w-full">
+      <main className="flex-1 overflow-y-auto min-h-0 px-4 py-4 sm:px-6 sm:py-6 flex flex-col items-center text-center w-full overscroll-contain">
         {/* Question Title & Subtitle */}
         <div className="mb-5 space-y-1.5 max-w-md shrink-0">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
