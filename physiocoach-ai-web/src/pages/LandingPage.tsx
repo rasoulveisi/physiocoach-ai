@@ -150,8 +150,8 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Bottom Dual-Action Pill Buttons */}
-      <footer className="shrink-0 space-y-3 pb-2">
+      {/* Bottom Primary Action Button */}
+      <footer className="shrink-0 pt-2 pb-2">
         <Button
           variant="volt"
           size="lg"
@@ -160,16 +160,6 @@ export function LandingPage() {
           className="w-full font-black text-sm sm:text-base shadow-lg shadow-lime-400/20"
         >
           Start Training <ArrowRight className="h-4 w-4 ml-1" />
-        </Button>
-
-        <Button
-          variant="outline"
-          size="lg"
-          pill={true}
-          onClick={() => navigate('/auth')}
-          className="w-full border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white font-bold text-xs sm:text-sm"
-        >
-          Connect Smartwatch / Sign In
         </Button>
       </footer>
     </main>
