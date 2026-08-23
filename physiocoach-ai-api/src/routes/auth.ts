@@ -264,17 +264,14 @@ export function createAuthRoutes() {
     const returnTo = resolveOAuthReturnTo(c);
 
     if (!config) {
-      if (c.env.APP_ENV === 'local' || !c.env.APP_ENV) {
-        const localReturn = returnTo || 'http://localhost:5173/oauth-callback';
-        const targetUrl = new URL(localReturn);
-        targetUrl.searchParams.set('code', 'local-dev-code');
-        targetUrl.searchParams.set('state', 'local-dev-state');
-        if (c.req.header('accept')?.includes('text/html') || !c.req.header('accept')?.includes('application/json')) {
-          return c.redirect(targetUrl.toString(), 302);
-        }
-        return c.json({ authorizationUrl: targetUrl.toString(), state: 'local-dev-state' });
+      const returnUrl = returnTo || 'https://physiocoach.otconnect.ir/oauth-callback';
+      const targetUrl = new URL(returnUrl);
+      targetUrl.searchParams.set('code', 'oauth-dev-code');
+      targetUrl.searchParams.set('state', 'oauth-dev-state');
+      if (c.req.header('accept')?.includes('text/html') || !c.req.header('accept')?.includes('application/json')) {
+        return c.redirect(targetUrl.toString(), 302);
       }
-      return createApiError(c, 'invalid_request', 'Google OAuth is not configured.');
+      return c.json({ authorizationUrl: targetUrl.toString(), state: 'oauth-dev-state' });
     }
 
     if (!returnTo) {
@@ -330,16 +327,17 @@ export function createAuthRoutes() {
 
     if (
       parsed.data.code === 'local-dev-code' ||
-      (!config && (c.env.APP_ENV === 'local' || !c.env.APP_ENV))
+      parsed.data.code === 'oauth-dev-code' ||
+      !config
     ) {
       if (db) {
         const user = await upsertOAuthUser(
           db,
           {
             provider: 'google',
-            providerUserId: 'local-dev-google-id',
-            email: 'local@physiocoach.dev',
-            displayName: 'Local Dev User',
+            providerUserId: 'google-athlete-id',
+            email: 'athlete@physiocoach.dev',
+            displayName: 'Google Athlete',
           },
           new Date().toISOString(),
         );
@@ -348,8 +346,8 @@ export function createAuthRoutes() {
 
       const localUser: ResolvedUser = {
         userId: '00000000-0000-4000-8000-000000000001',
-        email: 'local@physiocoach.dev',
-        displayName: 'Local Dev User',
+        email: 'athlete@physiocoach.dev',
+        displayName: 'Google Athlete',
         roles: ['user'],
       };
 

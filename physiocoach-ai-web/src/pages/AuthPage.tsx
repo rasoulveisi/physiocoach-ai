@@ -137,10 +137,26 @@ export function AuthPage() {
 
               {error && <Toast type="error" message={error} onClose={() => setError('')} />}
 
-              <Button type="submit" variant="volt" size="lg" className="w-full mt-4" loading={loading}>
+              <Button type="submit" variant="volt" size="lg" className="w-full mt-2" loading={loading}>
                 {mode === 'login' ? 'Sign In' : 'Create Account'}
               </Button>
             </form>
+
+            <div className="my-6 flex items-center gap-3 text-xs font-mono text-slate-600">
+              <span className="h-px flex-1 bg-obsidian-800" />
+              OR
+              <span className="h-px flex-1 bg-obsidian-800" />
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full border-obsidian-700 bg-obsidian-950 text-slate-200 hover:text-white"
+              onClick={google}
+            >
+              <span className="font-extrabold text-blue-400">G</span> Continue with Google
+            </Button>
 
             <Link
               to="/"
