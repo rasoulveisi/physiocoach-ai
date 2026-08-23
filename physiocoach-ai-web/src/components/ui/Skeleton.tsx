@@ -156,9 +156,37 @@ export function SettingsSkeleton() {
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-2 space-y-6 pb-6">
-        <Skeleton variant="card" className="h-64" />
-        <Skeleton variant="card" className="h-44" />
-        <Skeleton variant="card" className="h-56" />
+        {/* Section 1 skeleton */}
+        <div className="space-y-2">
+          <Skeleton variant="text" className="h-3 w-36" />
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800/60">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton variant="circle" className="size-8" />
+                  <Skeleton variant="text" className="h-4 w-28" />
+                </div>
+                <Skeleton variant="text" className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 2 skeleton */}
+        <div className="space-y-2">
+          <Skeleton variant="text" className="h-3 w-40" />
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800/60">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="p-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  <Skeleton variant="circle" className="size-8" />
+                  <Skeleton variant="text" className="h-4 w-32" />
+                </div>
+                <Skeleton className="h-10 rounded-2xl" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
