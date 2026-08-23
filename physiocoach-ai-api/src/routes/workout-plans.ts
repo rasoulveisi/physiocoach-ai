@@ -349,6 +349,42 @@ export function createWorkoutPlanRoutes() {
     }
   });
 
+  route.delete('/workout-plans/:planId', async (c) => {
+    try {
+      const { user, db } = getApiRouteContext(c);
+      if (!db) {
+        return c.json({ data: null }, 409);
+      }
+
+      const planId = c.req.param('planId');
+      const rows = await db
+        .select()
+        .from(workoutPlans)
+        .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)))
+        .limit(1);
+
+      const targetPlan = rows[0];
+      if (!targetPlan) {
+        return c.json({ data: null }, 404);
+      }
+
+      await db
+        .update(workoutPlans)
+        .set({ status: 'archived' })
+        .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)));
+
+      return c.json({ data: { id: planId, deleted: true } });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'Missing or invalid authenticated user context.'
+      ) {
+        return unauthorized(c, error.message);
+      }
+      return internalServerError(c, 'Failed to delete workout plan.');
+    }
+  });
+
   return route;
 }
 
