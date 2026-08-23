@@ -357,17 +357,6 @@ export function PlanPage() {
                               ))}
                             </div>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => navigate('/session')}
-                            className="group flex items-center justify-center gap-3 rounded-full bg-lime-400 px-6 py-3.5 text-zinc-950 font-black shadow-lg shadow-lime-400/25 transition-all hover:scale-105 active:scale-95 self-start sm:self-auto shrink-0"
-                          >
-                            <span className="text-sm font-black uppercase tracking-wider">Start Workout</span>
-                            <span className="flex size-8 items-center justify-center rounded-full bg-zinc-950 text-lime-400 transition-transform group-hover:scale-110">
-                              <Play className="ml-0.5 size-3.5 fill-current" />
-                            </span>
-                          </button>
                         </div>
                       </section>
 
