@@ -189,35 +189,38 @@ export function SettingsPage() {
   };
 
   return (
-    <main className="mx-auto min-h-screen max-w-2xl space-y-6 px-4 py-6 pb-32 text-zinc-50">
+    <form onSubmit={handleSave} className="h-full w-full max-w-2xl mx-auto flex flex-col overflow-hidden text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950">
       {notice && (
         <Toast type={notice.type} message={notice.text} onClose={() => setNotice(null)} />
       )}
 
-      {/* Athlete Header Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-5 sm:p-6 shadow-xl">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-lime-400/10 blur-3xl" />
+      {/* 1. Athlete Header Card (shrink-0) */}
+      <header className="shrink-0 p-4 sm:p-6 pb-2">
+        <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5 shadow-xl">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-lime-400/10 blur-3xl" />
 
-        <div className="flex items-center gap-4">
-          <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-zinc-800 bg-zinc-950 font-mono text-xl font-black text-lime-400 shadow-md">
-            {athleteInitials}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-lg sm:text-xl font-black text-white capitalize">
-                {athleteName}
-              </h1>
-              <Badge variant="lime" className="text-[10px]">
-                ATHLETE
-              </Badge>
+          <div className="flex items-center gap-4">
+            <div className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-2xl border border-zinc-800 bg-zinc-950 font-mono text-lg sm:text-xl font-black text-lime-400 shadow-md">
+              {athleteInitials}
             </div>
-            <p className="truncate text-xs font-medium text-zinc-400">{profile.email || user?.email}</p>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-base sm:text-lg font-black text-white capitalize">
+                  {athleteName}
+                </h1>
+                <Badge variant="lime" className="text-[10px]">
+                  ATHLETE
+                </Badge>
+              </div>
+              <p className="truncate text-xs font-medium text-zinc-400">{profile.email || user?.email}</p>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <form onSubmit={handleSave} className="space-y-6">
+      {/* 2. Scrollable Settings Form Content (flex-1) */}
+      <main className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-2 space-y-6 pb-6">
         {/* Section 1: Biometric & Athlete Profile */}
         <Card className="rounded-3xl border-zinc-800 bg-zinc-900 shadow-lg">
           <CardHeader className="p-5 pb-3 border-b border-zinc-800/80">
@@ -602,31 +605,32 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Bottom Actions Bar */}
-        <div className="flex items-center justify-between gap-3 pt-2">
-          <Button
-            type="button"
-            variant="danger"
-            size="lg"
-            pill={true}
-            onClick={() => void logout().then(() => navigate('/auth'))}
-            className="text-xs sm:text-sm font-bold"
-          >
-            <LogOut className="h-4 w-4 mr-1.5" /> Log Out
-          </Button>
+      </main>
 
-          <Button
-            type="submit"
-            variant="volt"
-            size="lg"
-            pill={true}
-            loading={saving}
-            className="shadow-lg shadow-lime-400/20 font-black text-xs sm:text-sm px-6"
-          >
-            <Save className="h-4 w-4 mr-1.5" /> Save Preferences
-          </Button>
-        </div>
-      </form>
-    </main>
+      {/* 3. Anchored Bottom Actions Bar */}
+      <footer className="shrink-0 w-full p-4 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md flex items-center justify-between gap-3">
+        <Button
+          type="button"
+          variant="danger"
+          size="lg"
+          pill={true}
+          onClick={() => void logout().then(() => navigate('/auth'))}
+          className="text-xs sm:text-sm font-bold"
+        >
+          <LogOut className="h-4 w-4 mr-1.5" /> Log Out
+        </Button>
+
+        <Button
+          type="submit"
+          variant="volt"
+          size="lg"
+          pill={true}
+          loading={saving}
+          className="shadow-lg shadow-lime-400/20 font-black text-xs sm:text-sm px-6"
+        >
+          <Save className="h-4 w-4 mr-1.5" /> Save Preferences
+        </Button>
+      </footer>
+    </form>
   );
 }

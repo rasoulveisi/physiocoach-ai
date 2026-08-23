@@ -315,7 +315,7 @@ export function SessionPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-2xl space-y-6 px-4 py-6 pb-28 text-zinc-50">
+    <main className="h-full w-full max-w-2xl mx-auto flex-1 overflow-y-auto min-h-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 pb-8 text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950">
       {error && <Toast type="error" message={error} onClose={() => setError('')} />}
 
       {/* Top Active Workout Bar */}

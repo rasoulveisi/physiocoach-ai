@@ -273,7 +273,7 @@ export function DashboardPage() {
       : 'Retract scapulae and brace core during compound movements to protect lumbar spine');
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-7 p-4 pb-28 sm:p-6">
+    <main className="h-full w-full max-w-2xl mx-auto flex-1 overflow-y-auto min-h-0 space-y-7 p-4 pb-8 sm:p-6 select-none selection:bg-lime-400 selection:text-zinc-950">
       {/* Athlete Profile & Notification Header */}
       <header className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">

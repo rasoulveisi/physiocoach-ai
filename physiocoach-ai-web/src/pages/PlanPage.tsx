@@ -289,11 +289,12 @@ export function PlanPage() {
   );
 
   return (
-    <main
-      className="mx-auto min-h-screen max-w-2xl space-y-6 px-4 py-6 pb-28 text-zinc-50"
+    <div
+      className="h-full w-full max-w-2xl mx-auto flex flex-col overflow-hidden text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      <main className="flex-1 overflow-y-auto min-h-0 px-4 py-4 sm:px-6 sm:py-6 space-y-6 pb-6">
       {planView?.plan?.days && planView.plan.days.length > 0 ? (
         <>
           {/* Schedule Strip (Fitnest Style) */}
@@ -595,6 +596,23 @@ export function PlanPage() {
           </Card>
         )
       )}
+      </main>
+
+      {/* 3. Anchored Bottom Action Bar */}
+      {planView?.plan?.days && planView.plan.days.length > 0 && (
+        <footer className="shrink-0 w-full p-4 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md">
+          <Button
+            type="button"
+            variant="volt"
+            size="lg"
+            pill={true}
+            onClick={() => navigate('/session')}
+            className="w-full text-base font-black shadow-lg shadow-lime-400/20"
+          >
+            <Play className="h-4 w-4 mr-2 fill-current" /> Start Day {selectedDay + 1} Workout
+          </Button>
+        </footer>
+      )}
 
       {/* Full-Size Exercise Preview Modal */}
       <ExercisePreviewModal
@@ -613,7 +631,7 @@ export function PlanPage() {
           />
         </div>
       )}
-    </main>
+    </div>
   );
 }
 

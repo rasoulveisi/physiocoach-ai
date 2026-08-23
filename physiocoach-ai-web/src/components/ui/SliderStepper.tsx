@@ -41,12 +41,12 @@ export function SliderStepper({
   return (
     <div
       className={clsx(
-        'relative min-h-[calc(100vh-4rem)] bg-zinc-950 text-zinc-50 flex flex-col justify-between p-4 pb-28 sm:p-6 sm:pb-10 max-w-xl mx-auto selection:bg-lime-400 selection:text-zinc-950',
+        'h-full w-full max-w-xl mx-auto flex flex-col bg-zinc-950 text-zinc-50 overflow-hidden select-none selection:bg-lime-400 selection:text-zinc-950',
         className,
       )}
     >
-      {/* Top Header & Progress HUD */}
-      <header className="space-y-4 pt-2">
+      {/* 1. Fixed Top Header & Progress HUD */}
+      <header className="shrink-0 px-4 sm:px-6 pt-3 pb-2 space-y-3 border-b border-zinc-900/60 bg-zinc-950">
         {/* Top bar with back button & step indicator */}
         <div className="flex items-center justify-between">
           {canGoBack && currentStep > 1 ? (
@@ -54,12 +54,12 @@ export function SliderStepper({
               type="button"
               onClick={onBack}
               aria-label="Go back"
-              className="grid size-10 place-items-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white active:scale-95"
+              className="grid size-9 place-items-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white active:scale-95"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           ) : (
-            <div className="size-10" />
+            <div className="size-9" />
           )}
 
           <div className="flex items-center gap-2">
@@ -83,11 +83,11 @@ export function SliderStepper({
         </div>
       </header>
 
-      {/* Slide Content Area */}
-      <main className="my-auto py-6 flex flex-col items-center text-center w-full">
+      {/* 2. Scrollable Middle Content Viewport */}
+      <main className="flex-1 overflow-y-auto min-h-0 px-4 py-4 sm:px-6 sm:py-6 flex flex-col items-center text-center w-full">
         {/* Question Title & Subtitle */}
-        <div className="mb-6 space-y-2 max-w-md">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
+        <div className="mb-5 space-y-1.5 max-w-md shrink-0">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
             {title}
           </h2>
           {subtitle && (
@@ -98,14 +98,14 @@ export function SliderStepper({
         </div>
 
         {/* Slide Body Container */}
-        <div className="w-full flex flex-col items-center">
+        <div className="w-full flex flex-col items-center flex-1 pb-4">
           {children}
         </div>
       </main>
 
-      {/* Floating Action Button above mobile navbar */}
+      {/* 3. Anchored Action Button Footer */}
       {showNextButton && (
-        <footer className="pt-4 pb-2 w-full sticky bottom-20 sm:bottom-0 z-30 bg-zinc-950/90 backdrop-blur-sm rounded-2xl">
+        <footer className="shrink-0 w-full p-4 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md">
           <Button
             type="button"
             variant="volt"
@@ -114,7 +114,7 @@ export function SliderStepper({
             disabled={nextButtonDisabled}
             loading={nextButtonLoading}
             onClick={onNext}
-            className="w-full text-base font-black shadow-lg"
+            className="w-full text-sm sm:text-base font-black shadow-lg shadow-lime-400/10"
           >
             {nextButtonText} <ArrowRight className="h-4 w-4 ml-1" />
           </Button>

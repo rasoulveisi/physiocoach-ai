@@ -476,7 +476,7 @@ export function AssessmentPage() {
           subtitle="Contraindicated exercises causing harmful shearing or impingement will be filtered."
           badge={`${painCount} Safeguards`}
         >
-          <div className="grid gap-2.5 w-full max-w-lg max-h-[50vh] overflow-y-auto pr-1">
+          <div className="grid gap-2.5 w-full max-w-lg">
             {ANATOMY_PINS.map((pin) => {
               const active = activePains[pin.code];
               return (
