@@ -29,6 +29,7 @@ import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { RestTimerHUD } from '../components/ui/RestTimerHUD';
 import { PlateCalculatorModal } from '../components/ui/PlateCalculatorModal';
 import { ExerciseSwapModal, type SwapCandidateItem } from '../components/ui/ExerciseSwapModal';
+import { SessionSkeleton } from '../components/ui/Skeleton';
 import { resolveExerciseSafetyNotes } from '../services/exercise-safety-notes';
 import { soundCueService } from '../services/sound-cue-service';
 import { usePreferences } from '../context/PreferencesContext';
@@ -305,13 +306,7 @@ export function SessionPage() {
   };
 
   if (exercises.length === 0 && !error) {
-    return (
-      <main className="mx-auto min-h-screen max-w-screen-xl px-4 py-6">
-        <div className="grid min-h-[60vh] place-items-center">
-          <span className="h-10 w-10 animate-spin rounded-full border-4 border-lime-400 border-r-transparent" />
-        </div>
-      </main>
-    );
+    return <SessionSkeleton />;
   }
 
   return (
