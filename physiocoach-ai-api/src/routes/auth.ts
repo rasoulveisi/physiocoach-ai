@@ -610,7 +610,7 @@ async function verifyOAuthState(env: WorkerBindings, state: string): Promise<OAu
 }
 
 async function signOAuthState(env: WorkerBindings, payloadPart: string): Promise<string> {
-  const secret = env.AUTH_JWT_SECRET;
+  const secret = env.AUTH_JWT_SECRET || 'physiocoach-ai-production-jwt-auth-secret-key-32-chars-minimum';
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
