@@ -96,7 +96,7 @@ function createRouteContext(req: Request, res: ExpressResponse): ExpressRouteCon
     json: (body, status = 200) => Response.json(body, { status }),
     redirect: (url, status = 302) => new Response(null, { status, headers: { location: url } }),
     closeDb: async () => {
-      if (db) await db.$client.end();
+      // Keep persistent connection pool active across requests for high throughput
     },
   };
 }
@@ -110,5 +110,6 @@ async function sendWebResponse(res: ExpressResponse, response: globalThis.Respon
     return;
   }
 
-  res.send(Buffer.from(await response.arrayBuffer()));
+  const text = await response.text();
+  res.send(text);
 }

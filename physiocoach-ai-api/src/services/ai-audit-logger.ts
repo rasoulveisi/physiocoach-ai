@@ -78,8 +78,6 @@ export async function logAiAuditEntry(
       task: entry.task,
       reason: error instanceof Error ? error.message : String(error),
     });
-  } finally {
-    if (ownsClient) await auditDb.$client.end();
   }
 
   return auditId;

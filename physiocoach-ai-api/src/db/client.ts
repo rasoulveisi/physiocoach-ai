@@ -16,9 +16,11 @@ export function createDb(connectionStringOrBinding?: string | { connectionString
         : process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
 
   const client = postgres(connectionString, {
-    max: 1,
-    idle_timeout: 0,
+    max: 5,
+    idle_timeout: 10,
     connect_timeout: 10,
+    prepare: false,
+    fetch_types: false,
   });
 
   return drizzle(client, { schema });

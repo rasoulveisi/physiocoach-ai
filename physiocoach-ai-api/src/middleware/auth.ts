@@ -1,9 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
 import { getAuthKeyConfig } from '../auth/keys';
-import { isSessionActive } from '../auth/sessions';
 import { verifyAccessToken } from '../auth/tokens';
-import { getDb } from '../db';
 import type { WorkerBindings } from '../env';
 import type { AuthenticatedUser } from '../types/auth';
 
@@ -68,17 +66,6 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     }
 
     const claims = await verifyAccessToken(getAuthKeyConfig(bindings), token);
-    if (claims.sid !== 'local-dev-session') {
-      const db = getDb(bindings);
-      try {
-        if (!(await isSessionActive(db, claims.sid, claims.sub))) {
-          return next(Object.assign(new Error('Invalid or expired auth token'), { status: 401 }));
-        }
-      } finally {
-        await db.$client.end();
-      }
-    }
-
     const roles = claims.roles.length > 0 ? claims.roles : ['user'];
     req.user = {
       id: claims.sub,

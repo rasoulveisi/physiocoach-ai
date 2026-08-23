@@ -10,11 +10,7 @@ healthRouter.get('/health', async (req, res, next) => {
 
   try {
     const db = getDb(req.app.locals.workerEnv);
-    try {
-      await db.execute(sql`select 1`);
-    } finally {
-      await db.$client.end();
-    }
+    await db.execute(sql`select 1`);
 
     res.status(200).json({
       ok: true,
