@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type TouchEvent } from 'react';
 import { ArrowRight, ShieldCheck, Activity, Dumbbell, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { useAuth } from '../context/AuthContext';
 
 interface SlideItem {
   id: number;
@@ -37,6 +38,7 @@ const SLIDES: SlideItem[] = [
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [activeSlide, setActiveSlide] = useState(0);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
@@ -99,10 +101,10 @@ export function LandingPage() {
 
         <button
           type="button"
-          onClick={() => navigate('/auth')}
+          onClick={() => navigate(isAuthenticated ? '/dashboard' : '/auth')}
           className="text-xs font-bold text-zinc-400 hover:text-white transition-colors"
         >
-          Sign In
+          {isAuthenticated ? 'Dashboard' : 'Sign In'}
         </button>
       </header>
 
@@ -156,10 +158,10 @@ export function LandingPage() {
           variant="volt"
           size="lg"
           pill={true}
-          onClick={() => navigate('/onboarding')}
+          onClick={() => navigate(isAuthenticated ? '/dashboard' : '/auth')}
           className="w-full font-black text-sm sm:text-base shadow-lg shadow-lime-400/20"
         >
-          Start Training <ArrowRight className="h-4 w-4 ml-1" />
+          {isAuthenticated ? 'Go to Dashboard' : 'Start Training'} <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
       </footer>
     </main>

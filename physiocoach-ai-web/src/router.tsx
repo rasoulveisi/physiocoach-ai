@@ -33,10 +33,12 @@ export function PublicRoute() {
 }
 
 export const router = createBrowserRouter([
-  { path: '/', element: <LandingPage /> },
   {
     element: <PublicRoute />,
-    children: [{ path: '/auth', element: <AuthPage /> }],
+    children: [
+      { path: '/', element: <LandingPage /> },
+      { path: '/auth', element: <AuthPage /> },
+    ],
   },
   { path: '/oauth-callback', element: <OAuthCallbackPage /> },
   {

@@ -82,12 +82,21 @@ export function OnboardingPage() {
 
   const navigate = useNavigate();
 
-  // Load existing profile if available
+  // Load existing profile if available; redirect to dashboard if user already has an active plan
   useEffect(() => {
-    apiClient
-      .get<any>('profile')
-      .then((res) => {
-        const p = res?.data || res;
+    Promise.all([
+      apiClient.get<any>('profile').catch(() => null),
+      apiClient.get<any>('workout-plans/current').catch(() => null),
+    ])
+      .then(([profRes, planRes]) => {
+        const rootPlan = planRes?.data || planRes;
+        const actualPlan = rootPlan?.plan || rootPlan;
+        if (actualPlan && Array.isArray(actualPlan.days) && actualPlan.days.length > 0) {
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+
+        const p = profRes?.data || profRes;
         if (p) {
           if (p.age) setAge(p.age);
           if (p.sex) setSex(p.sex);
@@ -101,7 +110,7 @@ export function OnboardingPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [navigate]);
 
   const handleNext = () => {
     if (currentSlide < totalSlides) {

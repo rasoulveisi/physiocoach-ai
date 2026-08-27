@@ -192,12 +192,20 @@ export function DashboardPage() {
 
         const rootAssessment = assessmentRes?.data || assessmentRes;
         setAssessment(rootAssessment || null);
+
+        // If athlete is a first-time user with no active plan and incomplete profile, redirect to onboarding
+        const hasPlan = Boolean(actualPlan && Array.isArray(actualPlan.days) && actualPlan.days.length > 0);
+        const hasProfile = Boolean(rootUser?.age || rootAssessment);
+        if (!hasPlan && !hasProfile) {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
       })
       .catch((cause) => {
         setError(cause instanceof Error ? cause.message : 'Could not load athlete dashboard.');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [navigate]);
 
   const todayName = new Intl.DateTimeFormat('en', { weekday: 'long' }).format(new Date());
 
