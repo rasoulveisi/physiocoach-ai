@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import {
@@ -44,7 +44,7 @@ export function createExerciseCatalogRoutes() {
       const limitStr = c.req.query('limit');
       const limit = limitStr ? Math.min(100, Math.max(1, Number(limitStr))) : 50;
 
-      let queryBuilder = db
+      const queryBuilder = db
         .select({
           id: masterExercises.id,
           canonicalId: masterExercises.canonicalId,

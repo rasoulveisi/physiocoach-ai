@@ -22,7 +22,7 @@
 ### 1. 🦾 Biomechanical & Posture-Aware AI Engine
 - **Clinical Contraindication Filter:** Analyzes musculoskeletal flags (lumbar load sensitivity, shoulder impingement, knee shearing) and automatically swaps hazardous exercises for joint-friendly biomechanical equivalents.
 - **Progressive Overload Modeling:** Dynamic volume, RPE scaling, and rep-in-reserve calibration tailored to training experience and equipment.
-- **Zero Hallucination Standard:** Strict JSON schema validation with OpenRouter LLMs (`gemini-3.7-flash` primary) and deterministic safety validation.
+- **Zero Hallucination Standard:** Strict JSON schema validation with OpenRouter LLMs (`z-ai/glm-5.2:free` primary) and deterministic safety validation.
 
 ### 2. 📱 Native Mobile PWA & Touch Gesture System
 - **Direction-Locked Day Swiper:** Smooth horizontal swipe gesture to flick between workout days with zero vertical scroll conflicts.
@@ -60,7 +60,7 @@ flowchart TD
 
     subgraph Data ["Cloud Persistence & AI"]
         NEON[("Neon PostgreSQL Database")]
-        OPENROUTER["OpenRouter AI (Gemini 3.7 Flash)"]
+        OPENROUTER["OpenRouter AI (z-ai/glm-5.2:free)"]
     end
 
     UI -->|REST API Requests| WORKER
@@ -79,7 +79,7 @@ flowchart TD
 | **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons, PWA Service Worker |
 | **Edge Compute** | Cloudflare Workers (`cloudflare:node` / Express Router adapter) |
 | **Database & ORM**| Neon PostgreSQL, Cloudflare Hyperdrive, Drizzle ORM |
-| **AI Synthesis** | OpenRouter (`gemini-3.7-flash`, `gemini-3.5-flash-lite`, `llama-3.1-8b-instruct`) |
+| **AI Synthesis** | OpenRouter (`z-ai/glm-5.2:free`, `gemini-3.7-flash`, `gemini-3.5-flash-lite`) |
 | **Hosting & CDN** | Cloudflare Pages (`physiocoach.otconnect.ir`) |
 
 ---

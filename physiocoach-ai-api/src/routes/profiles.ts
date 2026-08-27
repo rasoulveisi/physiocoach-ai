@@ -1,15 +1,10 @@
 import { desc, eq } from 'drizzle-orm';
 import { createExpressRouter } from './express-adapter';
-import { createApiError } from '../shared/errors/api';
-import { profileInputSchema } from '../types/profile';
 import { getApiRouteContext, hasDbClient } from './context';
 import { assessments, profiles, users } from '../db/schema';
-import {
-  getLatestProfileForUser,
-  mapProfileRecordToInput,
-  upsertUserAndProfile,
-} from '../services/user-profile';
+import { mapProfileRecordToInput } from '../services/user-profile';
 import type { AuthenticatedUser } from '../types/auth';
+import type { ProfileInput } from '../types/profile';
 
 export { mapProfileRecordToInput };
 
@@ -51,15 +46,16 @@ export function createProfileRoutes() {
       try {
         const parsed = JSON.parse(latestAssessment.equipmentJson);
         if (Array.isArray(parsed)) availableEquipment = parsed;
-      } catch {}
+      } catch {
+        // Fallback to empty equipment on invalid JSON
+      }
     }
 
     return c.json({
       data: {
         displayName:
           userRecord?.displayName ||
-          (context.user as any).displayName ||
-          (context.user as any).name ||
+          context.user.displayName ||
           undefined,
         email: userRecord?.email || context.user.email || undefined,
         age: profile?.age ?? null,
@@ -77,7 +73,7 @@ export function createProfileRoutes() {
   });
 
   route.patch('/profile', async (c) => {
-    const raw = await c.req.json().catch(() => ({}));
+    const raw = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const context = getApiRouteContext(c);
     const now = new Date().toISOString();
 
@@ -105,24 +101,22 @@ export function createProfileRoutes() {
 
     const mergedProfile = {
       age: typeof raw.age === 'number' ? raw.age : existingProfile?.age ?? 30,
-      sex: typeof raw.sex === 'string' ? (raw.sex as any) : existingProfile?.sex ?? 'prefer_not_to_say',
+      sex: typeof raw.sex === 'string' ? (raw.sex as ProfileInput['sex']) : existingProfile?.sex ?? 'prefer_not_to_say',
       heightCm: typeof raw.heightCm === 'number' ? raw.heightCm : existingProfile?.heightCm ?? 175,
       weightKg: typeof raw.weightKg === 'number' ? raw.weightKg : existingProfile?.weightKg ?? 75,
       bodyFatEstimate: typeof raw.bodyFatEstimate === 'number' ? raw.bodyFatEstimate : existingProfile?.bodyFatEstimate ?? undefined,
-      lifestyle: typeof raw.lifestyle === 'string' ? (raw.lifestyle as any) : existingProfile?.lifestyle ?? 'active',
-      experienceLevel: typeof raw.experienceLevel === 'string' ? (raw.experienceLevel as any) : existingProfile?.experienceLevel ?? 'beginner',
+      lifestyle: typeof raw.lifestyle === 'string' ? (raw.lifestyle as ProfileInput['lifestyle']) : existingProfile?.lifestyle ?? 'active',
+      experienceLevel: typeof raw.experienceLevel === 'string' ? (raw.experienceLevel as ProfileInput['experienceLevel']) : existingProfile?.experienceLevel ?? 'beginner',
     };
 
     const userToUpsert: AuthenticatedUser = {
       ...context.user,
-      displayName:
-        typeof raw.displayName === 'string' && raw.displayName.trim().length > 0
-          ? raw.displayName.trim()
-          : context.user.displayName,
-      email:
-        typeof raw.email === 'string' && raw.email.trim().length > 0
-          ? raw.email.trim()
-          : context.user.email,
+      ...(typeof raw.displayName === 'string' && raw.displayName.trim().length > 0
+        ? { displayName: raw.displayName.trim() }
+        : {}),
+      ...(typeof raw.email === 'string' && raw.email.trim().length > 0
+        ? { email: raw.email.trim() }
+        : {}),
     };
 
     const profileId = `profile_${crypto.randomUUID()}`;
@@ -161,13 +155,13 @@ export function createProfileRoutes() {
         },
       });
 
-    const writePromises: Promise<any>[] = [
+    const writePromises: Promise<unknown>[] = [
       context.db.insert(profiles).values(profileInsert),
     ];
 
     let savedEquipment: string[] = [];
     if (Array.isArray(raw.availableEquipment)) {
-      savedEquipment = raw.availableEquipment;
+      savedEquipment = raw.availableEquipment as string[];
       if (latestAssessment) {
         writePromises.push(
           context.db
@@ -194,7 +188,9 @@ export function createProfileRoutes() {
       try {
         const parsed = JSON.parse(latestAssessment.equipmentJson);
         if (Array.isArray(parsed)) savedEquipment = parsed;
-      } catch {}
+      } catch {
+        // Fallback to empty equipment on invalid JSON
+      }
     }
 
     await Promise.all(writePromises);

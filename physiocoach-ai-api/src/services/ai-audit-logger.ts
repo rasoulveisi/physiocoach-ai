@@ -31,12 +31,10 @@ export async function logAiAuditEntry(
 ): Promise<string> {
   const auditId = entry.id ?? `audit_${crypto.randomUUID()}`;
   let auditDb = db;
-  let ownsClient = false;
 
   if (!auditDb) {
     try {
       auditDb = getDb();
-      ownsClient = true;
     } catch {
       console.debug('ai_audit_logger.skip', { reason: 'no_db_instance', task: entry.task, auditId });
       return auditId;

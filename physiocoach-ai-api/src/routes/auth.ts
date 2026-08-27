@@ -468,10 +468,6 @@ interface OAuthStatePayload {
   exp: number;
 }
 
-interface GoogleTokenResponse {
-  accessToken: string;
-}
-
 interface GoogleUserInfo {
   sub: string;
   email: string;
@@ -497,7 +493,9 @@ function resolveOAuthReturnTo(c: ExpressRouteContext): string | null {
   if (referer) {
     try {
       refererOrigin = new URL(referer).origin;
-    } catch {}
+    } catch {
+      // Ignore malformed referer URL
+    }
   }
   const fallback = origin
     ? `${origin.replace(/\/$/, '')}/oauth-callback`

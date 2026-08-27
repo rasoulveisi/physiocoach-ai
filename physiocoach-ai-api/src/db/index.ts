@@ -3,7 +3,6 @@ import postgres from 'postgres';
 
 import type { WorkerBindings } from '../env';
 import * as schema from './schema';
-import { DEFAULT_DATABASE_URL } from './client';
 
 export function getDb(bindings: Partial<WorkerBindings> = process.env) {
   const connectionString =

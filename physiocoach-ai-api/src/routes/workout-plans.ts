@@ -1,5 +1,4 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { z } from 'zod';
 import { createExpressRouter } from './express-adapter';
 import { createDb } from '../db/client';
 import {
@@ -8,14 +7,13 @@ import {
   bodyConsiderations,
   workoutPlans,
 } from '../db/schema';
-import { createApiError, handleRouteError, internalServerError, unauthorized } from '../shared/errors/api';
+import { createApiError, internalServerError, unauthorized } from '../shared/errors/api';
 import {
   buildPlanInputHash,
   buildWorkoutPlanContext,
   buildWorkoutPlanModelConfig,
   buildWorkoutPlanRecord,
   createWorkoutPlanProvider,
-  generatePlanInputSchema,
   generateWorkoutPlanWithSafety,
   parseWorkoutPlanRecordOrError,
   type GeneratePlanInput,

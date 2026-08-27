@@ -1,106 +1,143 @@
-# PhysioCoach AI: Agent Onboarding & Project Guide
+# PhysioCoach AI: Agent Onboarding & Developer Guide
 
-Welcome! This document is designed to onboard AI agents and developers to the **PhysioCoach AI** project. Read this document carefully upon workspace initialization to understand the project architecture, tech stack, directory structure, setup commands, and implementation constraints.
-
----
-
-## 1. Project Overview & Environment Policy
-
-**PhysioCoach AI** is an AI-powered physiotherapy and workout coaching platform split into two primary components:
-1. **Frontend (`physiocoach-ai-web`)**: An Angular PWA, using PrimeNG and Tailwind CSS.
-2. **Backend API (`physiocoach-ai-api`)**: A Hono REST API running on Cloudflare Workers, using Drizzle ORM to interface with Cloudflare D1.
-
-### CRITICAL ENVIRONMENT POLICY (PRODUCTION D1 DATABASE ONLY)
-- **Zero Local/Dev Database Instances**: There is **NO** local database instance, local SQLite state, or separate dev database environment. We have **ONLY** the production Cloudflare D1 database (`physiocoach_prod`).
-- **Local Code + Production Database**: When running or developing the application on a local machine, application code executes locally while all database operations run directly against the production Cloudflare D1 database (`npx wrangler dev --config ./wrangler.toml --remote`).
-
-### Core Stack
-- **Database**: Cloudflare D1 (`physiocoach_prod`) + Drizzle ORM.
-- **AI Generation**: OpenRouter server-side endpoint calls from Cloudflare Worker only. No client-side LLM calls are allowed.
-- **Medical Standard Error Traceability**: No synthetic fallback workout plans or fake SVG/placeholder images are allowed. Failures return structured HTTP 409 errors with `traceId` and `auditLogId`.
+Welcome! This document is the definitive guide to the **PhysioCoach AI** codebase. Read this document to understand the project architecture, tech stack, directory structure, best practices, setup commands, and development guidelines.
 
 ---
 
-## 2. Repository Structure
+## 1. Project Overview & Architecture
 
-The project has a monorepo-style folder layout:
+**PhysioCoach AI** is an AI-powered physiotherapy and athletic workout coaching platform built as a modern, decoupled full-stack application:
+
+1. **Frontend (`physiocoach-ai-web`)**:
+   - **Framework**: React 19 + TypeScript + Vite + Tailwind CSS + Lucide Icons.
+   - **PWA Capabilities**: Installable Progressive Web App with custom Service Worker (`public/sw.js`), touch gesture swiping engine, locked `100dvh` mobile viewport, and responsive layout.
+   - **State & Routing**: Context API (`AuthContext`, `PreferencesContext`, `ThemeContext`), React Router v7 (`createBrowserRouter`, `<ProtectedRoute />`, `<Outlet />`).
+
+2. **Backend API (`physiocoach-ai-api`)**:
+   - **Framework**: Express 5 on Node.js / Cloudflare Workers runtime via `nodejs_compat`.
+   - **Database & ORM**: Neon PostgreSQL connected via Cloudflare Hyperdrive connection pooling + Drizzle ORM.
+   - **AI Synthesis**: Server-side OpenRouter integration (`z-ai/glm-5.2:free` primary) with deterministic JSON schema validation and clinical safety contraindication checks.
+   - **Authentication**: First-party password auth (PBKDF2 hashing) with rotating JWT refresh tokens and live Google OAuth OIDC integration.
+
+---
+
+## 2. Environment & Database Policy
+
+### Single Production Database (Neon PostgreSQL via Cloudflare Hyperdrive)
+- **Zero Local/Dev Database Instances**: There is **no** local SQLite or separate dev DB instance.
+- **Local Worker Execution**: When developing locally, backend code runs on your local machine and connects to the remote Neon PostgreSQL instance via Cloudflare Hyperdrive / connection string (`npm run dev` in `physiocoach-ai-api`).
+- **Zero Client-Side AI Calls**: The frontend never calls OpenRouter or LLMs directly. All AI generation is processed server-side through `/api/v1/workout-plans/generate`.
+- **Medical Safety & Traceability**: No synthetic fake workouts or placeholder SVG images. Errors return structured HTTP 409 responses with `traceId` and `auditLogId`.
+
+---
+
+## 3. Monorepo Directory Structure
 
 ```
-/Users/rasoul/rasoul/apps/PhysioCoach Ai/
-├── docs/                                  # Global architecture documentation
-├── physiocoach-ai-api/                    # Backend API (Cloudflare Worker)
-│   ├── docs/                              # Catalog analysis and runbook docs
-│   ├── src/                               # Application source code
-│   │   ├── db/                            # Database schema and Drizzle migrations
-│   │   ├── middleware/                    # Hono middlewares (auth, cors)
-│   │   ├── routes/                        # Hono routes and API endpoints
-│   │   ├── services/                      # Business workflows and AI provider logic
-│   │   └── app.ts                         # App entry and route mounting
-│   ├── tests/                             # Vitest behavior-driven integration tests
-│   └── wrangler.toml                      # Wrangler Worker configuration
-└── physiocoach-ai-web/                    # Frontend Angular PWA
-    ├── src/app/                           # Angular application source code
-    │   ├── core/                          # Services, guards, configs, and API clients
-    │   └── features/                      # Page components (workout-plan, onboarding, etc.)
-    └── scripts/                           # Utility scripts (write-runtime-config, smoke checks)
+apps/PhysioCoach Ai/
+├── physiocoach-ai-api/                    # Backend API (Express 5 / Cloudflare Worker)
+│   ├── src/
+│   │   ├── auth/                          # Password hashing, JWT signing, token rotation, sessions
+│   │   ├── db/                            # Drizzle schemas (schema.ts), migrations, and DB client
+│   │   ├── middleware/                    # Express middlewares (auth, cors, traceId, error handler)
+│   │   ├── routes/                        # Express routers (auth, workout-plans, sessions, profiles, admin)
+│   │   ├── services/                      # AI synthesis (OpenRouter), safety rules, exercise catalog
+│   │   ├── shared/                        # Error classes, API responses, logging
+│   │   ├── types/                         # Zod schemas and TypeScript interface definitions
+│   │   ├── app.ts                         # Express app factory and middleware pipeline
+│   │   └── index.ts                       # Cloudflare Worker entry point
+│   ├── tests/                             # Vitest integration and behavior-driven test suite
+│   ├── scripts/                           # Database seeding, catalog enrichment, smoke tests
+│   └── wrangler.jsonc                     # Cloudflare Worker configuration & Hyperdrive bindings
+│
+├── physiocoach-ai-web/                    # Frontend Web App (React 19 PWA)
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── ui/                        # Reusable UI library (Button, Modal, Card, HUD, Plate Calc)
+│   │   ├── context/                       # React Context providers (AuthContext, Preferences, Theme)
+│   │   ├── pages/                         # Page views (Dashboard, Plan, Session, Settings, Auth, Admin)
+│   │   ├── services/                      # Frontend API client, audio cues, exercise swapper
+│   │   ├── App.tsx                        # Main application layout with responsive navigation bars
+│   │   ├── router.tsx                     # React Router v7 route definitions and route guards
+│   │   └── main.tsx                       # React DOM root render and Service Worker registration
+│   ├── public/                            # PWA manifest.json, sw.js, app icons, audio assets
+│   ├── index.html                         # HTML5 root with responsive meta tags
+│   └── vite.config.ts                     # Vite bundler configuration
+│
+├── docs/                                  # Global architecture specifications and blueprints
+├── agent.md                               # This onboarding guide
+└── README.md                              # Root repository README
 ```
 
 ---
 
-## 3. Architecture Blueprint & Flows
+## 4. Development Workflow & Commands
 
-### Single Production Database Flow
-- When running backend locally, execute:
-  ```bash
-  npx wrangler dev --config ./wrangler.toml --remote
-  ```
-- This binds your local worker code directly to the remote production D1 database (`physiocoach_prod`).
+### 4.1 Backend API (`physiocoach-ai-api`)
 
-### AI Generation & Traceability
-- Endpoint: `POST /api/v1/workout-plans/generate`.
-- OpenRouter generates structured workout plans using production exercise catalog candidates (`candidateCount: 1324`).
-- If AI generation fails, the backend logs audit entry to `ai_audit_logs` and returns HTTP 409 carrying `traceId`, `auditLogId`, and clinical error messages.
-
----
-
-## 4. Development & Running Commands
-
-### Running Backend API Locally (Connected to Production D1)
-In `physiocoach-ai-api`:
 ```bash
+cd physiocoach-ai-api
+
+# Install dependencies
+npm install
+
+# Start local Express API server on port 8787
 npm run dev
-# Executes: wrangler dev --config ./wrangler.toml --remote
+
+# Run Vitest test suite
+npm test
+
+# Run full validation (Linter + Vitest + Typecheck)
+npm run validate
+
+# Database Schema & Migrations
+# 1. Edit schema in src/db/schema.ts
+# 2. Generate migration files:
+npm run db:generate
 ```
 
-### Running Frontend Locally
-In `physiocoach-ai-web`:
+### 4.2 Frontend Web (`physiocoach-ai-web`)
+
 ```bash
+cd physiocoach-ai-web
+
+# Install dependencies
+npm install
+
+# Start Vite dev server at http://localhost:5173
 npm run dev
-# Executes: ng serve --port 4300
+
+# Build production bundle
+npm run build
+
+# Preview production build locally
+npm run preview
 ```
-
-### API Client Synchronization
-When modifying API routes or OpenAPI schemas, regenerate the Angular TypeScript client:
-1. Ensure API dev server is running on `http://localhost:8787`.
-2. Run in `physiocoach-ai-web`:
-   ```bash
-   API_OPENAPI_URL=http://localhost:8787/api/v1/openapi.json npm run generate:api
-   ```
-
-### Comprehensive Local Validation
-- Backend API: `npm run validate` (runs lint + vitest + tsc --noEmit)
-- Frontend: `npm run validate:core` (runs ng lint + ng build)
-
-### Production Deployment
-- Deploy API: `npm run deploy` in `physiocoach-ai-api` (executes `wrangler deploy --config ./wrangler.toml`)
-- Git Push: `git add . && git commit -m "..." && git push`
 
 ---
 
-## 5. Constraints & Guidelines for AI Agents
+## 5. Coding Style & Best Practices
 
-1. **Production Database Direct Access**: Do not generate or suggest local SQLite database files or separate dev databases. Always use `physiocoach_prod` D1 database.
-2. **Zero Frontend AI Calls**: All AI generation must go through Cloudflare Worker API routes.
-3. **Medical Safety Standard & Zero Fallbacks**: Never return synthetic fallback workout plans or placeholder images. Return traceable HTTP 409 errors with `traceId` and `auditLogId`.
-4. **Database Schema & Migrations**: Edit schema in `physiocoach-ai-api/src/db/schema.ts`, run `npm run db:generate`, and apply remote migrations with `npm run db:migrate:remote`.
-5. **Direct & Flat Architecture**: Keep code in `src/routes/`, `src/services/`, `src/db/`, `src/middleware/`, `src/types/`. No over-engineered repository/DDD abstractions.
+### 5.1 Backend: Express 5 + Node.js Best Practices
+1. **Pipeline Composition**: Compose Express middleware in logical order: CORS $\rightarrow$ JSON parsing $\rightarrow$ Request ID / Trace $\rightarrow$ Authentication $\rightarrow$ Route Handlers $\rightarrow$ Global Error Handler.
+2. **Declaration Merging for Request Context**: Extend `Express.Request` interface in TypeScript for typed `req.user`, `req.traceId`, and `req.authSessionId`.
+3. **Zod Validation**: Validate incoming payloads at route entry using Zod schemas (`z.object({...})`) and derive TypeScript types using `z.infer<typeof schema>`.
+4. **Direct Drizzle Queries**: Keep database queries direct and clear without over-engineering abstract repository layers.
+5. **Atomic Transactions**: Use Drizzle transactions (`db.transaction()`) when inserting related records (e.g., workout plan + workout days + exercises).
+6. **Centralized Error Handling**: Throw domain errors (`ApiError`, `AuthError`) and catch them uniformly in the 4-argument Express error handler ([`src/middleware/error.ts`](file:///Users/rasoul/rasoul/apps/PhysioCoach%20Ai/physiocoach-ai-api/src/middleware/error.ts)).
+
+### 5.2 Frontend: React 19 Best Practices
+1. **Functional Components & Hooks**: Use pure functional components with explicit TypeScript prop interfaces.
+2. **Context for Global State**: Use React Context (`createContext` + custom hook `useAuth()`) for state that spans across views (Auth, Theme, User Preferences).
+3. **Custom Hooks for Reusable Logic**: Extract asynchronous data fetching, timers, or window listeners into dedicated hooks.
+4. **Tailwind CSS Utility Classes**: Use semantic Tailwind classes with `clsx` and `tailwind-merge` for conditional styling.
+5. **Mobile-First UX**: Ensure zero horizontal overflow, locked mobile viewport (`100dvh`), and proper touch feedback for mobile users.
+
+---
+
+## 6. Pre-Commit / Pre-Finish Checklist
+
+Before finishing any task:
+1. **Backend Validation**: Run `npm run validate` in `physiocoach-ai-api` (must pass lint, unit tests, and typecheck).
+2. **Frontend Validation**: Run `npm run build` in `physiocoach-ai-web` (must build cleanly with zero TypeScript or JSX errors).
+3. **Traceability**: Ensure all API errors return consistent JSON `{ error, traceId, auditLogId? }`.

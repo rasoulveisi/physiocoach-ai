@@ -99,13 +99,18 @@ describe('Behavior-Driven E2E: Workout Plan Generation & Retrieval Workflow', ()
     // If OpenRouter key is not configured in local test env, zero-fallback policy returns 409 Conflict with traceId
     // If AI is reachable, returns 200/201 with generated plan
     expect([200, 201, 409]).toContain(generateRes.status);
-    const generateJson = (await generateRes.json()) as any;
+    const generateJson = (await generateRes.json()) as {
+      error?: { requestId?: string; details?: { traceId?: string } } | string;
+      traceId?: string;
+      data?: { plan?: { days?: unknown[] } };
+    };
     if (generateRes.status === 409) {
       expect(generateJson.error).toBeDefined();
+      const errObj = typeof generateJson.error === 'object' ? generateJson.error : undefined;
       expect(
         generateJson.traceId ||
-          generateJson.error?.requestId ||
-          generateJson.error?.details?.traceId,
+          errObj?.requestId ||
+          errObj?.details?.traceId,
       ).toBeDefined();
     } else {
       expect(generateJson.data?.plan?.days?.length).toBeGreaterThanOrEqual(1);

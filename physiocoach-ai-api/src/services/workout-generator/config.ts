@@ -28,11 +28,12 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'meta-llama/llama-3.3-70b-instruct';
+export const DEFAULT_WORKOUT_MODEL = 'z-ai/glm-5.2:free';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 15_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
 export const ALLOWED_WORKOUT_MODELS = [
+  'z-ai/glm-5.2:free',
   'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
