@@ -79,7 +79,7 @@ flowchart TD
 | **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons, PWA Service Worker |
 | **Edge Compute** | Cloudflare Workers (`cloudflare:node` / Express Router adapter) |
 | **Database & ORM**| Neon PostgreSQL, Cloudflare Hyperdrive, Drizzle ORM |
-| **AI Synthesis** | OpenRouter (`z-ai/glm-5.2:free`, `gemini-3.7-flash`, `gemini-3.5-flash-lite`) |
+| **AI Synthesis** | OpenRouter (`z-ai/glm-5.2:free`, `minimax/minimax-m3:free`, `gemini-3.7-flash`) |
 | **Hosting & CDN** | Cloudflare Pages (`physiocoach.otconnect.ir`) |
 
 ---

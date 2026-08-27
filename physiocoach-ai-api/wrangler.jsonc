@@ -17,7 +17,7 @@
     "OPENROUTER_REFERER": "https://physiocoach.otconnect.ir",
     "OPENROUTER_TITLE": "PhysioCoach AI",
     "WORKOUT_MODEL_PRIMARY": "z-ai/glm-5.2:free",
-    "WORKOUT_MODEL_FALLBACKS": "gemini-3.7-flash,gemini-3.5-flash-lite,meta-llama/llama-3.1-8b-instruct",
+    "WORKOUT_MODEL_FALLBACKS": "minimax/minimax-m3:free,gemini-3.7-flash,gemini-3.5-flash-lite,meta-llama/llama-3.1-8b-instruct",
     "OPENROUTER_TIMEOUT_MS": "15000",
     "OPENROUTER_MAX_RETRIES": "0",
     "CORS_ORIGIN": "https://physiocoach.otconnect.ir,http://localhost:4200,http://localhost:4300,http://localhost:8787",

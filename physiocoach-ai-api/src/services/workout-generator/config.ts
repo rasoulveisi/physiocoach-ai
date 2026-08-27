@@ -34,6 +34,8 @@ export const DEFAULT_WORKOUT_TIMEOUT_MS = 15_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
 export const ALLOWED_WORKOUT_MODELS = [
   'z-ai/glm-5.2:free',
+  'minimax/minimax-m3:free',
+  'minimax/minimax-m3',
   'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
@@ -58,11 +60,12 @@ export const ALLOWED_WORKOUT_MODELS = [
   'qwen/qwen-2.5-72b-instruct',
 ] as const;
 export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
+  'minimax/minimax-m3:free',
+  'gemini-3.7-flash',
+  'gemini-3.5-flash-lite',
   'meta-llama/llama-3.1-8b-instruct',
   'google/gemini-2.0-flash-001',
   'meta-llama/llama-3.3-70b-instruct',
-  'gemini-3.7-flash',
-  'gemini-3.5-flash-lite',
   'nvidia/nemotron-3-nano-30b-a3b:free',
 ] as const;
 export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([...ALLOWED_WORKOUT_MODELS]);
