@@ -21,13 +21,7 @@
     "deploy": "wrangler deploy --config ./wrangler.jsonc",
     "openapi": "wrangler dev --test-scheduled=false",
     "smoke:api": "node scripts/smoke.mjs --target=prod",
-    "check:catalog-runbook": "node scripts/check-exercise-catalog-runbook.mjs",
-    "import:exercise-catalog": "node scripts/import-exercise-catalog.mjs",
-    "import:exercises-dataset": "tsx scripts/import-exercises-dataset.mjs",
-    "enrich:exercise-catalog": "tsx scripts/enrich-exercise-catalog.mjs",
-    "analyze:exercise-safety": "tsx scripts/analyze-exercise-safety.mjs",
-    "import:exercise-safety": "tsx scripts/import-exercise-safety.mjs",
-    "prepare:licensed-media": "node scripts/prepare-licensed-exercise-media.mjs"
+    "check:catalog-runbook": "node scripts/check-exercise-catalog-runbook.mjs"
   },
   "engines": {
     "node": ">=20.11.0"
