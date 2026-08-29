@@ -13,6 +13,84 @@ import { handleRouteError, notFound } from '../shared/errors/api';
 
 const PUBLIC_MEDIA_OWNERSHIP_STATUSES = ['owned', 'commissioned', 'generated_approved', 'licensed'];
 
+export const MUSCLE_SEARCH_EXPANSIONS: Record<
+  string,
+  { name: string; bodyRegion: 'anterior' | 'posterior'; keywords: string[]; patterns: string[] }
+> = {
+  quadriceps: {
+    name: 'Quadriceps',
+    bodyRegion: 'anterior',
+    patterns: ['squat', 'lunge'],
+    keywords: ['quad', 'squat', 'lunge', 'leg press', 'leg extension', 'step up', 'split squat', 'hack', 'thigh'],
+  },
+  hamstrings: {
+    name: 'Hamstrings',
+    bodyRegion: 'posterior',
+    patterns: ['hinge'],
+    keywords: ['hamstring', 'deadlift', 'rdl', 'leg curl', 'good morning', 'hyperextension'],
+  },
+  glutes: {
+    name: 'Glutes',
+    bodyRegion: 'posterior',
+    patterns: ['hinge', 'squat', 'lunge'],
+    keywords: ['glute', 'hip thrust', 'bridge', 'kickback', 'deadlift', 'squat', 'abduction', 'piriformis'],
+  },
+  pectorals: {
+    name: 'Pectorals',
+    bodyRegion: 'anterior',
+    patterns: ['push', 'horizontal_push'],
+    keywords: ['chest', 'bench', 'push up', 'dip', 'pec', 'fly', 'press', 'crossover'],
+  },
+  deltoids: {
+    name: 'Deltoids',
+    bodyRegion: 'anterior',
+    patterns: ['push', 'vertical_push'],
+    keywords: ['delt', 'shoulder', 'overhead', 'lateral raise', 'arnold', 'press', 'front raise', 'upright row'],
+  },
+  lats: {
+    name: 'Latissimus Dorsi',
+    bodyRegion: 'posterior',
+    patterns: ['pull', 'vertical_pull', 'horizontal_pull'],
+    keywords: ['lat', 'pull up', 'chin up', 'pulldown', 'row'],
+  },
+  traps: {
+    name: 'Trapezius',
+    bodyRegion: 'posterior',
+    patterns: ['pull'],
+    keywords: ['trap', 'shrug', 'face pull', 'upright row', 'upper back'],
+  },
+  biceps: {
+    name: 'Biceps',
+    bodyRegion: 'anterior',
+    patterns: ['pull'],
+    keywords: ['bicep', 'curl', 'chin-up', 'preacher', 'arm'],
+  },
+  triceps: {
+    name: 'Triceps',
+    bodyRegion: 'posterior',
+    patterns: ['push'],
+    keywords: ['tricep', 'skull crusher', 'pushdown', 'dip', 'kickback', 'close grip', 'extension'],
+  },
+  abs: {
+    name: 'Abdominals',
+    bodyRegion: 'anterior',
+    patterns: ['core'],
+    keywords: ['abs', 'abdom', 'core', 'crunch', 'sit-up', 'plank', 'v-up', 'twist', 'leg raise', 'hollow', 'rollerout', 'side bend', 'wheel'],
+  },
+  'lower back': {
+    name: 'Lower Back',
+    bodyRegion: 'posterior',
+    patterns: ['hinge'],
+    keywords: ['lower back', 'erector', 'hyperextension', 'back extension', 'good morning', 'deadlift'],
+  },
+  calves: {
+    name: 'Calves',
+    bodyRegion: 'posterior',
+    patterns: ['lunge', 'squat'],
+    keywords: ['calf', 'calves', 'gastrocnemius', 'soleus', 'heel raise', 'toe raise'],
+  },
+};
+
 const exerciseCatalogMediaBatchSchema = z.object({
   items: z
     .array(
@@ -139,27 +217,38 @@ export function createExerciseCatalogRoutes() {
         'rear deltoids',
       ]);
 
-      const muscles = muscleRows.map((r) => {
-        const id = (r.id || '').toLowerCase();
-        return {
-          id: r.id || '',
-          name: formatLabel(r.id || ''),
-          bodyRegion: posteriorMuscles.has(id) ? 'posterior' : 'anterior',
-          count: Number(r.count) || 0,
-        };
-      });
-
-      const bodyParts = bodyPartRows.map((r) => ({
-        id: r.id || '',
-        name: formatLabel(r.id || ''),
-        count: Number(r.count) || 0,
+      const muscles = Object.entries(MUSCLE_SEARCH_EXPANSIONS).map(([id, meta]) => ({
+        id,
+        name: meta.name,
+        bodyRegion: meta.bodyRegion,
+        count: 0,
       }));
 
-      const movementPatterns = patternRows.map((r) => ({
-        id: r.id || '',
-        name: formatLabel(r.id || ''),
-        count: Number(r.count) || 0,
-      }));
+      const bodyParts = [
+        { id: 'chest', name: 'Chest', count: 0 },
+        { id: 'back', name: 'Back', count: 0 },
+        { id: 'upper legs', name: 'Upper Legs', count: 0 },
+        { id: 'shoulders', name: 'Shoulders', count: 0 },
+        { id: 'upper arms', name: 'Arms', count: 0 },
+        { id: 'waist', name: 'Core & Waist', count: 0 },
+      ];
+
+      const movementPatterns = patternRows.length > 0
+        ? patternRows.map((r) => ({
+            id: r.id || '',
+            name: formatLabel(r.id || ''),
+            count: Number(r.count) || 0,
+          }))
+        : [
+            { id: 'squat', name: 'Squat', count: 0 },
+            { id: 'hinge', name: 'Hinge / Deadlift', count: 0 },
+            { id: 'push', name: 'Push', count: 0 },
+            { id: 'pull', name: 'Pull', count: 0 },
+            { id: 'lunge', name: 'Lunge', count: 0 },
+            { id: 'core', name: 'Core', count: 0 },
+            { id: 'mobility', name: 'Mobility', count: 0 },
+            { id: 'carry', name: 'Carry', count: 0 },
+          ];
 
       const equipment = [
         { id: 'barbell', name: 'Barbell', count: 0 },
@@ -181,32 +270,9 @@ export function createExerciseCatalogRoutes() {
 
       return c.json({
         data: {
-          bodyParts: bodyParts.length > 0 ? bodyParts : [
-            { id: 'chest', name: 'Chest', count: 0 },
-            { id: 'back', name: 'Back', count: 0 },
-            { id: 'upper legs', name: 'Upper Legs', count: 0 },
-            { id: 'shoulders', name: 'Shoulders', count: 0 },
-            { id: 'upper arms', name: 'Arms', count: 0 },
-            { id: 'waist', name: 'Core & Waist', count: 0 },
-          ],
-          muscles: muscles.length > 0 ? muscles : [
-            { id: 'quadriceps', name: 'Quadriceps', bodyRegion: 'anterior', count: 0 },
-            { id: 'hamstrings', name: 'Hamstrings', bodyRegion: 'posterior', count: 0 },
-            { id: 'glutes', name: 'Glutes', bodyRegion: 'posterior', count: 0 },
-            { id: 'pectorals', name: 'Pectorals', bodyRegion: 'anterior', count: 0 },
-            { id: 'lats', name: 'Latissimus Dorsi', bodyRegion: 'posterior', count: 0 },
-            { id: 'delts', name: 'Deltoids', bodyRegion: 'anterior', count: 0 },
-          ],
-          movementPatterns: movementPatterns.length > 0 ? movementPatterns : [
-            { id: 'squat', name: 'Squat', count: 0 },
-            { id: 'hinge', name: 'Hinge / Deadlift', count: 0 },
-            { id: 'horizontal_push', name: 'Horizontal Push', count: 0 },
-            { id: 'horizontal_pull', name: 'Horizontal Pull', count: 0 },
-            { id: 'vertical_push', name: 'Vertical Push', count: 0 },
-            { id: 'vertical_pull', name: 'Vertical Pull', count: 0 },
-            { id: 'lunge', name: 'Lunge', count: 0 },
-            { id: 'isolation', name: 'Isolation', count: 0 },
-          ],
+          bodyParts,
+          muscles,
+          movementPatterns,
           equipment,
           safetyTags,
         },
@@ -255,23 +321,77 @@ export function createExerciseCatalogRoutes() {
       }
 
       if (bodyPart && bodyPart !== 'all') {
-        conditions.push(
-          or(
-            eq(sql`lower(${masterExercises.bodyPart})`, bodyPart.toLowerCase()),
-            like(sql`lower(${masterExercises.bodyPart})`, `%${bodyPart.toLowerCase()}%`),
-          ),
-        );
+        const normBodyPart = bodyPart.toLowerCase();
+        const bpConds = [
+          eq(sql`lower(coalesce(${masterExercises.bodyPart}, ''))`, normBodyPart),
+          like(sql`lower(coalesce(${masterExercises.bodyPart}, ''))`, `%${normBodyPart}%`),
+          like(sql`lower(${masterExercises.name})`, `%${normBodyPart}%`),
+        ];
+        if (normBodyPart.includes('leg')) {
+          bpConds.push(
+            like(sql`lower(${masterExercises.name})`, '%squat%'),
+            like(sql`lower(${masterExercises.name})`, '%lunge%'),
+            like(sql`lower(${masterExercises.name})`, '%leg%'),
+            like(sql`lower(${masterExercises.name})`, '%calf%'),
+            like(sql`lower(${masterExercises.name})`, '%thigh%'),
+          );
+        } else if (normBodyPart.includes('chest')) {
+          bpConds.push(
+            like(sql`lower(${masterExercises.name})`, '%chest%'),
+            like(sql`lower(${masterExercises.name})`, '%bench%'),
+            like(sql`lower(${masterExercises.name})`, '%push%'),
+            like(sql`lower(${masterExercises.name})`, '%dip%'),
+          );
+        } else if (normBodyPart.includes('back')) {
+          bpConds.push(
+            like(sql`lower(${masterExercises.name})`, '%back%'),
+            like(sql`lower(${masterExercises.name})`, '%pull%'),
+            like(sql`lower(${masterExercises.name})`, '%row%'),
+            like(sql`lower(${masterExercises.name})`, '%lat%'),
+          );
+        } else if (normBodyPart.includes('shoulder')) {
+          bpConds.push(
+            like(sql`lower(${masterExercises.name})`, '%shoulder%'),
+            like(sql`lower(${masterExercises.name})`, '%delt%'),
+            like(sql`lower(${masterExercises.name})`, '%overhead%'),
+            like(sql`lower(${masterExercises.name})`, '%raise%'),
+          );
+        } else if (normBodyPart.includes('arm')) {
+          bpConds.push(
+            like(sql`lower(${masterExercises.name})`, '%arm%'),
+            like(sql`lower(${masterExercises.name})`, '%bicep%'),
+            like(sql`lower(${masterExercises.name})`, '%tricep%'),
+            like(sql`lower(${masterExercises.name})`, '%curl%'),
+          );
+        } else if (normBodyPart.includes('waist') || normBodyPart.includes('core')) {
+          bpConds.push(
+            like(sql`lower(${masterExercises.name})`, '%abs%'),
+            like(sql`lower(${masterExercises.name})`, '%core%'),
+            like(sql`lower(${masterExercises.name})`, '%crunch%'),
+            like(sql`lower(${masterExercises.name})`, '%plank%'),
+          );
+        }
+        conditions.push(or(...bpConds));
       }
 
       if (primaryMuscle && primaryMuscle !== 'all') {
-        conditions.push(
-          or(
-            eq(sql`lower(${masterExercises.primaryMuscle})`, primaryMuscle.toLowerCase()),
-            like(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
-            like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
-            like(sql`lower(coalesce(${masterExercises.secondaryMusclesJson}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
-          ),
-        );
+        const normMuscle = primaryMuscle.toLowerCase();
+        const muscleConds = [
+          eq(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, normMuscle),
+          like(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, `%${normMuscle}%`),
+          like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${normMuscle}%`),
+          like(sql`lower(coalesce(${masterExercises.secondaryMusclesJson}, ''))`, `%${normMuscle}%`),
+          like(sql`lower(${masterExercises.name})`, `%${normMuscle}%`),
+        ];
+
+        const expansion = MUSCLE_SEARCH_EXPANSIONS[normMuscle];
+        if (expansion) {
+          for (const kw of expansion.keywords) {
+            muscleConds.push(like(sql`lower(${masterExercises.name})`, `%${kw}%`));
+          }
+        }
+
+        conditions.push(or(...muscleConds));
       }
 
       if (movementPattern && movementPattern !== 'all') {
