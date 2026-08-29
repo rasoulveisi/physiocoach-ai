@@ -11,6 +11,7 @@ import { OnboardingPage } from './pages/OnboardingPage';
 import { PlanPage } from './pages/PlanPage';
 import { SessionPage } from './pages/SessionPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ImportPage } from './pages/ImportPage';
 
 function Loading() {
   return (
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
           { path: '/dashboard', element: <DashboardPage /> },
           { path: '/plan', element: <PlanPage /> },
           { path: '/session', element: <SessionPage /> },
+          { path: '/import', element: <ImportPage /> },
           { path: '/settings', element: <SettingsPage /> },
           { path: '/admin', element: <AdminPage /> },
         ],
