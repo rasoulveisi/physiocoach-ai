@@ -22,3 +22,8 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+
+# Local Analysis & Recon (Not for Git)
+docs/lyfta_application_analysis.md
+lyfta_recon/
+
