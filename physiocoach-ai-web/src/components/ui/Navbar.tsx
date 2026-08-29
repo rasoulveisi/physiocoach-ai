@@ -8,8 +8,8 @@ const baseLinks = [
   { to: '/explore', label: 'Explore', icon: Compass },
   { to: '/exercises', label: 'Exercises', icon: Dumbbell },
   { to: '/calculator', label: 'Calculator', icon: Calculator },
-  { to: '/plan', label: 'Workout Plan', icon: CalendarDays },
-  { to: '/session', label: 'Live Tracker', icon: Activity },
+  { to: '/plan', label: 'Plan', icon: CalendarDays },
+  { to: '/session', label: 'Session', icon: Activity },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
