@@ -24,6 +24,7 @@ import {
   HeartPulse,
   Sliders,
   Layers,
+  UploadCloud,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
@@ -703,6 +704,29 @@ export function SettingsPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </SettingSection>
+
+        {/* GROUP 6: Data & Migration */}
+        <SettingSection title="Data & Migration">
+          <div className="p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
+                <UploadCloud className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="text-xs sm:text-sm font-bold text-white block">1-Click Workout Importer</span>
+                <span className="text-[11px] text-zinc-500 block">Migrate routines & history from Hevy, Strong, Lyfta, or CSV</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/import')}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-lime-400/30 bg-lime-400/10 px-3.5 py-1.5 text-xs font-bold text-lime-400 hover:bg-lime-400 hover:text-zinc-950 transition-all shrink-0"
+            >
+              <span>Import</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
           </div>
         </SettingSection>
       </main>

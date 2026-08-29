@@ -10,6 +10,7 @@ import { assessmentsRouter } from './routes/assessments';
 import { authRouter } from './routes/auth';
 import { exerciseCatalogRouter } from './routes/exercise-catalog';
 import { healthRouter } from './routes/health';
+import { importRouter } from './routes/import';
 import { profilesRouter } from './routes/profiles';
 import { workoutPlansRouter } from './routes/workout-plans';
 import { workoutSessionsRouter } from './routes/workout-sessions';
@@ -55,6 +56,7 @@ export function createApp(): TestableExpressApp {
   app.use('/api/v1', workoutPlansRouter);
   app.use('/api/v1', workoutSessionsRouter);
   app.use('/api/v1', exerciseCatalogRouter);
+  app.use('/api/v1', importRouter);
   app.use('/api/v1', adminRouter);
   app.use(errorHandler);
 
