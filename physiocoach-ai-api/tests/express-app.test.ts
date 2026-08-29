@@ -54,5 +54,14 @@ describe('Express API router compatibility', () => {
     );
     expect(response.status).toBe(200);
   });
+
+  it('supports explore plans feed path', async () => {
+    const response = await createApp().fetch(
+      '/api/v1/explore/plans',
+      undefined,
+      localEnv,
+    );
+    expect(response.status).toBe(200);
+  });
 });
 

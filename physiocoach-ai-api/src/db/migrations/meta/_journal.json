@@ -8,6 +8,34 @@
       "when": 1787411517978,
       "tag": "0000_wild_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787999578192,
+      "tag": "0001_cute_xorn",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787999843041,
+      "tag": "0002_glossy_thena",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788000159667,
+      "tag": "0003_slim_magus",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788003164549,
+      "tag": "0004_oval_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }

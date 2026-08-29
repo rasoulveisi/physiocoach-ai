@@ -33,6 +33,7 @@ type RouteMethod = (path: string, handler: RouteHandler) => ExpressRouter;
 export interface ExpressRouter extends RequestHandler {
   get: RouteMethod;
   post: RouteMethod;
+  put: RouteMethod;
   patch: RouteMethod;
   delete: RouteMethod;
 }
@@ -40,7 +41,7 @@ export interface ExpressRouter extends RequestHandler {
 export function createExpressRouter(): ExpressRouter {
   const router = Router() as unknown as ExpressRouter;
 
-  for (const method of ['get', 'post', 'patch', 'delete'] as const) {
+  for (const method of ['get', 'post', 'put', 'patch', 'delete'] as const) {
     const register = Router.prototype[method].bind(router) as (
       path: string,
       handler: (req: Request, res: ExpressResponse, next: NextFunction) => Promise<void>,

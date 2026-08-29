@@ -106,3 +106,51 @@ export async function fetchExerciseDetail(id: string): Promise<ExerciseDetailIte
   const res = await apiClient.get<{ data: ExerciseDetailItem }>(`exercise-catalog/exercises/${encodeURIComponent(id)}`);
   return res.data;
 }
+
+export interface AlternativeMovement {
+  id: string;
+  name: string;
+  targetMuscle: string;
+  shearReductionReason: string;
+  setupCue: string;
+  mediaUrl: string | null;
+}
+
+export interface PainConditionInfo {
+  code: string;
+  displayName: string;
+  bodyRegion: string;
+  biomechanicalCause: string;
+  jointShearRating: 'high' | 'moderate' | 'low';
+}
+
+export interface OriginalExerciseInfo {
+  id: string;
+  name: string;
+  movementPattern: string;
+  target: string;
+  bodyPart: string;
+  mediaUrl: string | null;
+}
+
+export interface SeoMetadata {
+  title: string;
+  metaDescription: string;
+  canonicalUrl: string;
+  schemaJsonLd: Record<string, unknown>;
+}
+
+export interface ExerciseAlternativesData {
+  originalExercise: OriginalExerciseInfo;
+  painCondition: PainConditionInfo;
+  alternatives: AlternativeMovement[];
+  seoMetadata: SeoMetadata;
+}
+
+export async function fetchExerciseAlternatives(slug: string): Promise<ExerciseAlternativesData> {
+  const res = await apiClient.get<{ data: ExerciseAlternativesData }>(
+    `exercise-catalog/alternatives/${encodeURIComponent(slug)}`,
+  );
+  return res.data;
+}
+

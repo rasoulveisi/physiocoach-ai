@@ -71,7 +71,7 @@ export function ExercisePreviewModal({
           {exercise.rpe && (
             <span className="flex items-center gap-1 rounded-lg border border-volt/30 bg-volt/10 px-3 py-1.5 font-mono text-xs font-bold text-volt">
               <Flame className="h-3.5 w-3.5" />
-              RPE {exercise.rpe}
+              Effort: {exercise.rpe}/10
             </span>
           )}
 

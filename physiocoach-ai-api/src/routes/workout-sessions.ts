@@ -2,9 +2,11 @@ import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { createDb } from '../db/client';
-import { exerciseLogs, workoutPlans, workoutSessions } from '../db/schema';
+import { coachMessages, coachPainAlerts, exerciseLogs, workoutPlans, workoutSessions } from '../db/schema';
+import { inMemoryCoachAlerts, inMemoryCoachMessages } from './coach';
 import { createExpressRouter } from './express-adapter';
 import { parseWorkoutPlanRecordOrError } from '../services/workout-generator';
+import { generatePrehabRoutine } from '../services/prehab-generator';
 import { createApiError, handleRouteError, notFound } from '../shared/errors/api';
 import { MovementPatternSchema } from '../types/workout';
 import { getApiRouteContext } from './context';
@@ -75,8 +77,150 @@ export const exerciseLogInputSchema = z
   })
   .strict();
 
+export const prehabGenerateSchema = z
+  .object({
+    exercises: z
+      .array(
+        z.object({
+          name: z.string().min(1),
+          movementPattern: z.string().optional(),
+          muscleGroups: z.array(z.string()).optional(),
+        }),
+      )
+      .default([]),
+    limitations: z.array(z.string()).optional().default([]),
+    sessionId: z.string().optional(),
+  })
+  .strict();
+
+export const recordPainAlertSchema = z
+  .object({
+    sessionId: z.string().optional().nullable(),
+    painScore: z.number().int().min(0).max(10),
+    jointRegion: z.string().optional().nullable(),
+    exerciseName: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  })
+  .strict();
+
+export const workoutSessionCompleteSchema = z
+  .object({
+    painScore: z.number().int().min(0).max(10).optional().nullable(),
+    jointRegion: z.string().optional().nullable(),
+    exerciseName: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    sessionRpe: z.number().min(1).max(10).optional().nullable(),
+    durationSeconds: z.number().optional().nullable(),
+  })
+  .strict();
+
+export async function triggerHighPriorityPainAlert(params: {
+  userId: string;
+  userName?: string | null | undefined;
+  painScore: number;
+  jointRegion?: string | null | undefined;
+  exerciseName?: string | null | undefined;
+  notes?: string | null | undefined;
+  sessionId?: string | null | undefined;
+  db?: DbClient | null | undefined;
+}) {
+  if (params.painScore <= 4) return null;
+
+  const now = new Date().toISOString();
+  const alertId = `alert-${crypto.randomUUID().slice(0, 8)}`;
+  const coachId = '00000000-0000-4000-8000-000000000001';
+  const clientId = params.userId || 'pt-client-001';
+  const clientName = params.userName || 'Patient';
+
+  const alertResult = {
+    id: alertId,
+    coachId,
+    clientId,
+    clientName,
+    painScore: params.painScore,
+    jointRegion: params.jointRegion || 'Joint/Tendon Discomfort',
+    exerciseName: params.exerciseName || null,
+    sessionDate: now.slice(0, 10),
+    status: 'active' as const,
+    clinicalNote: params.notes || null,
+    resolvedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  inMemoryCoachAlerts.set(alertId, alertResult);
+
+  const msgId = `msg-${crypto.randomUUID().slice(0, 8)}`;
+  const alertMessage = {
+    id: msgId,
+    coachId,
+    clientId,
+    senderRole: 'client' as const,
+    senderName: clientName,
+    message: `⚠️ Pain Alert (${params.painScore}/10) reported for ${params.jointRegion || 'joint'}${params.exerciseName ? ` during ${params.exerciseName}` : ''}.${params.notes ? ` Notes: ${params.notes}` : ''}`,
+    isRead: false,
+    isPainAlert: true,
+    painScore: params.painScore,
+    jointRegion: params.jointRegion || null,
+    relatedSessionId: params.sessionId || null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  inMemoryCoachMessages.set(msgId, alertMessage);
+
+  if (params.db) {
+    try {
+      await params.db.insert(coachPainAlerts).values({
+        id: alertId,
+        coachId,
+        clientId,
+        clientName,
+        painScore: alertResult.painScore,
+        jointRegion: alertResult.jointRegion,
+        exerciseName: alertResult.exerciseName,
+        sessionDate: alertResult.sessionDate,
+        status: 'active',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await params.db.insert(coachMessages).values({
+        id: msgId,
+        coachId,
+        clientId,
+        senderRole: 'client',
+        senderName: clientName,
+        message: alertMessage.message,
+        isRead: false,
+        isPainAlert: true,
+        painScore: params.painScore,
+        jointRegion: alertResult.jointRegion,
+        relatedSessionId: params.sessionId || null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (dbErr) {
+      console.warn('workout_sessions.pain_alert.db_error', dbErr);
+    }
+  }
+
+  return alertResult;
+}
+
 export function createWorkoutSessionRoutes() {
   const route = createExpressRouter();
+
+  route.post('/workout-sessions/prehab', async (c) => {
+    try {
+      const parsed = await parseJsonPayload(c, prehabGenerateSchema);
+      if (!parsed.success) return parsed.response;
+
+      const result = generatePrehabRoutine(parsed.data);
+      return c.json(result);
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to generate prehab routine.');
+    }
+  });
 
   route.get('/workout-sessions', async (c) => {
     const statusFilter = c.req.query('status');
@@ -411,12 +555,86 @@ export function createWorkoutSessionRoutes() {
     }
   });
 
+  route.post('/workout-sessions/pain-alert', async (c) => {
+    try {
+      const parsed = await parseJsonPayload(c, recordPainAlertSchema);
+      if (!parsed.success) return parsed.response;
+
+      const { user, db } = getApiRouteContext(c);
+      const alert = await triggerHighPriorityPainAlert({
+        userId: user.id,
+        userName: user.displayName,
+        painScore: parsed.data.painScore,
+        jointRegion: parsed.data.jointRegion,
+        exerciseName: parsed.data.exerciseName,
+        notes: parsed.data.notes,
+        sessionId: parsed.data.sessionId,
+        db,
+      });
+
+      return c.json({
+        success: true,
+        alertTriggered: Boolean(alert),
+        alert,
+        message: alert
+          ? 'High-priority pain alert transmitted directly to your Physical Therapist.'
+          : 'Pain score recorded within safe tolerance.',
+      });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to record pain alert.');
+    }
+  });
+
+  route.post('/workout-sessions/:sessionId/pain-alert', async (c) => {
+    try {
+      const sessionId = c.req.param('sessionId');
+      const parsed = await parseJsonPayload(c, recordPainAlertSchema);
+      if (!parsed.success) return parsed.response;
+
+      const { user, db } = getApiRouteContext(c);
+      const alert = await triggerHighPriorityPainAlert({
+        userId: user.id,
+        userName: user.displayName,
+        painScore: parsed.data.painScore,
+        jointRegion: parsed.data.jointRegion,
+        exerciseName: parsed.data.exerciseName,
+        notes: parsed.data.notes,
+        sessionId,
+        db,
+      });
+
+      return c.json({
+        success: true,
+        alertTriggered: Boolean(alert),
+        alert,
+        message: alert
+          ? 'High-priority pain alert transmitted directly to your Physical Therapist.'
+          : 'Pain score recorded within safe tolerance.',
+      });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to record pain alert.');
+    }
+  });
+
   route.post('/workout-sessions/:sessionId/complete', async (c) => {
     try {
       const { user, db } = getApiRouteContext(c);
       if (!db) return notFound(c, 'Workout session not found.');
 
       const sessionId = c.req.param('sessionId');
+      let painScore: number | null = null;
+      let jointRegion: string | null = null;
+      let notes: string | null = null;
+
+      try {
+        const body = (await c.req.json()) as Record<string, unknown>;
+        if (typeof body?.painScore === 'number') painScore = body.painScore;
+        if (typeof body?.jointRegion === 'string') jointRegion = body.jointRegion;
+        if (typeof body?.notes === 'string') notes = body.notes;
+      } catch {
+        // Body is optional
+      }
+
       const existing = await db
         .select()
         .from(workoutSessions)
@@ -435,6 +653,18 @@ export function createWorkoutSessionRoutes() {
           completedAt,
         })
         .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, user.id)));
+
+      if (painScore !== null && painScore > 4) {
+        await triggerHighPriorityPainAlert({
+          userId: user.id,
+          userName: user.displayName,
+          painScore,
+          jointRegion,
+          notes,
+          sessionId,
+          db,
+        });
+      }
 
       const updated = await db
         .select()

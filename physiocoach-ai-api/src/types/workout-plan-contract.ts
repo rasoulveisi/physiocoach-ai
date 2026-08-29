@@ -76,6 +76,7 @@ export const workoutPlanExerciseSchema = z.object({
   rpe: z.number().min(1).max(10).optional(),
   restSeconds: z.number().int().min(1).default(60),
   notes: z.string().min(1).optional(),
+  customSets: z.array(z.any()).optional(),
 });
 
 export const workoutPlanAiExerciseSchema = workoutPlanExerciseSchema.extend({
@@ -508,6 +509,11 @@ function sanitizeAndRepairRawPlan(plan: unknown): unknown {
 const workoutPlanStrictObjectSchema = z.object({
   schemaVersion: z.literal('1.0'),
   source: z.enum(['ai', 'fallback', 'repaired']).default('ai'),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  scheduleType: z.string().optional(),
+  summary: z.string().optional(),
+  isCustom: z.boolean().optional(),
   days: z.array(workoutPlanDaySchema).min(1),
   progression: workoutPlanProgressionSchema,
   safetyNotes: z.array(z.string().min(1)).default([]),

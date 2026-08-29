@@ -9,9 +9,10 @@ import {
   masterEquipment,
   masterExercises,
 } from '../db/schema';
-import { createExpressRouter } from './express-adapter';
+import { createExpressRouter, type ExpressRouteContext } from './express-adapter';
 import { getApiRouteContext } from './context';
 import { handleRouteError, notFound } from '../shared/errors/api';
+import { resolveExerciseAlternatives } from '../services/exercise-alternatives-resolver';
 
 const PUBLIC_MEDIA_OWNERSHIP_STATUSES = ['owned', 'commissioned', 'generated_approved', 'licensed'];
 
@@ -666,6 +667,24 @@ export function createExerciseCatalogRoutes() {
       return handleRouteError(c, error, 'Failed to load batch exercise catalog media.');
     }
   });
+
+  // 6. GET /exercise-catalog/alternatives/:slug & /exercises/alternatives/:slug
+  const handleAlternatives = async (c: ExpressRouteContext) => {
+    try {
+      const { db } = getApiRouteContext(c);
+      const slug = c.req.param('slug')?.trim();
+      if (!slug) {
+        return notFound(c, 'Slug parameter is required.');
+      }
+      const result = await resolveExerciseAlternatives(db, slug);
+      return c.json({ data: result });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to fetch exercise alternatives.');
+    }
+  };
+
+  route.get('/exercise-catalog/alternatives/:slug', handleAlternatives);
+  route.get('/exercises/alternatives/:slug', handleAlternatives);
 
   return route;
 }

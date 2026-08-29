@@ -22,6 +22,7 @@ import {
   type CatalogFilters,
   type CatalogQueryParams,
 } from '../app/features/exercise-catalog/services/exercise-catalog-api';
+import { usePageMetadata } from '../services/metadata';
 
 export function ExercisesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -57,6 +58,20 @@ export function ExercisesPage() {
   };
 
   const [searchInput, setSearchInput] = useState<string>(queryParams.q || '');
+
+  usePageMetadata(
+    {
+      title: selectedExercise
+        ? `${selectedExercise.name} · Exercise Library & Biomechanics`
+        : 'Exercise Library · Biomechanical & Joint-Safe Movement Catalog',
+      description: selectedExercise
+        ? `Form cues, targeted muscle (${selectedExercise.primaryMuscle}), body region (${selectedExercise.bodyPart}), joint safety rating, and clinical contraindications for ${selectedExercise.name}.`
+        : 'Explore hundreds of verified exercises with anatomical muscle targeting, form cues, joint shear ratings, and clinical contraindications.',
+      canonicalUrl: 'https://physiocoach.ai/exercises',
+      ogType: 'website',
+    },
+    [selectedExercise],
+  );
 
   // Load available filters on mount
   useEffect(() => {

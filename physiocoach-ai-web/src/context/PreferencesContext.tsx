@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 export type UnitSystem = 'metric' | 'imperial';
 
@@ -9,6 +9,10 @@ export interface PreferencesState {
   setDefaultRestSeconds: (seconds: number) => void;
   soundEnabled: boolean;
   setSoundEnabled: (enabled: boolean) => void;
+  voiceCuesEnabled: boolean;
+  setVoiceCuesEnabled: (enabled: boolean) => void;
+  hapticsEnabled: boolean;
+  setHapticsEnabled: (enabled: boolean) => void;
   autoStartRestTimer: boolean;
   setAutoStartRestTimer: (autoStart: boolean) => void;
   formatWeight: (weightKg: number) => { value: number; label: string; unit: string };
@@ -19,6 +23,8 @@ const STORAGE_KEYS = {
   UNIT_SYSTEM: 'pc_unit_system',
   REST_SECONDS: 'pc_rest_timer_seconds',
   SOUND_ENABLED: 'pc_sound_enabled',
+  VOICE_CUES_ENABLED: 'pc_voice_cues_enabled',
+  HAPTICS_ENABLED: 'pc_haptics_enabled',
   AUTO_START_TIMER: 'pc_auto_start_timer',
 };
 
@@ -36,6 +42,16 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   const [soundEnabled, setSoundEnabledState] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SOUND_ENABLED);
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const [voiceCuesEnabled, setVoiceCuesEnabledState] = useState<boolean>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.VOICE_CUES_ENABLED);
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const [hapticsEnabled, setHapticsEnabledState] = useState<boolean>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.HAPTICS_ENABLED);
     return saved !== null ? saved === 'true' : true;
   });
 
@@ -57,6 +73,16 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const setSoundEnabled = (enabled: boolean) => {
     setSoundEnabledState(enabled);
     localStorage.setItem(STORAGE_KEYS.SOUND_ENABLED, String(enabled));
+  };
+
+  const setVoiceCuesEnabled = (enabled: boolean) => {
+    setVoiceCuesEnabledState(enabled);
+    localStorage.setItem(STORAGE_KEYS.VOICE_CUES_ENABLED, String(enabled));
+  };
+
+  const setHapticsEnabled = (enabled: boolean) => {
+    setHapticsEnabledState(enabled);
+    localStorage.setItem(STORAGE_KEYS.HAPTICS_ENABLED, String(enabled));
   };
 
   const setAutoStartRestTimer = (autoStart: boolean) => {
@@ -89,6 +115,10 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         setDefaultRestSeconds,
         soundEnabled,
         setSoundEnabled,
+        voiceCuesEnabled,
+        setVoiceCuesEnabled,
+        hapticsEnabled,
+        setHapticsEnabled,
         autoStartRestTimer,
         setAutoStartRestTimer,
         formatWeight,

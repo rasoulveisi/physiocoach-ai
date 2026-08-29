@@ -1,21 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, FastForward, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, FastForward, Volume2, VolumeX, Mic, MicOff } from 'lucide-react';
 import { Button } from './Button';
 import { soundCueService } from '../../services/sound-cue-service';
 import { usePreferences } from '../../context/PreferencesContext';
 
 export interface RestTimerHUDProps {
   initialSeconds?: number;
+  nextExerciseName?: string;
   onFinished?(): void;
   autoStart?: boolean;
 }
 
 export function RestTimerHUD({
   initialSeconds = 90,
+  nextExerciseName,
   onFinished,
   autoStart = false,
 }: RestTimerHUDProps) {
-  const { soundEnabled, setSoundEnabled } = usePreferences();
+  const { soundEnabled, setSoundEnabled, voiceCuesEnabled, setVoiceCuesEnabled, hapticsEnabled } =
+    usePreferences();
   const [totalSeconds, setTotalSeconds] = useState(initialSeconds);
   const [remainingSeconds, setRemainingSeconds] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(autoStart);
@@ -45,9 +48,22 @@ export function RestTimerHUD({
 
           if (!finishedFiredRef.current) {
             finishedFiredRef.current = true;
+
+            // 1. Web Audio Chime
             if (soundEnabled) {
               soundCueService.playTimerCompleteChime();
             }
+
+            // 2. Web Speech API Voice Announcement
+            if (voiceCuesEnabled) {
+              soundCueService.announceRestComplete(nextExerciseName);
+            }
+
+            // 3. Mobile Haptic Vibration
+            if (hapticsEnabled) {
+              soundCueService.triggerHaptic('complete');
+            }
+
             if (onFinished) {
               onFinished();
             }
@@ -59,7 +75,7 @@ export function RestTimerHUD({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isRunning, soundEnabled, onFinished]);
+  }, [isRunning, soundEnabled, voiceCuesEnabled, hapticsEnabled, nextExerciseName, onFinished]);
 
   const handleTogglePlay = () => {
     if (remainingSeconds === 0) {
@@ -88,7 +104,13 @@ export function RestTimerHUD({
     setIsRunning(false);
     setRemainingSeconds(0);
     setIsFinished(true);
-    if (onFinished) onFinished();
+    if (!finishedFiredRef.current) {
+      finishedFiredRef.current = true;
+      if (hapticsEnabled) {
+        soundCueService.triggerHaptic('light');
+      }
+      if (onFinished) onFinished();
+    }
   };
 
   const minutes = Math.floor(remainingSeconds / 60);
@@ -106,7 +128,7 @@ export function RestTimerHUD({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(163,230,53,0.06)_0%,transparent_70%)]" />
       )}
 
-      {/* Top Row: Timer Display + Sound Toggle */}
+      {/* Top Row: Timer Display + Sound & Voice Toggles */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3.5 sm:gap-4">
           <div className="relative size-16 sm:size-20 shrink-0">
@@ -151,23 +173,42 @@ export function RestTimerHUD({
             <h4 className="font-mono text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
               {timeDisplay}
             </h4>
-            <p className="text-[11px] sm:text-xs text-zinc-400">Recovery before next set</p>
+            <p className="text-[11px] sm:text-xs text-zinc-400">
+              {nextExerciseName ? `Up next: ${nextExerciseName}` : 'Recovery before next set'}
+            </p>
           </div>
         </div>
 
-        {/* Sound toggle on top right */}
-        <button
-          type="button"
-          onClick={() => setSoundEnabled(!soundEnabled)}
-          className={`grid size-9 shrink-0 place-items-center rounded-xl border transition-colors ${
-            soundEnabled
-              ? 'border-lime-400/40 bg-lime-400/10 text-lime-400'
-              : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-white'
-          }`}
-          title={soundEnabled ? 'Timer sound alert ON' : 'Timer sound alert MUTED'}
-        >
-          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-        </button>
+        {/* Audio & Voice Cues Toggle Strip */}
+        <div className="flex items-center gap-1.5">
+          {/* Voice Speech Toggle */}
+          <button
+            type="button"
+            onClick={() => setVoiceCuesEnabled(!voiceCuesEnabled)}
+            className={`grid size-9 shrink-0 place-items-center rounded-xl border transition-colors ${
+              voiceCuesEnabled
+                ? 'border-lime-400/40 bg-lime-400/10 text-lime-400'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-white'
+            }`}
+            title={voiceCuesEnabled ? 'Voice coach announcement ON' : 'Voice coach announcement OFF'}
+          >
+            {voiceCuesEnabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+          </button>
+
+          {/* Chime Sound Toggle */}
+          <button
+            type="button"
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`grid size-9 shrink-0 place-items-center rounded-xl border transition-colors ${
+              soundEnabled
+                ? 'border-lime-400/40 bg-lime-400/10 text-lime-400'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-white'
+            }`}
+            title={soundEnabled ? 'Timer audio chime ON' : 'Timer audio chime MUTED'}
+          >
+            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
       {/* Bottom Controls Strip: Clean 4-column responsive grid */}

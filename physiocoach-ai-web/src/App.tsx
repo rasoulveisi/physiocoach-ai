@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import { DesktopNavbar, MobileNavbar } from './components/ui/Navbar';
+import { PageLoadingFallback } from './components/ui/PageLoadingFallback';
 import { useAuth } from './context/AuthContext';
 
 export function App() {
@@ -13,7 +15,9 @@ export function App() {
 
       {/* Main Page Viewport Container */}
       <main className="flex-1 flex flex-col min-h-0 w-full overflow-hidden relative">
-        <Outlet />
+        <Suspense fallback={<PageLoadingFallback />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
@@ -25,3 +29,4 @@ export function App() {
 }
 
 export default App;
+

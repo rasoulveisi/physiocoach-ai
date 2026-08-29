@@ -8,10 +8,13 @@ import { errorHandler } from './middleware/error';
 import { adminRouter } from './routes/admin';
 import { assessmentsRouter } from './routes/assessments';
 import { authRouter } from './routes/auth';
+import { coachRouter } from './routes/coach';
 import { exerciseCatalogRouter } from './routes/exercise-catalog';
+import { exploreRouter } from './routes/explore';
 import { healthRouter } from './routes/health';
 import { importRouter } from './routes/import';
 import { profilesRouter } from './routes/profiles';
+import { sitemapRouter } from './routes/sitemap';
 import { workoutPlansRouter } from './routes/workout-plans';
 import { workoutSessionsRouter } from './routes/workout-sessions';
 
@@ -35,6 +38,8 @@ export function createApp(): TestableExpressApp {
   });
 
   app.use(authMiddleware);
+  app.use(sitemapRouter);
+  app.use(coachRouter);
   app.use('/api/v1', (req, _res, next) => {
     const aliases: Record<string, string> = {
       '/profiles': '/profile',
@@ -49,16 +54,20 @@ export function createApp(): TestableExpressApp {
     if (target) req.url = `${target}${query}`;
     next();
   });
+  app.use('/api/v1', sitemapRouter);
   app.use('/api/v1', healthRouter);
   app.use('/api/v1', authRouter);
   app.use('/api/v1', profilesRouter);
   app.use('/api/v1', assessmentsRouter);
   app.use('/api/v1', workoutPlansRouter);
+  app.use('/api/v1', exploreRouter);
   app.use('/api/v1', workoutSessionsRouter);
   app.use('/api/v1', exerciseCatalogRouter);
   app.use('/api/v1', importRouter);
   app.use('/api/v1', adminRouter);
+  app.use('/api/v1', coachRouter);
   app.use(errorHandler);
+
 
   const testableApp = app as unknown as TestableExpressApp;
   testableApp.fetch = async (input, init, bindings) => {

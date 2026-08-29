@@ -53,7 +53,7 @@ export function ExerciseVisual({
   if (compact) {
     return (
       <div
-        className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-white p-1 ${className}`}
+        className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-zinc-900/60 p-1 ${className}`}
       >
         <img
           src={currentSrc}
@@ -76,9 +76,9 @@ export function ExerciseVisual({
 
   return (
     <div
-      className={`relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-zinc-800 bg-white p-2 sm:p-3 ${className}`}
+      className={`relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-2 sm:p-3 ${className}`}
     >
-      <div className="relative flex aspect-square sm:aspect-video w-full max-w-sm items-center justify-center overflow-hidden rounded-xl bg-white">
+      <div className="relative flex aspect-square sm:aspect-video w-full max-w-sm items-center justify-center overflow-hidden rounded-xl bg-zinc-950/40">
         {!loaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-lime-400 border-r-transparent" />

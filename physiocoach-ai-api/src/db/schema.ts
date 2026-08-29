@@ -443,3 +443,164 @@ export const aiAuditLogs = pgTable(
     index('ai_audit_logs_user_id_idx').on(table.userId),
   ],
 );
+
+export const coachProfiles = pgTable(
+  'coach_profiles',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    clinicName: text('clinic_name'),
+    specialty: text('specialty'),
+    licenseNumber: text('license_number'),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('coach_profiles_user_id_unique').on(table.userId)],
+);
+
+export const coachClients = pgTable(
+  'coach_clients',
+  {
+    id: text('id').primaryKey(),
+    coachId: text('coach_id').notNull(),
+    clientUserId: text('client_user_id'),
+    clientEmail: text('client_email').notNull(),
+    clientName: text('client_name').notNull(),
+    injuryDiagnosis: text('injury_diagnosis').notNull(),
+    dischargeDate: text('discharge_date'),
+    status: text('status').notNull().default('active'),
+    complianceScore: real('compliance_score').notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    index('coach_clients_coach_id_idx').on(table.coachId),
+    index('coach_clients_client_user_id_idx').on(table.clientUserId),
+  ],
+);
+
+export const coachAssignedPlans = pgTable(
+  'coach_assigned_plans',
+  {
+    id: text('id').primaryKey(),
+    coachId: text('coach_id').notNull(),
+    clientUserId: text('client_user_id'),
+    workoutPlanId: text('workout_plan_id').notNull(),
+    clinicalNotes: text('clinical_notes'),
+    assignedAt: text('assigned_at').notNull(),
+    status: text('status').notNull().default('active'),
+  },
+  (table) => [
+    index('coach_assigned_plans_coach_idx').on(table.coachId),
+    index('coach_assigned_plans_client_idx').on(table.clientUserId),
+  ],
+);
+
+export const coachSeatLicenses = pgTable(
+  'coach_seat_licenses',
+  {
+    id: text('id').primaryKey(),
+    coachId: text('coach_id').notNull(),
+    tier: text('tier').notNull(),
+    totalSeats: integer('total_seats').notNull(),
+    usedSeats: integer('used_seats').notNull().default(0),
+    inviteCode: text('invite_code'),
+    stripeCheckoutSessionId: text('stripe_checkout_session_id'),
+    status: text('status').notNull().default('active'),
+    ...timestamps,
+  },
+  (table) => [
+    index('coach_seat_licenses_coach_id_idx').on(table.coachId),
+  ],
+);
+
+export const coachClientInvites = pgTable(
+  'coach_client_invites',
+  {
+    id: text('id').primaryKey(),
+    licenseId: text('license_id').references(() => coachSeatLicenses.id),
+    coachId: text('coach_id').notNull(),
+    clientEmail: text('client_email').notNull(),
+    clientName: text('client_name').notNull(),
+    inviteToken: text('invite_token').notNull(),
+    status: text('status').notNull().default('pending'),
+    redeemedAt: text('redeemed_at'),
+    redeemedUserId: text('redeemed_user_id'),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('coach_client_invites_invite_token_unique').on(table.inviteToken),
+    index('coach_client_invites_coach_id_idx').on(table.coachId),
+    index('coach_client_invites_license_id_idx').on(table.licenseId),
+  ],
+);
+
+export const coachMessages = pgTable(
+  'coach_messages',
+  {
+    id: text('id').primaryKey(),
+    coachId: text('coach_id').notNull(),
+    clientId: text('client_id').notNull(),
+    senderRole: text('sender_role').notNull(),
+    senderName: text('sender_name').notNull(),
+    message: text('message').notNull(),
+    isRead: boolean('is_read').notNull().default(false),
+    isPainAlert: boolean('is_pain_alert').notNull().default(false),
+    painScore: integer('pain_score'),
+    jointRegion: text('joint_region'),
+    relatedSessionId: text('related_session_id'),
+    ...timestamps,
+  },
+  (table) => [
+    index('coach_messages_coach_id_idx').on(table.coachId),
+    index('coach_messages_client_id_idx').on(table.clientId),
+    index('coach_messages_created_at_idx').on(table.createdAt),
+  ],
+);
+
+export const coachPainAlerts = pgTable(
+  'coach_pain_alerts',
+  {
+    id: text('id').primaryKey(),
+    coachId: text('coach_id').notNull(),
+    clientId: text('client_id').notNull(),
+    clientName: text('client_name').notNull(),
+    painScore: integer('pain_score').notNull(),
+    jointRegion: text('joint_region').notNull(),
+    exerciseName: text('exercise_name'),
+    sessionDate: text('session_date').notNull(),
+    status: text('status').notNull().default('active'),
+    clinicalNote: text('clinical_note'),
+    resolvedAt: text('resolved_at'),
+    ...timestamps,
+  },
+  (table) => [
+    index('coach_pain_alerts_coach_id_idx').on(table.coachId),
+    index('coach_pain_alerts_client_id_idx').on(table.clientId),
+    index('coach_pain_alerts_status_idx').on(table.status),
+  ],
+);
+
+export const workoutPlanRatings = pgTable(
+  'workout_plan_ratings',
+  {
+    id: text('id').primaryKey(),
+    workoutPlanId: text('workout_plan_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    rating: integer('rating').notNull(),
+    review: text('review'),
+    ...timestamps,
+  },
+  (table) => [
+    index('workout_plan_ratings_plan_idx').on(table.workoutPlanId),
+    index('workout_plan_ratings_user_idx').on(table.userId),
+    uniqueIndex('workout_plan_ratings_plan_user_unique').on(
+      table.workoutPlanId,
+      table.userId,
+    ),
+  ],
+);
+
+

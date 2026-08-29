@@ -137,8 +137,9 @@ export function AdminPage() {
   }, [exercises]);
 
   return (
-    <main className="mx-auto max-w-7xl p-4 pb-32 sm:p-6 lg:p-8 space-y-6">
-      {/* Header */}
+    <div className="flex h-full w-full flex-col overflow-hidden bg-obsidian-950 text-white">
+      <main className="flex-1 overflow-y-auto min-h-0 w-full max-w-[1600px] mx-auto p-4 pb-32 sm:p-6 lg:p-8 space-y-6">
+        {/* Header */}
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-obsidian-800 pb-5">
         <div>
           <span className="font-mono text-xs font-bold uppercase tracking-widest text-volt">
@@ -542,5 +543,6 @@ export function AdminPage() {
         </div>
       )}
     </main>
-  );
+  </div>
+);
 }

@@ -128,8 +128,8 @@ export function ImportPage() {
     ) ?? 0;
 
   return (
-    <div className="h-full overflow-y-auto bg-zinc-950 p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <div className="flex h-full w-full overflow-hidden bg-zinc-950 text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950">
+      <main className="flex-1 overflow-y-auto min-h-0 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-8">
         {/* Page Header */}
         <div className="flex flex-col gap-2">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-lime-400">
@@ -370,7 +370,7 @@ export function ImportPage() {
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

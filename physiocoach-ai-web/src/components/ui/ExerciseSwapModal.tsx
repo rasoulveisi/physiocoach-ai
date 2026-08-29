@@ -126,7 +126,7 @@ export function ExerciseSwapModal({
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="size-14 shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-white p-1 flex items-center justify-center">
+                    <div className="size-14 shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 p-1 flex items-center justify-center">
                       <ExerciseVisual
                         name={item.name}
                         masterExerciseId={item.masterExerciseId}

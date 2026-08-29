@@ -320,13 +320,13 @@ export function SettingsPage() {
   }
 
   return (
-    <form onSubmit={handleSave} className="h-full w-full max-w-2xl mx-auto flex flex-col overflow-hidden text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950">
+    <form onSubmit={handleSave} className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950">
       {notice && (
         <Toast type={notice.type} message={notice.text} onClose={() => setNotice(null)} />
       )}
 
       {/* 1. Athlete Header Card (shrink-0) */}
-      <header className="shrink-0 p-4 sm:p-6 pb-2">
+      <header className="shrink-0 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:px-8 pb-2">
         <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5 shadow-xl">
           <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-lime-400/10 blur-3xl" />
 
@@ -351,409 +351,354 @@ export function SettingsPage() {
       </header>
 
       {/* 2. Scrollable Grouped Settings List Items (flex-1) */}
-      <main className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-2 space-y-6 pb-6">
-        {/* GROUP 1: Athlete Biometrics */}
-        <SettingSection title="Athlete Profile & Biometrics">
-          <SettingInputRow
-            icon={User}
-            label="Display Name"
-            value={profile.displayName || ''}
-            onChange={(val) => setProfile((p) => ({ ...p, displayName: val }))}
-            placeholder="Athlete Name"
-          />
+      <main className="flex-1 overflow-y-auto min-h-0 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-2 pb-6 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Left Column: Biometrics, Lifestyle, Appearance & Data */}
+          <div className="space-y-6">
+            {/* GROUP 1: Athlete Biometrics */}
+            <SettingSection title="Athlete Profile & Biometrics">
+              <SettingInputRow
+                icon={User}
+                label="Display Name"
+                value={profile.displayName || ''}
+                onChange={(val) => setProfile((p) => ({ ...p, displayName: val }))}
+                placeholder="Athlete Name"
+              />
 
-          <SettingInputRow
-            icon={Mail}
-            label="Email Address"
-            type="email"
-            value={profile.email || ''}
-            onChange={(val) => setProfile((p) => ({ ...p, email: val }))}
-            placeholder="name@example.com"
-          />
+              <SettingInputRow
+                icon={Mail}
+                label="Email Address"
+                type="email"
+                value={profile.email || ''}
+                onChange={(val) => setProfile((p) => ({ ...p, email: val }))}
+                placeholder="name@example.com"
+              />
 
-          <SettingInputRow
-            icon={Calendar}
-            label="Age"
-            type="number"
-            min="13"
-            max="100"
-            value={profile.age || ''}
-            onChange={(val) => setProfile((p) => ({ ...p, age: Number(val) }))}
-            suffix="years"
-          />
+              <SettingInputRow
+                icon={Calendar}
+                label="Age"
+                type="number"
+                min="13"
+                max="100"
+                value={profile.age || ''}
+                onChange={(val) => setProfile((p) => ({ ...p, age: Number(val) }))}
+                suffix="years"
+              />
 
-          <SettingInputRow
-            icon={Ruler}
-            label="Height"
-            type="number"
-            min="100"
-            max="250"
-            value={profile.heightCm || ''}
-            onChange={(val) => setProfile((p) => ({ ...p, heightCm: Number(val) }))}
-            suffix={unitSystem === 'metric' ? 'cm' : 'in'}
-          />
+              <SettingInputRow
+                icon={Ruler}
+                label="Height"
+                type="number"
+                min="100"
+                max="250"
+                value={profile.heightCm || ''}
+                onChange={(val) => setProfile((p) => ({ ...p, heightCm: Number(val) }))}
+                suffix={unitSystem === 'metric' ? 'cm' : 'in'}
+              />
 
-          <SettingInputRow
-            icon={Weight}
-            label="Weight"
-            type="number"
-            min="30"
-            max="300"
-            value={profile.weightKg || ''}
-            onChange={(val) => setProfile((p) => ({ ...p, weightKg: Number(val) }))}
-            suffix={unitSystem === 'metric' ? 'kg' : 'lb'}
-          />
+              <SettingInputRow
+                icon={Weight}
+                label="Weight"
+                type="number"
+                min="30"
+                max="300"
+                value={profile.weightKg || ''}
+                onChange={(val) => setProfile((p) => ({ ...p, weightKg: Number(val) }))}
+                suffix={unitSystem === 'metric' ? 'kg' : 'lbs'}
+              />
 
-          {bmi && (
-            <div className="flex items-center justify-between p-4 bg-zinc-950/40">
-              <div className="flex items-center gap-3.5">
-                <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                  <HeartPulse className="h-4 w-4" />
+              {/* BMI Telemetry Capsule */}
+              {bmi && bmiCategory && (
+                <div className="p-4 flex items-center justify-between border-t border-zinc-800/80 bg-zinc-950/40">
+                  <div className="flex items-center gap-3">
+                    <div className="grid size-8 place-items-center rounded-lg bg-zinc-900 text-lime-400">
+                      <HeartPulse className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-zinc-300 block">Body Mass Index (BMI)</span>
+                      <span className="text-[10px] text-zinc-500 font-mono">{bmiCategory.label}</span>
+                    </div>
+                  </div>
+                  <span className={`font-mono text-sm font-black ${bmiCategory.color}`}>
+                    {bmi}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-bold text-white">Body Mass Index (BMI)</p>
-                  {bmiCategory && (
-                    <p className={`text-[11px] font-bold ${bmiCategory.color}`}>
-                      {bmiCategory.label}
-                    </p>
-                  )}
+              )}
+            </SettingSection>
+
+            {/* GROUP 2: Lifestyle & Activity */}
+            <SettingSection title="Training Lifestyle & Activity Level">
+              <div className="p-4 space-y-2.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
+                    <Activity className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-white">Daily Occupational Activity</span>
                 </div>
-              </div>
-              <span className="font-mono text-sm sm:text-base font-black text-lime-400">
-                {bmi} <span className="text-[10px] text-zinc-500 font-sans font-bold">kg/m²</span>
-              </span>
-            </div>
-          )}
-        </SettingSection>
-
-        {/* GROUP 2: Training Calibration */}
-        <SettingSection title="Training Calibration & Lifestyle">
-          {/* Biological Sex Row */}
-          <div className="p-4 space-y-2.5">
-            <div className="flex items-center gap-3.5">
-              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                <UserCheck className="h-4 w-4" />
-              </div>
-              <span className="text-xs sm:text-sm font-bold text-white">Biological Sex</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 pt-0.5">
-              {[
-                { key: 'male', label: 'Male' },
-                { key: 'female', label: 'Female' },
-                { key: 'prefer_not_to_say', label: 'Other' },
-              ].map((s) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => setProfile((p) => ({ ...p, sex: s.key }))}
-                  className={`rounded-2xl border p-2.5 text-xs font-bold transition-all ${
-                    profile.sex === s.key
-                      ? 'border-lime-400 bg-lime-400/10 text-lime-400 font-black shadow-sm'
-                      : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Experience Level Row */}
-          <div className="p-4 space-y-2.5">
-            <div className="flex items-center gap-3.5">
-              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                <Flame className="h-4 w-4" />
-              </div>
-              <span className="text-xs sm:text-sm font-bold text-white">Experience Level</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 pt-0.5">
-              {[
-                { key: 'beginner', label: 'Beginner', desc: '0–1 yr' },
-                { key: 'intermediate', label: 'Intermediate', desc: '1–3 yrs' },
-                { key: 'advanced', label: 'Advanced', desc: '3+ yrs' },
-              ].map((lvl) => (
-                <button
-                  key={lvl.key}
-                  type="button"
-                  onClick={() => setProfile((p) => ({ ...p, experienceLevel: lvl.key }))}
-                  className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all ${
-                    profile.experienceLevel === lvl.key
-                      ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
-                      : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xs font-extrabold">{lvl.label}</span>
-                  <span className="text-[10px] font-mono text-zinc-500">{lvl.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Daily Lifestyle Row */}
-          <div className="p-4 space-y-2.5">
-            <div className="flex items-center gap-3.5">
-              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                <Activity className="h-4 w-4" />
-              </div>
-              <span className="text-xs sm:text-sm font-bold text-white">Daily Lifestyle</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 pt-0.5">
-              {[
-                { key: 'desk_job', label: 'Desk Job', desc: 'Sedentary' },
-                { key: 'standing_job', label: 'Standing', desc: 'Moderate' },
-                { key: 'active', label: 'Athletic', desc: 'Active' },
-              ].map((act) => (
-                <button
-                  key={act.key}
-                  type="button"
-                  onClick={() => setProfile((p) => ({ ...p, lifestyle: act.key }))}
-                  className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all ${
-                    profile.lifestyle === act.key
-                      ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
-                      : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xs font-extrabold">{act.label}</span>
-                  <span className="text-[10px] font-mono text-zinc-500">{act.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </SettingSection>
-
-        {/* GROUP 3: Equipment Inventory */}
-        <SettingSection title="Gym Equipment Inventory">
-          <div className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                  <Dumbbell className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-bold text-white">Available Equipment</p>
-                  <p className="text-[11px] text-zinc-400">{gear.length} of {EQUIPMENT_CATALOG.length} configured</p>
-                </div>
-              </div>
-              <Badge variant="lime" className="text-[10px]">
-                {gear.length} ACTIVE
-              </Badge>
-            </div>
-
-            {/* Quick Preset Buttons */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <button
-                type="button"
-                onClick={() => applyPresetGear('full')}
-                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
-              >
-                Commercial Gym
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPresetGear('dumbbells')}
-                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
-              >
-                Dumbbells Only
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPresetGear('bodyweight')}
-                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
-              >
-                Bodyweight
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPresetGear('all')}
-                className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
-              >
-                Select All
-              </button>
-            </div>
-
-            {/* Equipment Grid Items */}
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              {EQUIPMENT_CATALOG.map((item) => {
-                const active = gear.includes(item);
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => toggleEquipment(item)}
-                    className={`flex items-center justify-between rounded-2xl border p-3 text-left transition-all ${
-                      active
-                        ? 'border-lime-400 bg-lime-400/10 text-white font-bold shadow-sm'
-                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-white'
-                    }`}
-                  >
-                    <span className="truncate text-xs">{item}</span>
-                    <div
-                      className={`size-4 rounded-md border flex items-center justify-center shrink-0 ml-1.5 ${
-                        active ? 'border-lime-400 bg-lime-400 text-zinc-950' : 'border-zinc-700 bg-zinc-900'
+                <div className="grid grid-cols-3 gap-2 pt-0.5">
+                  {[
+                    { key: 'desk_job', label: 'Desk Job', desc: 'Sedentary' },
+                    { key: 'standing_job', label: 'Standing', desc: 'Moderate' },
+                    { key: 'active', label: 'Athletic', desc: 'Active' },
+                  ].map((act) => (
+                    <button
+                      key={act.key}
+                      type="button"
+                      onClick={() => setProfile((p) => ({ ...p, lifestyle: act.key }))}
+                      className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all ${
+                        profile.lifestyle === act.key
+                          ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
                       }`}
                     >
-                      {active && <Check className="h-3 w-3 stroke-[3]" />}
+                      <span className="text-xs font-extrabold">{act.label}</span>
+                      <span className="text-[10px] font-mono text-zinc-500">{act.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </SettingSection>
+
+            {/* GROUP 5: Appearance & Theme */}
+            <SettingSection title="Appearance & Display">
+              <div className="p-4 space-y-2.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
+                    {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-white">Display Theme</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  {(['dark', 'light'] as const).map((mode) => (
+                    <button
+                      type="button"
+                      key={mode}
+                      onClick={() => setTheme(mode)}
+                      className={`flex items-center justify-center gap-2.5 rounded-2xl border p-3 font-bold capitalize transition-all ${
+                        theme === mode
+                          ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {mode === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                      <span className="text-xs">{mode === 'dark' ? 'Dark Obsidian' : 'Light Titanium'}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </SettingSection>
+
+            {/* GROUP 6: Data & Migration */}
+            <SettingSection title="Data & Migration">
+              <div className="p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
+                    <UploadCloud className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs sm:text-sm font-bold text-white block">1-Click Workout Importer</span>
+                    <span className="text-[11px] text-zinc-500 block">Migrate routines & history from Hevy, Strong, Lyfta, or CSV</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/import')}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-lime-400/30 bg-lime-400/10 px-3.5 py-1.5 text-xs font-bold text-lime-400 hover:bg-lime-400 hover:text-zinc-950 transition-all shrink-0"
+                >
+                  <span>Import</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </SettingSection>
+          </div>
+
+          {/* Right Column: Gym Equipment & Rest Timer Preferences */}
+          <div className="space-y-6">
+            {/* GROUP 3: Equipment Inventory */}
+            <SettingSection title="Gym Equipment Inventory">
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3.5">
+                    <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
+                      <Dumbbell className="h-4 w-4" />
                     </div>
+                    <div>
+                      <p className="text-xs sm:text-sm font-bold text-white">Available Equipment</p>
+                      <p className="text-[11px] text-zinc-400">{gear.length} of {EQUIPMENT_CATALOG.length} configured</p>
+                    </div>
+                  </div>
+                  <Badge variant="lime" className="text-[10px]">
+                    {gear.length} ACTIVE
+                  </Badge>
+                </div>
+
+                {/* Quick Preset Buttons */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => applyPresetGear('full')}
+                    className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+                  >
+                    Commercial Gym
                   </button>
-                );
-              })}
-            </div>
-          </div>
-        </SettingSection>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetGear('dumbbells')}
+                    className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+                  >
+                    Dumbbells Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetGear('bodyweight')}
+                    className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+                  >
+                    Bodyweight
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetGear('all')}
+                    className="rounded-xl border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:border-lime-400 hover:text-lime-400 transition-colors"
+                  >
+                    Select All
+                  </button>
+                </div>
 
-        {/* GROUP 4: Workout & Rest Timer Preferences */}
-        <SettingSection title="Workout & Rest Timer Preferences">
-          {/* Measurement System Row */}
-          <div className="p-4 space-y-2.5">
-            <div className="flex items-center gap-3.5">
-              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                <Scale className="h-4 w-4" />
+                {/* Equipment Grid Items */}
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  {EQUIPMENT_CATALOG.map((item) => {
+                    const active = gear.includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => toggleEquipment(item)}
+                        className={`flex items-center justify-between rounded-2xl border p-3 text-left transition-all ${
+                          active
+                            ? 'border-lime-400 bg-lime-400/10 text-white font-bold shadow-sm'
+                            : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-white'
+                        }`}
+                      >
+                        <span className="truncate text-xs">{item}</span>
+                        <div
+                          className={`size-4 rounded-md border flex items-center justify-center shrink-0 ml-1.5 ${
+                            active ? 'border-lime-400 bg-lime-400 text-zinc-950' : 'border-zinc-700 bg-zinc-900'
+                          }`}
+                        >
+                          {active && <Check className="h-3 w-3 stroke-[3]" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <span className="text-xs sm:text-sm font-bold text-white">Measurement System</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 pt-0.5">
-              {[
-                { key: 'metric' as UnitSystem, label: 'Metric (kg · cm)', desc: 'Kilograms & Centimeters' },
-                { key: 'imperial' as UnitSystem, label: 'Imperial (lbs · in)', desc: 'Pounds & Inches' },
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setUnitSystem(item.key)}
-                  className={`flex flex-col rounded-2xl border p-3 text-left transition-all ${
-                    unitSystem === item.key
-                      ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
-                      : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xs font-black text-white">{item.label}</span>
-                  <span className="text-[10px] text-zinc-500">{item.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+            </SettingSection>
 
-          {/* Default Rest Duration Row */}
-          <div className="p-4 space-y-2.5">
-            <div className="flex items-center gap-3.5">
-              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                <Timer className="h-4 w-4" />
+            {/* GROUP 4: Workout & Rest Timer Preferences */}
+            <SettingSection title="Workout & Rest Timer Preferences">
+              {/* Measurement System Row */}
+              <div className="p-4 space-y-2.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
+                    <Scale className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-white">Measurement System</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  {[
+                    { key: 'metric' as UnitSystem, label: 'Metric (kg · cm)', desc: 'Kilograms & Centimeters' },
+                    { key: 'imperial' as UnitSystem, label: 'Imperial (lbs · in)', desc: 'Pounds & Inches' },
+                  ].map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setUnitSystem(item.key)}
+                      className={`flex flex-col rounded-2xl border p-3 text-left transition-all ${
+                        unitSystem === item.key
+                          ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-xs font-black text-white">{item.label}</span>
+                      <span className="text-[10px] text-zinc-500">{item.desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <span className="text-xs sm:text-sm font-bold text-white">Default Rest Duration</span>
-            </div>
-            <div className="grid grid-cols-4 gap-2 pt-0.5">
-              {[60, 90, 120, 180].map((secs) => (
-                <button
-                  key={secs}
-                  type="button"
-                  onClick={() => setDefaultRestSeconds(secs)}
-                  className={`rounded-2xl border p-2.5 font-mono text-xs sm:text-sm font-black transition-all ${
-                    defaultRestSeconds === secs
-                      ? 'border-lime-400 bg-lime-400 text-zinc-950 shadow-md scale-[1.02]'
-                      : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {secs}s
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Sound Effect Toggle Row */}
-          <SettingToggleRow
-            icon={soundEnabled ? Volume2 : VolumeX}
-            label="Timer Audio Cues"
-            description="Play athletic chime sound on set and rest completion"
-            checked={soundEnabled}
-            onChange={setSoundEnabled}
-          />
-
-          {/* Auto-Start Rest Clock Row */}
-          <SettingToggleRow
-            icon={Timer}
-            label="Auto-Start Rest Clock"
-            description="Automatically trigger countdown timer when a set is checked off"
-            checked={autoStartRestTimer}
-            onChange={setAutoStartRestTimer}
-          />
-        </SettingSection>
-
-        {/* GROUP 5: Appearance & Theme */}
-        <SettingSection title="Appearance & Display">
-          <div className="p-4 space-y-2.5">
-            <div className="flex items-center gap-3.5">
-              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              {/* Default Rest Duration Row */}
+              <div className="p-4 space-y-2.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
+                    <Timer className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-white">Default Rest Duration</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 pt-0.5">
+                  {[60, 90, 120, 180].map((secs) => (
+                    <button
+                      key={secs}
+                      type="button"
+                      onClick={() => setDefaultRestSeconds(secs)}
+                      className={`rounded-2xl border p-2.5 font-mono text-xs sm:text-sm font-black transition-all ${
+                        defaultRestSeconds === secs
+                          ? 'border-lime-400 bg-lime-400 text-zinc-950 shadow-md scale-[1.02]'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {secs}s
+                    </button>
+                  ))}
+                </div>
               </div>
-              <span className="text-xs sm:text-sm font-bold text-white">Display Theme</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 pt-0.5">
-              {(['dark', 'light'] as const).map((mode) => (
-                <button
-                  type="button"
-                  key={mode}
-                  onClick={() => setTheme(mode)}
-                  className={`flex items-center justify-center gap-2.5 rounded-2xl border p-3 font-bold capitalize transition-all ${
-                    theme === mode
-                      ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
-                      : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {mode === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                  <span className="text-xs">{mode === 'dark' ? 'Dark Obsidian' : 'Light Titanium'}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </SettingSection>
 
-        {/* GROUP 6: Data & Migration */}
-        <SettingSection title="Data & Migration">
-          <div className="p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
-                <UploadCloud className="h-4 w-4" />
-              </div>
-              <div>
-                <span className="text-xs sm:text-sm font-bold text-white block">1-Click Workout Importer</span>
-                <span className="text-[11px] text-zinc-500 block">Migrate routines & history from Hevy, Strong, Lyfta, or CSV</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate('/import')}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-lime-400/30 bg-lime-400/10 px-3.5 py-1.5 text-xs font-bold text-lime-400 hover:bg-lime-400 hover:text-zinc-950 transition-all shrink-0"
-            >
-              <span>Import</span>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+              {/* Sound Effect Toggle Row */}
+              <SettingToggleRow
+                icon={soundEnabled ? Volume2 : VolumeX}
+                label="Timer Audio Cues"
+                description="Play athletic chime sound on set and rest completion"
+                checked={soundEnabled}
+                onChange={setSoundEnabled}
+              />
+
+              {/* Auto-Start Rest Clock Row */}
+              <SettingToggleRow
+                icon={Timer}
+                label="Auto-Start Rest Clock"
+                description="Automatically trigger countdown timer when a set is checked off"
+                checked={autoStartRestTimer}
+                onChange={setAutoStartRestTimer}
+              />
+            </SettingSection>
           </div>
-        </SettingSection>
+        </div>
       </main>
 
       {/* 3. Anchored Bottom Actions Bar */}
-      <footer className="shrink-0 w-full p-4 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md flex items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="danger"
-          size="lg"
-          pill={true}
-          onClick={() => void logout().then(() => navigate('/auth'))}
-          className="text-xs sm:text-sm font-bold"
-        >
-          <LogOut className="h-4 w-4 mr-1.5" /> Log Out
-        </Button>
+      <footer className="shrink-0 w-full border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md">
+        <div className="w-full max-w-[1600px] mx-auto p-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="danger"
+            size="lg"
+            pill={true}
+            onClick={() => void logout().then(() => navigate('/auth'))}
+            className="text-xs sm:text-sm font-bold"
+          >
+            <LogOut className="h-4 w-4 mr-1.5" /> Log Out
+          </Button>
 
-        <Button
-          type="submit"
-          variant="volt"
-          size="lg"
-          pill={true}
-          loading={saving}
-          className="shadow-lg shadow-lime-400/20 font-black text-xs sm:text-sm px-6"
-        >
-          <Save className="h-4 w-4 mr-1.5" /> Save Preferences
-        </Button>
+          <Button
+            type="submit"
+            variant="volt"
+            size="lg"
+            pill={true}
+            loading={saving}
+            className="shadow-lg shadow-lime-400/20 font-black text-xs sm:text-sm px-6"
+          >
+            <Save className="h-4 w-4 mr-1.5" /> Save Preferences
+          </Button>
+        </div>
       </footer>
     </form>
   );

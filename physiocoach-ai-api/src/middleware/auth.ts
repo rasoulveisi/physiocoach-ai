@@ -26,6 +26,10 @@ function isPublicPath(path?: string): boolean {
     normalized === '/api/v1/openapi.json' ||
     normalized === '/api/v1/docs' ||
     normalized === '/health' ||
+    normalized === '/sitemap.xml' ||
+    normalized === '/api/v1/sitemap.xml' ||
+    normalized === '/robots.txt' ||
+    normalized === '/api/v1/robots.txt' ||
     normalized === '/api/v1/auth/register' ||
     normalized === '/api/v1/auth/login' ||
     normalized === '/api/v1/auth/refresh' ||
@@ -34,7 +38,10 @@ function isPublicPath(path?: string): boolean {
     normalized.startsWith('/api/v1/auth/google') ||
     normalized.startsWith('/api/v1/auth/verify') ||
     normalized.startsWith('/api/v1/auth/reset') ||
-    normalized.startsWith('/api/v1/exercise-catalog')
+    normalized.startsWith('/api/v1/exercise-catalog') ||
+    normalized.startsWith('/api/v1/explore') ||
+    normalized.startsWith('/explore') ||
+    (normalized.includes('/workout-plans/') && normalized.endsWith('/ratings'))
   );
 }
 

@@ -1,23 +1,33 @@
-import { Activity, Bell, CalendarDays, Dumbbell, LayoutDashboard, Settings, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Activity, Bell, Calculator, CalendarDays, Compass, Dumbbell, LayoutDashboard, Settings, ShieldAlert, ShieldCheck, UserCheck } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import type { User } from '../../context/AuthContext';
 
-const links = [
+const baseLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/explore', label: 'Explore', icon: Compass },
   { to: '/exercises', label: 'Exercises', icon: Dumbbell },
-  { to: '/assessment', label: 'Assessment', icon: ShieldAlert },
+  { to: '/calculator', label: 'Calculator', icon: Calculator },
   { to: '/plan', label: 'Workout Plan', icon: CalendarDays },
   { to: '/session', label: 'Live Tracker', icon: Activity },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
+function getNavLinks(user: User | null) {
+  const role = (user?.role || user?.roles?.[0] || '').toLowerCase();
+  const isAdmin = role === 'admin';
+
+  const nav = [...baseLinks];
+  // PT Portal feature currently disabled for public release, documented in repo
+  if (isAdmin) {
+    nav.push({ to: '/admin', label: 'Admin', icon: ShieldCheck });
+  }
+  return nav;
+}
+
 export function DesktopNavbar({ user }: { user: User | null }) {
   const role = user?.role || user?.roles?.[0];
-  const allLinks =
-    role?.toLowerCase() === 'admin'
-      ? [...links, { to: '/admin', label: 'Admin', icon: ShieldCheck }]
-      : links;
+  const allLinks = getNavLinks(user);
 
   return (
     <header className="w-full border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md">
@@ -78,11 +88,7 @@ export function DesktopNavbar({ user }: { user: User | null }) {
 }
 
 export function MobileNavbar({ user }: { user: User | null }) {
-  const role = user?.role || user?.roles?.[0];
-  const allLinks =
-    role?.toLowerCase() === 'admin'
-      ? [...links, { to: '/admin', label: 'Admin', icon: ShieldCheck }]
-      : links;
+  const allLinks = getNavLinks(user);
 
   return (
     <nav className="w-full flex border-t border-zinc-800 bg-zinc-950/95 px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-1 backdrop-blur-lg">

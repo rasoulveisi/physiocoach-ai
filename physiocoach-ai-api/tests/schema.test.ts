@@ -3,6 +3,9 @@ import {
   aiAuditLogs,
   assessments,
   authRefreshTokenHistory,
+  coachAssignedPlans,
+  coachClients,
+  coachProfiles,
   exerciseLogs,
   profiles,
   users,
@@ -29,6 +32,9 @@ describe('database schema', () => {
     expect(authRefreshTokenHistory).toBeDefined();
     expect(userSettings).toBeDefined();
     expect(profiles).toBeDefined();
+    expect(coachProfiles).toBeDefined();
+    expect(coachClients).toBeDefined();
+    expect(coachAssignedPlans).toBeDefined();
     expect(masterMuscles).toBeDefined();
     expect(masterEquipment).toBeDefined();
     expect(masterExercises).toBeDefined();
@@ -53,4 +59,12 @@ describe('database schema', () => {
     expect(exerciseLogs.masterExerciseId?.name).toBe('master_exercise_id');
     expect(exerciseLogs.completed.name).toBe('completed');
   });
+
+  it('defines coach portal columns', () => {
+    expect(coachProfiles.clinicName.name).toBe('clinic_name');
+    expect(coachClients.injuryDiagnosis.name).toBe('injury_diagnosis');
+    expect(coachClients.complianceScore.name).toBe('compliance_score');
+    expect(coachAssignedPlans.clinicalNotes.name).toBe('clinical_notes');
+  });
 });
+

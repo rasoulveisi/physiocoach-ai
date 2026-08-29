@@ -3,6 +3,7 @@ import { ArrowRight, ShieldCheck, Activity, Dumbbell, Sparkles } from 'lucide-re
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
+import { usePageMetadata } from '../services/metadata';
 
 interface SlideItem {
   id: number;
@@ -43,6 +44,14 @@ export function LandingPage() {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const isInteracting = useRef(false);
+
+  usePageMetadata({
+    title: 'PhysioCoach AI · Precision Strength & Biomechanical Rehab Platform',
+    description:
+      'Personalized progressive overload, clinical posture safeguards, live gym set tracking, and joint-friendly exercise programming.',
+    canonicalUrl: 'https://physiocoach.ai/',
+    ogType: 'website',
+  });
 
   // Auto-play carousel every 4.5 seconds
   useEffect(() => {
