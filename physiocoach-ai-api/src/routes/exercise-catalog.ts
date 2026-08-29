@@ -116,6 +116,16 @@ export function createExerciseCatalogRoutes() {
         .where(sql`${masterExercises.movementPattern} is not null and ${masterExercises.movementPattern} != ''`)
         .groupBy(masterExercises.movementPattern);
 
+      const equipmentRows = await db
+        .select({
+          id: masterEquipment.canonicalId,
+          name: masterEquipment.name,
+          count: sql<number>`count(${exerciseEquipment.exerciseId})::int`,
+        })
+        .from(masterEquipment)
+        .leftJoin(exerciseEquipment, eq(exerciseEquipment.equipmentId, masterEquipment.id))
+        .groupBy(masterEquipment.canonicalId, masterEquipment.name);
+
       const formatLabel = (str: string) =>
         str
           .split(/[-_ ]+/)
@@ -125,18 +135,11 @@ export function createExerciseCatalogRoutes() {
       const posteriorMuscles = new Set([
         'hamstrings',
         'glutes',
-        'gluteus maximus',
         'lats',
-        'latissimus dorsi',
         'traps',
-        'trapezius',
-        'upper back',
-        'lower back',
         'triceps',
         'calves',
-        'gastrocnemius',
-        'soleus',
-        'rear deltoids',
+        'lower_back',
       ]);
 
       const muscles = muscleRows.map((r) => {
@@ -161,15 +164,21 @@ export function createExerciseCatalogRoutes() {
         count: Number(r.count) || 0,
       }));
 
-      const equipment = [
-        { id: 'barbell', name: 'Barbell', count: 0 },
-        { id: 'dumbbell', name: 'Dumbbell', count: 0 },
-        { id: 'cable', name: 'Cable', count: 0 },
-        { id: 'machine', name: 'Machine', count: 0 },
-        { id: 'bodyweight', name: 'Bodyweight', count: 0 },
-        { id: 'band', name: 'Resistance Band', count: 0 },
-        { id: 'kettlebell', name: 'Kettlebell', count: 0 },
-      ];
+      const equipment = equipmentRows.length > 0
+        ? equipmentRows.map((r) => ({
+            id: r.id.replace(/^eq_/, ''),
+            name: r.name,
+            count: Number(r.count) || 0,
+          }))
+        : [
+            { id: 'barbell', name: 'Barbell', count: 0 },
+            { id: 'dumbbell', name: 'Dumbbell', count: 0 },
+            { id: 'cable', name: 'Cable', count: 0 },
+            { id: 'machine', name: 'Machine', count: 0 },
+            { id: 'bodyweight', name: 'Bodyweight', count: 0 },
+            { id: 'band', name: 'Resistance Band', count: 0 },
+            { id: 'kettlebell', name: 'Kettlebell', count: 0 },
+          ];
 
       const safetyTags = [
         { id: 'low_spine_load', name: 'Low Spine Load', count: 0 },
@@ -181,32 +190,9 @@ export function createExerciseCatalogRoutes() {
 
       return c.json({
         data: {
-          bodyParts: bodyParts.length > 0 ? bodyParts : [
-            { id: 'chest', name: 'Chest', count: 0 },
-            { id: 'back', name: 'Back', count: 0 },
-            { id: 'upper legs', name: 'Upper Legs', count: 0 },
-            { id: 'shoulders', name: 'Shoulders', count: 0 },
-            { id: 'upper arms', name: 'Arms', count: 0 },
-            { id: 'waist', name: 'Core & Waist', count: 0 },
-          ],
-          muscles: muscles.length > 0 ? muscles : [
-            { id: 'quadriceps', name: 'Quadriceps', bodyRegion: 'anterior', count: 0 },
-            { id: 'hamstrings', name: 'Hamstrings', bodyRegion: 'posterior', count: 0 },
-            { id: 'glutes', name: 'Glutes', bodyRegion: 'posterior', count: 0 },
-            { id: 'pectorals', name: 'Pectorals', bodyRegion: 'anterior', count: 0 },
-            { id: 'lats', name: 'Latissimus Dorsi', bodyRegion: 'posterior', count: 0 },
-            { id: 'delts', name: 'Deltoids', bodyRegion: 'anterior', count: 0 },
-          ],
-          movementPatterns: movementPatterns.length > 0 ? movementPatterns : [
-            { id: 'squat', name: 'Squat', count: 0 },
-            { id: 'hinge', name: 'Hinge / Deadlift', count: 0 },
-            { id: 'horizontal_push', name: 'Horizontal Push', count: 0 },
-            { id: 'horizontal_pull', name: 'Horizontal Pull', count: 0 },
-            { id: 'vertical_push', name: 'Vertical Push', count: 0 },
-            { id: 'vertical_pull', name: 'Vertical Pull', count: 0 },
-            { id: 'lunge', name: 'Lunge', count: 0 },
-            { id: 'isolation', name: 'Isolation', count: 0 },
-          ],
+          bodyParts,
+          muscles,
+          movementPatterns,
           equipment,
           safetyTags,
         },
@@ -349,8 +335,12 @@ export function createExerciseCatalogRoutes() {
           recommendedLevel: masterExercises.recommendedLevel,
           excludedLimitationsJson: masterExercises.excludedLimitationsJson,
           attributesJson: masterExercises.attributesJson,
+          mediaStorageUrl: exerciseMedia.storageUrl,
+          mediaType: exerciseMedia.mediaType,
+          mediaAltText: exerciseMedia.altText,
         })
         .from(masterExercises)
+        .leftJoin(exerciseMedia, eq(exerciseMedia.exerciseId, masterExercises.id))
         .where(whereClause)
         .limit(limit)
         .offset(offset);
@@ -412,6 +402,13 @@ export function createExerciseCatalogRoutes() {
           movementPattern: r.movementPattern,
           recommendedLevel: r.recommendedLevel || 'beginner',
           equipment: equipmentList,
+          media: r.mediaStorageUrl
+            ? {
+                imageUrl: r.mediaStorageUrl,
+                thumbnailUrl: r.mediaStorageUrl,
+                altText: r.mediaAltText || `${r.name} exercise visual`,
+              }
+            : null,
           safetySummary: {
             overallRating: excludedLimitations.length > 2 ? 'caution' : 'safe',
             highlightTags: highlightTags.slice(0, 2),
