@@ -305,7 +305,7 @@ export function classifyExercise(name: string, rawInstructions?: string | null):
   }
 
   // 3. Determine Recommended Experience Level
-  let recommendedLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
+  let recommendedLevel: 'beginner' | 'intermediate' | 'advanced';
 
   // Advanced criteria
   if (
