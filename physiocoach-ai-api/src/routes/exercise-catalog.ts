@@ -4,7 +4,9 @@ import { z } from 'zod';
 import {
   bodyConsiderations,
   exerciseConsiderationRatings,
+  exerciseEquipment,
   exerciseMedia,
+  masterEquipment,
   masterExercises,
 } from '../db/schema';
 import { createExpressRouter } from './express-adapter';
