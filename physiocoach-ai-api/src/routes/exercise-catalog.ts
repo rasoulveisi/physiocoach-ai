@@ -369,14 +369,7 @@ export function createExerciseCatalogRoutes() {
           equipmentList = [];
         }
         if (equipmentList.length === 0) {
-          const lowerName = r.name.toLowerCase();
-          if (lowerName.includes('barbell')) equipmentList = ['barbell'];
-          else if (lowerName.includes('dumbbell')) equipmentList = ['dumbbell'];
-          else if (lowerName.includes('cable')) equipmentList = ['cable'];
-          else if (lowerName.includes('machine')) equipmentList = ['machine'];
-          else if (lowerName.includes('band')) equipmentList = ['band'];
-          else if (lowerName.includes('kettlebell')) equipmentList = ['kettlebell'];
-          else equipmentList = ['bodyweight'];
+          equipmentList = ['bodyweight'];
         }
 
         let excludedLimitations: string[] = [];
@@ -398,11 +391,11 @@ export function createExerciseCatalogRoutes() {
           canonicalId: r.canonicalId,
           name: r.name,
           nameLocalized: r.nameLocalized,
-          bodyPart: r.bodyPart || 'full_body',
-          primaryMuscle: r.primaryMuscle || r.target || r.bodyPart || 'general',
+          bodyPart: r.bodyPart,
+          primaryMuscle: r.primaryMuscle,
           secondaryMuscles,
           movementPattern: r.movementPattern,
-          recommendedLevel: r.recommendedLevel || 'beginner',
+          recommendedLevel: r.recommendedLevel,
           equipment: equipmentList,
           media: r.mediaStorageUrl
             ? {
@@ -518,13 +511,7 @@ export function createExerciseCatalogRoutes() {
         equipmentList = [];
       }
       if (equipmentList.length === 0) {
-        const lowerName = exercise.name.toLowerCase();
-        if (lowerName.includes('barbell')) equipmentList = ['barbell'];
-        else if (lowerName.includes('dumbbell')) equipmentList = ['dumbbell'];
-        else if (lowerName.includes('cable')) equipmentList = ['cable'];
-        else if (lowerName.includes('machine')) equipmentList = ['machine'];
-        else if (lowerName.includes('band')) equipmentList = ['band'];
-        else equipmentList = ['bodyweight'];
+        equipmentList = ['bodyweight'];
       }
 
       const alternatives = await db
@@ -552,11 +539,11 @@ export function createExerciseCatalogRoutes() {
           canonicalId: exercise.canonicalId,
           name: exercise.name,
           nameLocalized: exercise.nameLocalized,
-          bodyPart: exercise.bodyPart || 'full_body',
-          primaryMuscle: exercise.primaryMuscle || exercise.target || exercise.bodyPart || 'general',
+          bodyPart: exercise.bodyPart,
+          primaryMuscle: exercise.primaryMuscle,
           secondaryMuscles,
           movementPattern: exercise.movementPattern,
-          recommendedLevel: exercise.recommendedLevel || 'beginner',
+          recommendedLevel: exercise.recommendedLevel,
           equipment: equipmentList,
           instructions: instructionsList,
           safetyConsiderations: ratings,
@@ -565,7 +552,7 @@ export function createExerciseCatalogRoutes() {
             canonicalId: alt.canonicalId,
             name: alt.name,
             movementPattern: alt.movementPattern,
-            primaryMuscle: alt.primaryMuscle || alt.bodyPart || 'target',
+            primaryMuscle: alt.primaryMuscle,
             reason: `Safer variation for ${alt.movementPattern} pattern.`,
           })),
         },
@@ -616,7 +603,7 @@ export function createExerciseCatalogRoutes() {
         masterExerciseId: r.masterExerciseId,
         name: r.name,
         movementPattern: r.movementPattern,
-        muscleGroups: [r.primaryMuscle || r.bodyPart || 'target'],
+        muscleGroups: [r.primaryMuscle],
       }));
 
       return c.json({ data: mapped });
