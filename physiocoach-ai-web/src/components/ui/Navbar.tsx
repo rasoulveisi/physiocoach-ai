@@ -5,6 +5,7 @@ import type { User } from '../../context/AuthContext';
 
 const links = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/exercises', label: 'Exercises', icon: Dumbbell },
   { to: '/assessment', label: 'Assessment', icon: ShieldAlert },
   { to: '/plan', label: 'Workout Plan', icon: CalendarDays },
   { to: '/session', label: 'Live Tracker', icon: Activity },

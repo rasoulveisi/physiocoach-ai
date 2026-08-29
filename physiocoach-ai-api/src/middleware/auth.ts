@@ -33,7 +33,8 @@ function isPublicPath(path?: string): boolean {
     normalized.startsWith('/api/v1/auth/oauth') ||
     normalized.startsWith('/api/v1/auth/google') ||
     normalized.startsWith('/api/v1/auth/verify') ||
-    normalized.startsWith('/api/v1/auth/reset')
+    normalized.startsWith('/api/v1/auth/reset') ||
+    normalized.startsWith('/api/v1/exercise-catalog')
   );
 }
 

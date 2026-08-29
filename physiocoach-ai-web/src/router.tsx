@@ -5,6 +5,7 @@ import { AdminPage } from './pages/AdminPage';
 import { AssessmentPage } from './pages/AssessmentPage';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { ExercisesPage } from './pages/ExercisesPage';
 import { LandingPage } from './pages/LandingPage';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
           { path: '/onboarding', element: <OnboardingPage /> },
           { path: '/assessment', element: <AssessmentPage /> },
           { path: '/dashboard', element: <DashboardPage /> },
+          { path: '/exercises', element: <ExercisesPage /> },
           { path: '/plan', element: <PlanPage /> },
           { path: '/session', element: <SessionPage /> },
           { path: '/import', element: <ImportPage /> },
