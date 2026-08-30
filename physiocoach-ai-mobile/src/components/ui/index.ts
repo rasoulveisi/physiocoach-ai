@@ -10,3 +10,5 @@ export { default as Header } from './Header';
 export type { HeaderProps } from './Header';
 export { default as Input } from './Input';
 export type { InputProps } from './Input';
+export { OfflineBanner } from './OfflineBanner';
+export type { OfflineBannerProps } from './OfflineBanner';

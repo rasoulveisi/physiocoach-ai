@@ -16,6 +16,7 @@ import { colors } from '../../theme/colors';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { clonePlan, getExplorePlans, isNetworkError } from '../../api/explore';
 import type { ExplorePlanDto, PersonaTag, JointTag } from '../../api/explore';
+import { useSync } from '../../context/SyncContext';
 
 // ---------------------------------------------------------------------------
 // Filters
@@ -59,6 +60,7 @@ function ratingText(plan: ExplorePlanDto): string {
 // ---------------------------------------------------------------------------
 
 export default function ExplorePlansScreen() {
+  const { enqueueAction } = useSync();
   const [plans, setPlans] = useState<ExplorePlanDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -153,13 +155,19 @@ export default function ExplorePlansScreen() {
       try {
         await clonePlan(plan.id);
         showToast(`"${plan.title}" saved to your plans library!`, 'success');
-      } catch {
-        showToast('Could not save the routine. Check your connection and retry.', 'error');
+      } catch (error) {
+        if (isNetworkError(error)) {
+          // Offline marketplace: queue the clone for automatic replay.
+          await enqueueAction('CLONE_PLAN', { planId: plan.id, title: plan.title });
+          showToast(`"${plan.title}" saved offline — it will sync when you're back online.`, 'success');
+        } else {
+          showToast('Could not save the routine. Check your connection and retry.', 'error');
+        }
       } finally {
         setSavingPlanId(null);
       }
     },
-    [showToast],
+    [showToast, enqueueAction],
   );
 
   const handleSetActive = useCallback(
@@ -169,13 +177,19 @@ export default function ExplorePlansScreen() {
         await clonePlan(plan.id);
         setPreviewVisible(false);
         showToast(`"${plan.title}" is now your active routine!`, 'success');
-      } catch {
-        showToast('Could not activate the routine. Check your connection and retry.', 'error');
+      } catch (error) {
+        if (isNetworkError(error)) {
+          await enqueueAction('CLONE_PLAN', { planId: plan.id, title: plan.title });
+          setPreviewVisible(false);
+          showToast(`"${plan.title}" will activate once you're back online.`, 'success');
+        } else {
+          showToast('Could not activate the routine. Check your connection and retry.', 'error');
+        }
       } finally {
         setActivatingPlanId(null);
       }
     },
-    [showToast],
+    [showToast, enqueueAction],
   );
 
   return (

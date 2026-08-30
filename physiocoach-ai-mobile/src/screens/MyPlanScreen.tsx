@@ -25,6 +25,8 @@ import { fontSize, fontWeight } from '../theme/typography';
 import { activatePlan, getCurrentPlan, getMyPlans, ratePlan } from '../api/plans';
 import type { Exercise, PlanSet, WorkoutDay, WorkoutPlan } from '../api/plans';
 import type { RootStackParamList } from '../navigation/types';
+import { useSync } from '../context/SyncContext';
+import { isNetworkError } from '../services/offlineSync';
 
 type MyPlanNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -53,6 +55,7 @@ function formatReps(min?: number | null, max?: number | null): string {
 
 export default function MyPlanScreen() {
   const navigation = useNavigation<MyPlanNavigationProp>();
+  const { enqueueAction } = useSync();
 
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,12 +166,23 @@ export default function MyPlanScreen() {
     try {
       await ratePlan(plan.id, ratingValue, reviewText || undefined);
       setRatingDone(true);
-    } catch {
-      setRatingError('Could not submit your rating. Try again.');
+    } catch (error) {
+      if (isNetworkError(error)) {
+        // Queue the rating for replay — feedback is never lost offline.
+        await enqueueAction('RATE_PLAN', {
+          planId: plan.id,
+          planTitle: plan.title,
+          rating: ratingValue,
+          review: reviewText.trim() || undefined,
+        });
+        setRatingDone(true);
+      } else {
+        setRatingError('Could not submit your rating. Try again.');
+      }
     } finally {
       setRatingSubmitting(false);
     }
-  }, [plan, ratingValue, reviewText]);
+  }, [plan, ratingValue, reviewText, enqueueAction]);
 
   const startToday = useCallback(() => {
     navigation.navigate('LiveSession', {

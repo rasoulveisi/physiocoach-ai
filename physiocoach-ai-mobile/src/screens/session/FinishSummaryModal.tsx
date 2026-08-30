@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Flame, Trophy } from 'lucide-react-native';
+import { CloudOff, Flame, Trophy } from 'lucide-react-native';
 import { Button } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { fontSize, fontWeight } from '../../theme/typography';
@@ -12,6 +12,11 @@ export interface FinishSummaryModalProps {
   dayName: string;
   /** True while completeSession is in flight (indeterminate overlay state). */
   finishing: boolean;
+  /**
+   * True when the session could not reach the API and was queued for offline
+   * sync — shows the "safely saved locally" reassurance line.
+   */
+  offlineSaved?: boolean;
   onClose: () => void;
 }
 
@@ -29,7 +34,14 @@ function formatDuration(seconds: number): string {
 }
 
 /** Celebration modal after a completed session. */
-export function FinishSummaryModal({ visible, summary, dayName, finishing, onClose }: FinishSummaryModalProps) {
+export function FinishSummaryModal({
+  visible,
+  summary,
+  dayName,
+  finishing,
+  offlineSaved = false,
+  onClose,
+}: FinishSummaryModalProps) {
   const line = CELEBRATION_LINES[0];
 
   return (
@@ -77,6 +89,16 @@ export function FinishSummaryModal({ visible, summary, dayName, finishing, onClo
                 <Flame size={14} color={colors.accentAmber} strokeWidth={2.2} />
                 <Text style={styles.lineText}>{line}</Text>
               </View>
+
+              {offlineSaved ? (
+                <View style={styles.offlineNote}>
+                  <CloudOff size={16} color={colors.accentAmber} strokeWidth={2.2} />
+                  <Text style={styles.offlineNoteText}>
+                    Workout safely saved on your device. It syncs to your coach automatically
+                    once you're back online.
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.buttonWrap}>
                 <Button label="Back to Dashboard" variant="volt" fullWidth onPress={onClose} />
@@ -182,6 +204,24 @@ const styles = StyleSheet.create({
   buttonWrap: {
     alignSelf: 'stretch',
     marginTop: 20,
+  },
+  offlineNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'stretch',
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+  },
+  offlineNoteText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    lineHeight: 19,
+    color: colors.textSecondary,
   },
 });
 

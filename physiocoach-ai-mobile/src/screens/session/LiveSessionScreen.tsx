@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { isNetworkError } from '../../services/offlineSync';
 import {
   AlertTriangle,
   ChevronDown,
@@ -25,13 +26,15 @@ import {
   Plus,
   Zap,
 } from 'lucide-react-native';
-import { ScreenContainer, Button, Badge } from '../../components/ui';
+import { ScreenContainer, Button, Badge, OfflineBanner } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { createSession, completeSession, sendPainAlert } from '../../api/sessions';
 import type { LoggedSet, SetType, WorkoutSession } from '../../api/sessions';
 import type { Exercise, PlanSet, WorkoutDay, WorkoutPlan } from '../../api/plans';
 import type { RootStackParamList } from '../../navigation/types';
+import { useSettings } from '../../context/SettingsContext';
+import { useSync } from '../../context/SyncContext';
 import { useRestTimer } from './useRestTimer';
 import { RestTimerHud } from './RestTimerHud';
 import { PainAlertModal } from './PainAlertModal';
@@ -57,6 +60,10 @@ const REST_COMPLETE_CUE = 'Rest complete. Get ready for your next set.';
 
 export default function LiveSessionScreen({ route, navigation }: LiveSessionProps) {
   const { plan: planParam, dayIndex: dayIndexParam, dayName: dayNameParam } = route.params ?? {};
+
+  // ------------------------------------------------------------ User settings
+  const { settings } = useSettings();
+  const { enqueueAction, isConnected } = useSync();
 
   // ------------------------------------------------------------- Session state
   const [plan] = useState<WorkoutPlan | null>(() => (planParam as WorkoutPlan | undefined) ?? null);
@@ -96,7 +103,11 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   const [draft, setDraft] = useState<SetDraft>({ setType: 'NORMAL', weightKg: 60, reps: 8 });
 
   // Display unit for the weight stepper (stored internally in kg).
-  const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');
+  // Defaults to the athlete's preferred unit from Settings.
+  const [unit, setUnit] = useState<'kg' | 'lbs'>(settings.weightUnit);
+  useEffect(() => {
+    setUnit(settings.weightUnit);
+  }, [settings.weightUnit]);
   const weightStep = unit === 'kg' ? 2.5 : LB_STEP_KG;
   const displayWeight = useCallback(
     (kg: number) => (unit === 'kg' ? kg : Math.round((kg / KG_PER_LB) * 10) / 10),
@@ -110,6 +121,8 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   // Finish flow.
   const [finishing, setFinishing] = useState(false);
   const [summary, setSummary] = useState<SessionFinishSummary | null>(null);
+  /** True when the session was queued offline instead of synced live. */
+  const [offlineSaved, setOfflineSaved] = useState(false);
 
   // Pain alert flow.
   const [painVisible, setPainVisible] = useState(false);
@@ -124,13 +137,25 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   const [prehabVisible, setPrehabVisible] = useState(false);
 
   // ---------------------------------------------------------------- Keep-awake
+  // Only keep the screen awake when the athlete has keep-awake enabled.
   useEffect(() => {
+    if (!settings.keepAwakeEnabled) {
+      deactivateKeepAwake();
+      return;
+    }
     activateKeepAwakeAsync().catch(() => undefined);
     return () => {
       deactivateKeepAwake();
-      Speech.stop();
     };
-  }, []);
+  }, [settings.keepAwakeEnabled]);
+
+  // Always stop any in-flight speech on unmount.
+  useEffect(
+    () => () => {
+      Speech.stop();
+    },
+    [],
+  );
 
   // ---------------------------------------------------------------- API sync
   useEffect(() => {
@@ -139,8 +164,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
       try {
         const result = await createSession({
           planId: plan?.id,
-          planDayId: day?.id,
-          planDayName: day?.name,
+          dayIndex: day?.dayIndex,
         });
         if (!cancelled && result?.session) setSession(result.session);
       } catch {
@@ -153,11 +177,16 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   }, [plan, day]);
 
   // ---------------------------------------------------------------- Rest timer
+  // Voice cues + haptics fire only when the athlete has them enabled.
   const restTimer = useRestTimer(
     useCallback(() => {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Speech.speak(REST_COMPLETE_CUE, { language: 'en', rate: 1.0 });
-    }, []),
+      if (settings.hapticsEnabled) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      if (settings.voiceCuesEnabled) {
+        Speech.speak(REST_COMPLETE_CUE, { language: 'en', rate: 1.0 });
+      }
+    }, [settings.hapticsEnabled, settings.voiceCuesEnabled]),
   );
 
   // ---------------------------------------------------------------- Derived
@@ -190,7 +219,9 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
 
   const completeSet = useCallback(
     (exerciseId: string) => {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (settings.hapticsEnabled) {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
       const exerciseState = exerciseStates.find((s) => s.exercise.id === exerciseId);
       const nextSetNumber = (exerciseState?.logged.length ?? 0) + 1;
 
@@ -210,12 +241,44 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
         logged: [...state.logged, loggedSet],
       }));
 
-      // Start rest HUD with the exercise's prescribed rest (fallback 90s).
+      // Durable offline capture: queue a LOG_SET replay so every set survives
+      // a dead zone even if the session never completes online. When a real
+      // session exists, its pre-created placeholder row (per exercise, in set
+      // order) is matched so the replay PATCHes the prescribed row —
+      // preserving the AI previous-performance pipeline — instead of
+      // inserting a duplicate row.
+      const placeholderRow = (() => {
+        if (!session || !exerciseState) return null;
+        const rows = session.loggedSets.filter(
+          (candidate) => candidate.exerciseName === exerciseState.exercise.name,
+        );
+        const candidate = rows[nextSetNumber - 1];
+        return candidate?.id && candidate.reps === 0 ? candidate : null;
+      })();
+
+      void enqueueAction('LOG_SET', {
+        workoutSessionId: session?.id ?? null,
+        exerciseLogId: placeholderRow?.id ?? null,
+        exerciseId,
+        exerciseName: exerciseState?.exercise.name ?? null,
+        muscleGroup: exerciseState?.exercise.muscleGroup ?? null,
+        setNumber: nextSetNumber,
+        setType: draft.setType,
+        weightKg: draft.weightKg,
+        reps: draft.reps,
+        completedAt: loggedSet.completedAt,
+        planId: plan?.id ?? null,
+        planDayId: day?.id ?? null,
+      }).catch(() => undefined);
+
+      // Rest HUD: prescribed rest first, then the user's default from Settings.
       const lastSet: PlanSet | undefined =
-        exerciseState?.exercise.sets?.[Math.min(nextSetNumber, exerciseState.exercise.sets?.length ?? 1) - 1];
-      restTimer.start(lastSet?.restSeconds ?? 90);
+        exerciseState?.exercise.sets?.[
+          Math.min(nextSetNumber, exerciseState.exercise.sets?.length ?? 1) - 1
+        ];
+      restTimer.start(lastSet?.restSeconds ?? settings.defaultRestSeconds);
     },
-    [draft, exerciseStates, patchExercise, restTimer],
+    [draft, enqueueAction, exerciseStates, patchExercise, restTimer, session, settings, plan, day],
   );
 
   const applyOverloadTarget = useCallback(
@@ -226,30 +289,53 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
         appliedTargetKg: target,
       }));
       setDraft((prev) => ({ ...prev, weightKg: target ?? prev.weightKg }));
-      void Haptics.selectionAsync();
+      if (settings.hapticsEnabled) {
+        void Haptics.selectionAsync();
+      }
     },
-    [patchExercise],
+    [patchExercise, settings.hapticsEnabled],
   );
 
   const submitPainAlert = useCallback(async () => {
     if (!painBodyPart) return;
     setPainSubmitting(true);
     setPainError(null);
+    const painPayload = {
+      bodyPart: painBodyPart,
+      painLevel,
+      exerciseName: exercises.find((e) => e.id === activeExerciseId)?.name,
+    };
     try {
-      const response = await sendPainAlert(session?.id ?? 'local', {
-        bodyPart: painBodyPart,
-        painLevel,
-        exerciseName: exercises.find((e) => e.id === activeExerciseId)?.name,
-      });
+      const response = await sendPainAlert(session?.id ?? 'local', painPayload);
       setPainAdvice(response.advice);
       setPainDeload(response.deloadRecommended);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    } catch {
-      setPainError('Could not reach the coach. Check your connection and retry.');
+      if (settings.hapticsEnabled) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    } catch (error) {
+      if (isNetworkError(error)) {
+        // Clinical safety data must never be lost: queue the alert for replay
+        // and reassure the athlete it is captured locally.
+        await enqueueAction('PAIN_ALERT', painPayload);
+        setPainAdvice(
+          'Your pain report is saved on this device and will reach your coach as soon as you are back online. Until then: stop the set, keep the range of motion pain-free, and do not push through sharp pain.',
+        );
+        setPainDeload(true);
+      } else {
+        setPainError('Could not reach the coach. Check your connection and retry.');
+      }
     } finally {
       setPainSubmitting(false);
     }
-  }, [activeExerciseId, exercises, painBodyPart, painLevel, session]);
+  }, [
+    activeExerciseId,
+    enqueueAction,
+    exercises,
+    painBodyPart,
+    painLevel,
+    session,
+    settings.hapticsEnabled,
+  ]);
 
   const finishWorkout = useCallback(async () => {
     if (totals.totalSets === 0) {
@@ -268,18 +354,44 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
       };
       const allLoggedSets: LoggedSet[] = exerciseStates.flatMap((state) => state.logged);
 
-      const result = await completeSession(session?.id ?? 'local', {
-        sessionId: session?.id,
-        ...localSummary,
-        loggedSets: allLoggedSets,
-      });
+      const result = await completeSession(session?.id ?? 'local', { durationSeconds });
 
-      setSummary(result.summary ? { ...localSummary, ...result.summary } as SessionFinishSummary : localSummary);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (result.networkError) {
+        // 100% resilient completion: the workout is durably queued on-device
+        // and replayed on reconnect. The celebration still happens.
+        await enqueueAction('COMPLETE_SESSION', {
+          sessionId: session?.id ?? null,
+          durationSeconds,
+          planId: plan?.id ?? null,
+        });
+        void Speech.speak(
+          'Workout saved on your device. It will sync automatically when you are back online.',
+          { language: 'en', rate: 1.0 },
+        );
+      } else if (settings.voiceCuesEnabled) {
+        void Speech.speak('Workout complete. Great work!', { language: 'en', rate: 1.0 });
+      }
+
+      if (settings.hapticsEnabled) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      setSummary(localSummary);
+      setOfflineSaved(result.networkError === true);
     } finally {
       setFinishing(false);
     }
-  }, [completedExercises, exerciseStates, session, totals]);
+  }, [
+    completedExercises,
+    day,
+    enqueueAction,
+    exerciseStates,
+    plan,
+    session,
+    settings.hapticsEnabled,
+    settings.voiceCuesEnabled,
+    totals,
+  ]);
 
   const closeSummary = useCallback(() => {
     navigation.popToTop();
@@ -571,6 +683,11 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
           </View>
         </ScreenContainer>
 
+        {/* Offline / pending-sync ribbon */}
+        <View style={styles.bannerWrap}>
+          <OfflineBanner />
+        </View>
+
         {/* Floating Rest Timer HUD */}
         <RestTimerHud
           phase={restTimer.phase}
@@ -604,6 +721,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
           summary={summary}
           dayName={day?.name ?? 'Workout'}
           finishing={finishing}
+          offlineSaved={offlineSaved}
           onClose={closeSummary}
         />
       </KeyboardAvoidingView>
@@ -617,6 +735,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgPrimary,
   },
   flex: { flex: 1 },
+  bannerWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 132, // sits just above the floating rest HUD
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
