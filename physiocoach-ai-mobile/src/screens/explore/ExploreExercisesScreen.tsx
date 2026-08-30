@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Modal,
   Platform,
@@ -14,15 +15,12 @@ import {
 } from 'react-native';
 import {
   Activity,
-  CheckCircle2,
   Dumbbell,
-  Info,
   Search,
   ShieldCheck,
-  Sparkles,
   X,
 } from 'lucide-react-native';
-import { Badge, Button, Card } from '../../components/ui';
+import { Badge, Button } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { getExerciseCatalog } from '../../api/exercises';
@@ -47,6 +45,46 @@ const SAFETY_TAGS: Array<{ value: string; label: string }> = [
 ];
 
 const SEARCH_DEBOUNCE_MS = 350;
+
+/** Memoized row item for smooth 60fps scrolling */
+const ExerciseRow = React.memo(({
+  item,
+  onPress,
+}: {
+  item: ExerciseCatalogItem;
+  onPress: (item: ExerciseCatalogItem) => void;
+}) => {
+  const imageUrl = useMemo(() => getExerciseMediaUrl(item), [item]);
+
+  return (
+    <Pressable
+      onPress={() => onPress(item)}
+      style={styles.exerciseCard}
+    >
+      <Image
+        source={{ uri: imageUrl }}
+        style={styles.exerciseThumb}
+        resizeMode="cover"
+      />
+      <View style={styles.exerciseInfo}>
+        <Text style={styles.exerciseTitle} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={styles.exerciseMeta} numberOfLines={1}>
+          {`${item.primaryMuscle || item.bodyPart || 'Full Body'} · ${item.movementPattern || 'Strength'}`}
+        </Text>
+        <View style={styles.exerciseBadges}>
+          {item.primaryMuscle ? (
+            <Badge label={item.primaryMuscle.toUpperCase()} variant="cyan" />
+          ) : null}
+          {item.recommendedLevel ? (
+            <Badge label={item.recommendedLevel} variant="zinc" />
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+});
 
 export default function ExploreExercisesScreen() {
   const [exercises, setExercises] = useState<ExerciseCatalogItem[]>([]);
@@ -85,7 +123,7 @@ export default function ExploreExercisesScreen() {
           q: debouncedSearch || undefined,
           primaryMuscle: selectedMuscle !== 'all' ? selectedMuscle : undefined,
           safetyTags: selectedSafety ?? undefined,
-          limit: 50,
+          limit: 60,
         });
         setExercises(res.data);
         setTotal(res.pagination?.total || res.data.length);
@@ -107,11 +145,134 @@ export default function ExploreExercisesScreen() {
     void loadExercises('refresh');
   }, [loadExercises]);
 
+  const handleOpenDetail = useCallback((item: ExerciseCatalogItem) => {
+    setSelectedExercise(item);
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ExerciseCatalogItem }) => (
+      <ExerciseRow item={item} onPress={handleOpenDetail} />
+    ),
+    [handleOpenDetail],
+  );
+
+  const keyExtractor = useCallback((item: ExerciseCatalogItem) => item.id, []);
+
+  const ListHeader = useMemo(() => (
+    <View style={styles.headerContainer}>
+      {/* Search input */}
+      <View style={styles.searchRow}>
+        <Search size={18} color={colors.textMuted} strokeWidth={2} />
+        <TextInput
+          placeholder="Search exercises (e.g. Bench, Squat, Row)"
+          placeholderTextColor={colors.textMuted}
+          value={searchText}
+          onChangeText={setSearchText}
+          style={styles.searchInput}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {searchText.length > 0 ? (
+          <Pressable hitSlop={8} onPress={() => setSearchText('')}>
+            <X size={16} color={colors.textMuted} strokeWidth={2} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      {/* Muscle group chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipRow}
+      >
+        {MUSCLE_GROUPS.map((item) => {
+          const active = selectedMuscle === item.value;
+          return (
+            <Pressable
+              key={item.value}
+              onPress={() => setSelectedMuscle(item.value)}
+              style={[styles.chip, active && styles.chipActive]}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Safety tags */}
+      <View style={styles.safetyRow}>
+        {SAFETY_TAGS.map((item) => {
+          const active = selectedSafety === item.value;
+          return (
+            <Pressable
+              key={item.value}
+              onPress={() => setSelectedSafety(active ? null : item.value)}
+              style={[styles.safetyChip, active && styles.safetyChipActive]}
+            >
+              <ShieldCheck
+                size={14}
+                color={active ? '#000' : colors.accentAmber}
+                strokeWidth={2}
+              />
+              <Text style={[styles.safetyChipText, active && styles.safetyChipTextActive]}>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Result summary */}
+      {!loading && !error ? (
+        <Text style={styles.resultCount}>
+          {exercises.length === 0 ? '0 exercises found' : `${exercises.length} of ${total} exercises`}
+        </Text>
+      ) : null}
+    </View>
+  ), [error, exercises.length, loading, searchText, selectedMuscle, selectedSafety, total]);
+
+  const ListEmpty = useMemo(() => {
+    if (loading) {
+      return (
+        <View style={styles.centerWrap}>
+          <ActivityIndicator size="large" color={colors.accentVolt} />
+        </View>
+      );
+    }
+    if (error) {
+      return (
+        <View style={styles.centerWrap}>
+          <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.gapTop}>
+            <Button label="Retry" variant="outline" onPress={() => void loadExercises('initial')} />
+          </View>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.centerWrap}>
+        <Dumbbell size={36} color={colors.textMuted} />
+        <Text style={styles.emptyTitle}>No exercises found</Text>
+        <Text style={styles.emptyBody}>Try adjusting your search keywords or muscle filter.</Text>
+      </View>
+    );
+  }, [error, loadExercises, loading]);
+
   return (
     <View style={styles.flex}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+      <FlatList
+        data={exercises}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        contentContainerStyle={styles.listContent}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -120,127 +281,7 @@ export default function ExploreExercisesScreen() {
             colors={[colors.accentVolt]}
           />
         }
-      >
-        {/* Search input */}
-        <View style={styles.searchRow}>
-          <Search size={18} color={colors.textMuted} strokeWidth={2} />
-          <TextInput
-            placeholder="Search exercises (e.g. Bench, Squat, Pull-up)"
-            placeholderTextColor={colors.textMuted}
-            value={searchText}
-            onChangeText={setSearchText}
-            style={styles.searchInput}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {searchText.length > 0 ? (
-            <Pressable hitSlop={8} onPress={() => setSearchText('')}>
-              <X size={16} color={colors.textMuted} strokeWidth={2} />
-            </Pressable>
-          ) : null}
-        </View>
-
-        {/* Muscle group chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipRow}
-        >
-          {MUSCLE_GROUPS.map((item) => {
-            const active = selectedMuscle === item.value;
-            return (
-              <Pressable
-                key={item.value}
-                onPress={() => setSelectedMuscle(item.value)}
-                style={[styles.chip, active && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* Safety tags */}
-        <View style={styles.safetyRow}>
-          {SAFETY_TAGS.map((item) => {
-            const active = selectedSafety === item.value;
-            return (
-              <Pressable
-                key={item.value}
-                onPress={() => setSelectedSafety(active ? null : item.value)}
-                style={[styles.safetyChip, active && styles.safetyChipActive]}
-              >
-                <ShieldCheck
-                  size={14}
-                  color={active ? '#000' : colors.accentAmber}
-                  strokeWidth={2}
-                />
-                <Text style={[styles.safetyChipText, active && styles.safetyChipTextActive]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Result summary */}
-        {!loading && !error ? (
-          <Text style={styles.resultCount}>
-            {exercises.length === 0 ? '0 exercises found' : `${exercises.length} of ${total} exercises`}
-          </Text>
-        ) : null}
-
-        {/* List content */}
-        {loading ? (
-          <View style={styles.centerWrap}>
-            <ActivityIndicator size="large" color={colors.accentVolt} />
-          </View>
-        ) : error ? (
-          <View style={styles.centerWrap}>
-            <Text style={styles.errorText}>{error}</Text>
-            <View style={styles.gapTop}>
-              <Button label="Retry" variant="outline" onPress={() => void loadExercises('initial')} />
-            </View>
-          </View>
-        ) : exercises.length === 0 ? (
-          <View style={styles.centerWrap}>
-            <Dumbbell size={36} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>No exercises found</Text>
-            <Text style={styles.emptyBody}>Try adjusting your search keywords or muscle filter.</Text>
-          </View>
-        ) : (
-          exercises.map((item) => {
-            const imageUrl = getExerciseMediaUrl(item);
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => setSelectedExercise(item)}
-                style={styles.exerciseCard}
-              >
-                <Image source={{ uri: imageUrl }} style={styles.exerciseThumb} resizeMode="cover" />
-                <View style={styles.exerciseInfo}>
-                  <Text style={styles.exerciseTitle} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.exerciseMeta}>
-                    {`${item.primaryMuscle || item.bodyPart || 'Full Body'} · ${item.movementPattern || 'Compound'}`}
-                  </Text>
-                  <View style={styles.exerciseBadges}>
-                    {item.primaryMuscle ? (
-                      <Badge label={item.primaryMuscle.toUpperCase()} variant="cyan" />
-                    ) : null}
-                    {item.recommendedLevel ? (
-                      <Badge label={item.recommendedLevel} variant="zinc" />
-                    ) : null}
-                  </View>
-                </View>
-              </Pressable>
-            );
-          })
-        )}
-      </ScrollView>
+      />
 
       {/* Exercise Detail Modal */}
       <Modal
@@ -322,11 +363,13 @@ export default function ExploreExercisesScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { flex: 1 },
-  scrollContent: {
+  listContent: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 40,
+  },
+  headerContainer: {
+    paddingBottom: 4,
   },
   searchRow: {
     flexDirection: 'row',
@@ -445,8 +488,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   exerciseThumb: {
-    width: 68,
-    height: 68,
+    width: 64,
+    height: 64,
     borderRadius: 10,
     backgroundColor: colors.bgElevated,
   },

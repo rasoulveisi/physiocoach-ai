@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  GestureResponderEvent,
   Image,
   Modal,
   Platform,
@@ -16,9 +17,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   CalendarDays,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Library,
   Star,
+  X,
   Zap,
 } from 'lucide-react-native';
 import { ScreenContainer, Header, Card, Badge, Button } from '../components/ui';
@@ -67,6 +71,7 @@ export default function MyPlanScreen() {
 
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+  const [selectedDetailExercise, setSelectedDetailExercise] = useState<Exercise | null>(null);
 
   // 1-click "Apply Target" state (consumed by the live session in phase 4).
   const [appliedTarget, setAppliedTarget] = useState<{
@@ -89,6 +94,10 @@ export default function MyPlanScreen() {
   const [ratingDone, setRatingDone] = useState(false);
   const [ratingError, setRatingError] = useState<string | null>(null);
 
+  const dayScrollerRef = useRef<ScrollView | null>(null);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+
   const loadPlan = useCallback(async () => {
     setError(null);
     try {
@@ -110,6 +119,31 @@ export default function MyPlanScreen() {
     () => days.find((day) => day.id === selectedDayId) ?? days[0] ?? null,
     [days, selectedDayId],
   );
+
+  const handleTouchStart = useCallback((e: GestureResponderEvent) => {
+    touchStartX.current = e.nativeEvent.pageX;
+    touchStartY.current = e.nativeEvent.pageY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: GestureResponderEvent) => {
+    const deltaX = e.nativeEvent.pageX - touchStartX.current;
+    const deltaY = e.nativeEvent.pageY - touchStartY.current;
+    // Horizontal swipe threshold: > 40px and predominantly horizontal
+    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+      const currentIndex = days.findIndex((d) => d.id === selectedDay?.id);
+      if (currentIndex !== -1) {
+        if (deltaX < 0 && currentIndex < days.length - 1) {
+          // Swipe left -> Next day
+          setSelectedDayId(days[currentIndex + 1].id);
+          setExpandedExerciseId(null);
+        } else if (deltaX > 0 && currentIndex > 0) {
+          // Swipe right -> Previous day
+          setSelectedDayId(days[currentIndex - 1].id);
+          setExpandedExerciseId(null);
+        }
+      }
+    }
+  }, [days, selectedDay]);
 
   // Keep the selected day valid whenever the plan refreshes.
   useEffect(() => {
@@ -281,86 +315,108 @@ export default function MyPlanScreen() {
 
           {/* ---------------------------------------------- Exercise cards */}
           {selectedDay ? (
-            <Card style={styles.gapTop}>
-              <View style={styles.rowBetween}>
-                <Text style={styles.cardLabelNoMargin}>
-                  {`DAY ${selectedDay.dayIndex} — ${String(selectedDay.name).toUpperCase()}`}
-                </Text>
-                <Badge label={`${selectedDay.exercises?.length ?? 0} exercises`} variant="cyan" />
-              </View>
+            <View onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+              <Card style={styles.gapTop}>
+                <View style={styles.rowBetween}>
+                  <View style={styles.flex}>
+                    <Text style={styles.cardLabelNoMargin}>
+                      {`DAY ${selectedDay.dayIndex} — ${String(selectedDay.name).toUpperCase()}`}
+                    </Text>
+                    <Text style={styles.swipeHintText}>Swipe left/right to change days ‹ ›</Text>
+                  </View>
+                  <Badge label={`${selectedDay.exercises?.length ?? 0} exercises`} variant="cyan" />
+                </View>
 
-              {(selectedDay.exercises ?? []).map((exercise, index) => {
-                const expanded = expandedExerciseId === exercise.id;
-                const overload = findOverload(exercise);
-                const firstSet = exercise.sets?.[0];
-                return (
-                  <View key={exercise.id} style={[styles.exerciseCard, index > 0 && styles.exerciseGap]}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Expand ${exercise.name}`}
-                      onPress={() => setExpandedExerciseId(expanded ? null : exercise.id)}
-                      style={styles.exerciseHeader}
-                    >
-                      <Image
-                        source={{ uri: getExerciseMediaUrl(exercise) }}
-                        style={styles.exerciseThumb}
-                        resizeMode="cover"
-                      />
-                      <View style={styles.flex}>
-                        <Text style={styles.exerciseName}>{exercise.name}</Text>
-                        <Text style={styles.exerciseSummary}>
-                          {`${exercise.sets?.length ?? DEFAULT_SETS} sets · ${formatReps(firstSet?.targetRepsMin, firstSet?.targetRepsMax)} reps`}
-                        </Text>
-                      </View>
-                      {expanded ? (
-                        <ChevronUp size={20} color={colors.textSecondary} strokeWidth={2} />
-                      ) : (
-                        <ChevronDown size={20} color={colors.textSecondary} strokeWidth={2} />
-                      )}
-                    </Pressable>
-
-                    {overload ? (
-                      <View style={styles.overloadChip}>
-                        <Zap size={14} color={colors.accentAmber} strokeWidth={2.2} />
-                        <Text style={styles.overloadText} numberOfLines={1}>
-                          {`Target: ${overload.set.targetWeightKg ?? 'BW'} kg (+${overload.increment} kg overload)`}
-                        </Text>
+                {(selectedDay.exercises ?? []).map((exercise, index) => {
+                  const expanded = expandedExerciseId === exercise.id;
+                  const overload = findOverload(exercise);
+                  const firstSet = exercise.sets?.[0];
+                  return (
+                    <View key={exercise.id} style={[styles.exerciseCard, index > 0 && styles.exerciseGap]}>
+                      <View style={styles.exerciseHeader}>
+                        {/* Tapping left side opens the Exercise Detail Modal */}
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel="Apply target"
-                          hitSlop={6}
-                          onPress={() => {
-                            setAppliedTarget({ exerciseId: exercise.id, set: overload.set });
-                            setAppliedTargetId(exercise.id);
-                          }}
-                          style={styles.applyBtn}
+                          accessibilityLabel={`View details for ${exercise.name}`}
+                          onPress={() => setSelectedDetailExercise(exercise)}
+                          style={styles.exerciseHeaderLeft}
                         >
-                          <Text style={styles.applyBtnText}>
-                            {appliedTargetId === exercise.id ? '✓ Applied' : 'Apply'}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ) : null}
-
-                    {expanded ? (
-                      <View style={styles.exerciseDetail}>
-                        {(exercise.sets ?? []).map((set) => (
-                          <View key={set.id} style={styles.setRow}>
-                            <Text style={styles.setNumber}>{`Set ${set.setNumber}`}</Text>
-                            <Text style={styles.setDetail}>
-                              {`${set.targetWeightKg != null ? `${set.targetWeightKg} kg` : 'BW'} × ${formatReps(set.targetRepsMin, set.targetRepsMax)} @ RIR ${set.targetRir ?? '—'} · ${set.tempo ?? DEFAULT_TEMPO} · ${set.restSeconds ?? DEFAULT_REST}s rest`}
+                          <Image
+                            source={{ uri: getExerciseMediaUrl(exercise) }}
+                            style={styles.exerciseThumb}
+                            resizeMode="cover"
+                          />
+                          <View style={styles.flex}>
+                            <Text style={styles.exerciseName}>{exercise.name}</Text>
+                            <Text style={styles.exerciseSummary}>
+                              {`${exercise.sets?.length ?? DEFAULT_SETS} sets · ${formatReps(firstSet?.targetRepsMin, firstSet?.targetRepsMax)} reps`}
                             </Text>
                           </View>
-                        ))}
-                        {exercise.notes ? (
-                          <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
-                        ) : null}
+                        </Pressable>
+
+                        {/* Chevron button toggles the set drawer */}
+                        <Pressable
+                          hitSlop={12}
+                          accessibilityRole="button"
+                          accessibilityLabel={expanded ? 'Collapse set drawer' : 'Expand set drawer'}
+                          onPress={() => setExpandedExerciseId(expanded ? null : exercise.id)}
+                          style={styles.chevronButton}
+                        >
+                          {expanded ? (
+                            <ChevronUp size={22} color={colors.accentVolt} strokeWidth={2.2} />
+                          ) : (
+                            <ChevronDown size={22} color={colors.textSecondary} strokeWidth={2} />
+                          )}
+                        </Pressable>
                       </View>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </Card>
+
+                      {/* Yellow overload chip: tapping also toggles drawer */}
+                      {overload ? (
+                        <Pressable
+                          onPress={() => setExpandedExerciseId(expanded ? null : exercise.id)}
+                          style={styles.overloadChip}
+                        >
+                          <Zap size={14} color={colors.accentAmber} strokeWidth={2.2} />
+                          <Text style={styles.overloadText} numberOfLines={1}>
+                            {`Target: ${overload.set.targetWeightKg ?? 'BW'} kg (+${overload.increment} kg overload)`}
+                          </Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Apply target"
+                            hitSlop={6}
+                            onPress={() => {
+                              setAppliedTarget({ exerciseId: exercise.id, set: overload.set });
+                              setAppliedTargetId(exercise.id);
+                            }}
+                            style={styles.applyBtn}
+                          >
+                            <Text style={styles.applyBtnText}>
+                              {appliedTargetId === exercise.id ? '✓ Applied' : 'Apply'}
+                            </Text>
+                          </Pressable>
+                        </Pressable>
+                      ) : null}
+
+                      {expanded ? (
+                        <View style={styles.exerciseDetail}>
+                          {(exercise.sets ?? []).map((set) => (
+                            <View key={set.id} style={styles.setRow}>
+                              <Text style={styles.setNumber}>{`Set ${set.setNumber}`}</Text>
+                              <Text style={styles.setDetail}>
+                                {`${set.targetWeightKg != null ? `${set.targetWeightKg} kg` : 'BW'} × ${formatReps(set.targetRepsMin, set.targetRepsMax)} @ RIR ${set.targetRir ?? '—'} · ${set.tempo ?? DEFAULT_TEMPO} · ${set.restSeconds ?? DEFAULT_REST}s rest`}
+                              </Text>
+                            </View>
+                          ))}
+                          {exercise.notes ? (
+                            <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </Card>
+            </View>
           ) : null}
 
           {/* ------------------------------------------------- Footer CTAs */}
@@ -504,6 +560,78 @@ export default function MyPlanScreen() {
               </Pressable>
             </Pressable>
           </Modal>
+
+          {/* ========================================= Exercise Detail Modal */}
+          <Modal
+            visible={selectedDetailExercise !== null}
+            transparent
+            animationType="slide"
+            presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'}
+            onRequestClose={() => setSelectedDetailExercise(null)}
+          >
+            <View style={styles.detailOverlay}>
+              <View style={styles.detailSheet}>
+                {selectedDetailExercise && (
+                  <>
+                    <View style={styles.detailHeader}>
+                      <Text style={styles.detailTitle} numberOfLines={1}>
+                        {selectedDetailExercise.name}
+                      </Text>
+                      <Pressable hitSlop={8} onPress={() => setSelectedDetailExercise(null)}>
+                        <X size={20} color={colors.textMuted} />
+                      </Pressable>
+                    </View>
+
+                    <ScrollView style={styles.detailBody} showsVerticalScrollIndicator={false}>
+                      <Image
+                        source={{ uri: getExerciseMediaUrl(selectedDetailExercise) }}
+                        style={styles.detailImage}
+                        resizeMode="cover"
+                      />
+
+                      <View style={styles.detailSection}>
+                        <Text style={styles.detailSectionLabel}>TARGET & PATTERN</Text>
+                        <View style={styles.tagWrap}>
+                          {selectedDetailExercise.muscleGroup ? (
+                            <Badge label={selectedDetailExercise.muscleGroup.toUpperCase()} variant="volt" />
+                          ) : null}
+                          <Badge
+                            label={`${selectedDetailExercise.sets?.length ?? 3} Prescribed Sets`}
+                            variant="cyan"
+                          />
+                        </View>
+                      </View>
+
+                      {selectedDetailExercise.notes ? (
+                        <View style={styles.detailSection}>
+                          <Text style={styles.detailSectionLabel}>COACHING NOTES</Text>
+                          <Text style={styles.detailCues}>{selectedDetailExercise.notes}</Text>
+                        </View>
+                      ) : null}
+
+                      <View style={styles.detailSection}>
+                        <Text style={styles.detailSectionLabel}>PHYSIOCOACH CLINICAL CUES</Text>
+                        <Text style={styles.detailCues}>
+                          • Maintain a neutral, braced spine throughout the entire range of motion.{"\n"}
+                          • Execute with controlled eccentric tempo (3-0-1-0).{"\n"}
+                          • Deload or stop immediately if sharp joint pinching is felt.
+                        </Text>
+                      </View>
+                    </ScrollView>
+
+                    <View style={styles.detailFooter}>
+                      <Button
+                        label="Close"
+                        variant="secondary"
+                        fullWidth
+                        onPress={() => setSelectedDetailExercise(null)}
+                      />
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
+          </Modal>
         </>
       )}
     </ScreenContainer>
@@ -591,6 +719,11 @@ const styles = StyleSheet.create({
   dayPillTextSelected: {
     color: colors.bgPrimary,
   },
+  swipeHintText: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
   planCoverImage: {
     width: '100%',
     height: 120,
@@ -620,6 +753,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  exerciseHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  chevronButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
   exerciseName: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
@@ -639,6 +781,66 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  detailOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  detailSheet: {
+    backgroundColor: colors.bgSurface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderColor: colors.borderSubtle,
+    maxHeight: '85%',
+    padding: 20,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  detailTitle: {
+    flex: 1,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+    marginRight: 10,
+  },
+  detailBody: {
+    marginBottom: 14,
+  },
+  detailImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: colors.bgElevated,
+    marginBottom: 16,
+  },
+  detailSection: {
+    marginBottom: 14,
+  },
+  detailSectionLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  detailCues: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  tagWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  detailFooter: {
+    paddingTop: 8,
   },
   overloadText: {
     flex: 1,
