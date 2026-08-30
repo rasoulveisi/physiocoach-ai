@@ -8,3 +8,5 @@ export { default as ScreenContainer } from './ScreenContainer';
 export type { ScreenContainerProps } from './ScreenContainer';
 export { default as Header } from './Header';
 export type { HeaderProps } from './Header';
+export { default as Input } from './Input';
+export type { InputProps } from './Input';

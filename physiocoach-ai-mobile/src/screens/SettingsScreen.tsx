@@ -1,11 +1,17 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Settings as SettingsIcon } from 'lucide-react-native';
+import { LogOut, Settings as SettingsIcon } from 'lucide-react-native';
 import { ScreenContainer, Header, Card, Badge, Button } from '../components/ui';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight } from '../theme/typography';
+import { useAuth } from '../context/AuthContext';
 
 export default function SettingsScreen() {
+  const { user, logout } = useAuth();
+
+  const roles = user?.roles ?? [];
+  const displayName = user?.displayName?.trim() || user?.email || 'Athlete';
+
   return (
     <ScreenContainer scrollable>
       <Header
@@ -18,8 +24,15 @@ export default function SettingsScreen() {
         <Text style={styles.cardLabel}>ACCOUNT</Text>
         <View style={styles.rowBetween}>
           <View style={styles.flex}>
-            <Text style={styles.rowTitle}>Athlete Profile</Text>
-            <Text style={styles.rowHint}>Units, goals, and injury flags</Text>
+            <Text style={styles.rowTitle}>{displayName}</Text>
+            <Text style={styles.rowHint}>{user?.email ?? 'Not signed in'}</Text>
+            {roles.length > 0 ? (
+              <View style={styles.rolesRow}>
+                {roles.map((role) => (
+                  <Badge key={role} label={role} variant="volt" />
+                ))}
+              </View>
+            ) : null}
           </View>
           <Badge label="Beta" variant="cyan" />
         </View>
@@ -34,7 +47,7 @@ export default function SettingsScreen() {
           </View>
         </View>
         <View style={styles.gapTop}>
-          <Button label="Sign Out" variant="danger" fullWidth />
+          <Button label="Log Out" variant="danger" fullWidth onPress={() => void logout()} />
         </View>
       </Card>
 
@@ -69,6 +82,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: fontSize.sm,
     color: colors.textMuted,
+  },
+  rolesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
   },
   gapTop: { marginTop: 16 },
 });

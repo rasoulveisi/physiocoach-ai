@@ -14,11 +14,22 @@ export type MainTabParamList = {
 export type MainTabRouteName = keyof MainTabParamList;
 
 /**
- * Root stack — currently hosts the tab shell; later phases push
- * modals (e.g. active WorkoutSession) above the tabs.
+ * Params for the auth stack (pre-login surface).
+ */
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+};
+
+export type AuthStackRouteName = keyof AuthStackParamList;
+
+/**
+ * Root stack — hosts the auth stack pre-login and the tab shell post-login;
+ * later phases push modals (e.g. active WorkoutSession) above the tabs.
  */
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
+  Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
 };
 
 export type RootStackRouteName = keyof RootStackParamList;

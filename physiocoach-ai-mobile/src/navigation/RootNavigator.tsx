@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
@@ -13,6 +13,8 @@ import {
 import { colors } from '../theme/colors';
 import { fontSize } from '../theme/typography';
 import type { MainTabParamList } from './types';
+import { useAuth } from '../context/AuthContext';
+import { AuthNavigator } from './AuthNavigator';
 import DashboardScreen from '../screens/DashboardScreen';
 import MyPlanScreen from '../screens/MyPlanScreen';
 import WorkoutScreen from '../screens/WorkoutScreen';
@@ -44,46 +46,69 @@ const navigationTheme = {
   },
 };
 
+/** Full-screen dark loader shown while the persisted session is restored. */
+function BootSplash() {
+  return (
+    <View style={styles.boot}>
+      <ActivityIndicator size="large" color={colors.accentVolt} />
+    </View>
+  );
+}
+
 export function RootNavigator() {
+  const { isLoading, isAuthenticated } = useAuth();
+
   return (
     <NavigationContainer theme={navigationTheme}>
-      <Tab.Navigator
-        initialRouteName="Dashboard"
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarActiveTintColor: colors.accentVolt,
-          tabBarInactiveTintColor: colors.textMuted,
-          tabBarStyle: styles.tabBar,
-          tabBarLabelStyle: styles.tabLabel,
-          tabBarIcon: ({ focused, color, size }) => {
-            const Icon = TAB_ICONS[route.name as keyof MainTabParamList];
-            // Workout tab gets an elevated, highlighted treatment.
-            if (route.name === 'Workout') {
-              return (
-                <View style={[styles.workoutBadge, focused && styles.workoutBadgeActive]}>
-                  <Icon size={size - 2} color={focused ? colors.accentVolt : colors.textMuted} strokeWidth={2.2} />
-                </View>
-              );
-            }
-            return <Icon size={size} color={color} strokeWidth={focused ? 2.2 : 1.8} />;
-          },
-        })}
-      >
-        <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
-        <Tab.Screen name="MyPlan" component={MyPlanScreen} options={{ title: 'My Plan' }} />
-        <Tab.Screen
-          name="Workout"
-          component={WorkoutScreen}
-          options={{ title: 'Workout', tabBarLabelStyle: styles.workoutLabel }}
-        />
-        <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: 'Explore' }} />
-        <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
-      </Tab.Navigator>
+      {isLoading ? (
+        <BootSplash />
+      ) : isAuthenticated ? (
+        <Tab.Navigator
+          initialRouteName="Dashboard"
+          screenOptions={({ route }) => ({
+            headerShown: false,
+            tabBarActiveTintColor: colors.accentVolt,
+            tabBarInactiveTintColor: colors.textMuted,
+            tabBarStyle: styles.tabBar,
+            tabBarLabelStyle: styles.tabLabel,
+            tabBarIcon: ({ focused, color, size }) => {
+              const Icon = TAB_ICONS[route.name as keyof MainTabParamList];
+              // Workout tab gets an elevated, highlighted treatment.
+              if (route.name === 'Workout') {
+                return (
+                  <View style={[styles.workoutBadge, focused && styles.workoutBadgeActive]}>
+                    <Icon size={size - 2} color={focused ? colors.accentVolt : colors.textMuted} strokeWidth={2.2} />
+                  </View>
+                );
+              }
+              return <Icon size={size} color={color} strokeWidth={focused ? 2.2 : 1.8} />;
+            },
+          })}
+        >
+          <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
+          <Tab.Screen name="MyPlan" component={MyPlanScreen} options={{ title: 'My Plan' }} />
+          <Tab.Screen
+            name="Workout"
+            component={WorkoutScreen}
+            options={{ title: 'Workout', tabBarLabelStyle: styles.workoutLabel }}
+          />
+          <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: 'Explore' }} />
+          <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+        </Tab.Navigator>
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  boot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bgPrimary,
+  },
   tabBar: {
     backgroundColor: colors.bgSurface,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
