@@ -23,6 +23,12 @@ export type AuthStackParamList = {
 
 export type AuthStackRouteName = keyof AuthStackParamList;
 
+/** Params accepted by the Explore tool stack (pushed from the Explore tab). */
+export type ExploreToolParamList = {
+  Calculator: undefined;
+  Prehab: undefined;
+};
+
 /** Optional params accepted by the LiveSession route. */
 export interface LiveSessionParams {
   /** The plan to run the session against; falls back to the active plan. */
@@ -35,12 +41,15 @@ export interface LiveSessionParams {
 
 /**
  * Root stack — hosts the auth stack pre-login and the tab shell post-login;
- * LiveSession is pushed as a full-screen modal above the tabs.
+ * LiveSession is pushed as a full-screen modal above the tabs. Explore tools
+ * (Calculator, Prehab) are pushed as card screens from the Explore tab.
  */
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
   LiveSession: LiveSessionParams | undefined;
+  Calculator: ExploreToolParamList['Calculator'];
+  Prehab: ExploreToolParamList['Prehab'];
 };
 
 export type RootStackRouteName = keyof RootStackParamList;

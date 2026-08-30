@@ -1,88 +1,213 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Compass } from 'lucide-react-native';
-import { ScreenContainer, Header, Card, Badge, Button } from '../components/ui';
+import React, { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Calculator as CalculatorIcon, Compass, HeartPulse, type LucideIcon } from 'lucide-react-native';
+import { ScreenContainer } from '../components/ui';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight } from '../theme/typography';
+import ExplorePlansScreen from './explore/ExplorePlansScreen';
+import CalculatorScreen from './tools/CalculatorScreen';
+import PrehabSection from '../components/workout/PrehabSection';
+import type { RootStackParamList } from '../navigation/types';
 
-const TOOLS = [
-  { title: '1RM Calculator', tag: 'Strength', variant: 'volt' as const },
-  { title: 'RPE / RIR Guide', tag: 'Effort', variant: 'amber' as const },
-  { title: 'Tempo & TUT', tag: 'Telemetry', variant: 'cyan' as const },
+type ExploreNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+// ---------------------------------------------------------------------------
+// Segmented sub-navigation
+// ---------------------------------------------------------------------------
+
+type ExploreSegment = 'plans' | 'calculator' | 'prehab';
+
+const SEGMENTS: Array<{ key: ExploreSegment; label: string }> = [
+  { key: 'plans', label: 'Explore Plans' },
+  { key: 'calculator', label: '1RM & Plates' },
+  { key: 'prehab', label: 'Prehab Generator' },
 ];
 
+const SEGMENT_ICONS: Record<ExploreSegment, LucideIcon> = {
+  plans: Compass,
+  calculator: CalculatorIcon,
+  prehab: HeartPulse,
+};
+
 export default function ExploreScreen() {
+  const navigation = useNavigation<ExploreNavigationProp>();
+  const [segment, setSegment] = useState<ExploreSegment>('plans');
+
+  // Dedicated stack route for the prehab generator keeps state alive across
+  // tab switches; the segmented "Prehab Generator" tab renders it inline.
+  const openPrehabScreen = useCallback(() => {
+    navigation.navigate('Prehab', undefined);
+  }, [navigation]);
+
+  const openCalculatorScreen = useCallback(() => {
+    navigation.navigate('Calculator', undefined);
+  }, [navigation]);
+
   return (
-    <ScreenContainer scrollable>
-      <Header
-        title="Explore"
-        subtitle="Tools & training library"
-        rightAction={<Compass size={22} color={colors.accentCyan} />}
-      />
+    <ScreenContainer>
+      <View style={styles.headerRow}>
+        <View style={styles.headerTextBlock}>
+          <Text style={styles.headerTitle}>Explore</Text>
+          <Text style={styles.headerSubtitle}>Community routines & strength tools</Text>
+        </View>
+        <Compass size={22} color={colors.accentCyan} />
+      </View>
 
-      <Card>
-        <Text style={styles.cardLabel}>TOOLS</Text>
-        <View style={styles.toolList}>
-          {TOOLS.map((tool) => (
-            <View key={tool.title} style={styles.toolRow}>
-              <View style={styles.flex}>
-                <Text style={styles.toolTitle}>{tool.title}</Text>
-              </View>
-              <Badge label={tool.tag} variant={tool.variant} />
+      {/* Segmented control */}
+      <View style={styles.segmentRow}>
+        {SEGMENTS.map((item) => {
+          const active = segment === item.key;
+          const Icon = SEGMENT_ICONS[item.key];
+          return (
+            <Pressable
+              key={item.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={item.label}
+              onPress={() => setSegment(item.key)}
+              style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+            >
+              <Icon size={14} color={active ? colors.bgPrimary : colors.textMuted} strokeWidth={2.2} />
+              <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]} numberOfLines={1}>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Segment content */}
+      <View style={styles.content}>
+        {segment === 'plans' ? <ExplorePlansScreen /> : null}
+        {segment === 'calculator' ? <CalculatorScreen /> : null}
+        {segment === 'prehab' ? (
+          <View style={styles.prehabWrap}>
+            <PrehabSection />
+            <Text style={styles.prehabHint}>
+              You can also open this as a full screen from the tools launcher.
+            </Text>
+            <View style={styles.launcherRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open calculator full screen"
+                onPress={openCalculatorScreen}
+                style={styles.launcherBtn}
+              >
+                <CalculatorIcon size={18} color={colors.accentVolt} strokeWidth={2} />
+                <Text style={styles.launcherText}>1RM Calculator</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open prehab generator full screen"
+                onPress={openPrehabScreen}
+                style={styles.launcherBtn}
+              >
+                <HeartPulse size={18} color={colors.accentAmber} strokeWidth={2} />
+                <Text style={styles.launcherText}>Prehab Generator</Text>
+              </Pressable>
             </View>
-          ))}
-        </View>
-      </Card>
-
-      <Card elevated style={styles.gapTop}>
-        <Text style={styles.cardLabel}>LEARNING</Text>
-        <Text style={styles.learnTitle}>Progressive Overload, Explained</Text>
-        <Text style={styles.learnBody}>
-          A 4-minute primer on scaling load, volume, and density across a block.
-        </Text>
-        <View style={styles.gapTop}>
-          <Button label="Open Library" variant="outline" />
-        </View>
-      </Card>
+          </View>
+        ) : null}
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  cardLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-    marginBottom: 12,
-  },
-  toolList: {
-    gap: 12,
-  },
-  toolRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  flex: { flex: 1 },
-  toolTitle: {
-    fontSize: fontSize.base,
+  headerTextBlock: {
+    flex: 1,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: fontSize.xxl,
+    lineHeight: 30,
+    fontWeight: fontWeight.bold,
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: fontSize.sm,
+    lineHeight: 18,
+    color: colors.textSecondary,
+  },
+  segmentRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 20,
+    marginTop: 14,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgSurface,
+  },
+  segmentBtnActive: {
+    backgroundColor: colors.accentVolt,
+    borderColor: colors.accentVolt,
+  },
+  segmentLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  segmentLabelActive: {
+    color: colors.bgPrimary,
+    fontWeight: fontWeight.semibold,
+  },
+  content: {
+    flex: 1,
+    marginTop: 4,
+  },
+  prehabWrap: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  prehabHint: {
+    marginTop: 12,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  launcherRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  launcherBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgSurface,
+  },
+  launcherText: {
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.textPrimary,
   },
-  learnTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: 6,
-  },
-  learnBody: {
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-    color: colors.textSecondary,
-  },
-  gapTop: { marginTop: 16 },
 });
 
 export { ExploreScreen };

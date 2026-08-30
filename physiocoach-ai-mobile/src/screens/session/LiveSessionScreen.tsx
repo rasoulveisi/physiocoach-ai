@@ -20,6 +20,7 @@ import {
   ChevronUp,
   Dumbbell,
   Flag,
+  Flame,
   Minus,
   Plus,
   Zap,
@@ -35,6 +36,7 @@ import { useRestTimer } from './useRestTimer';
 import { RestTimerHud } from './RestTimerHud';
 import { PainAlertModal } from './PainAlertModal';
 import { FinishSummaryModal } from './FinishSummaryModal';
+import PrehabSection from '../../components/workout/PrehabSection';
 import type {
   SessionExerciseState,
   SessionFinishSummary,
@@ -117,6 +119,9 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   const [painAdvice, setPainAdvice] = useState<string | null>(null);
   const [painDeload, setPainDeload] = useState<boolean | null>(null);
   const [painError, setPainError] = useState<string | null>(null);
+
+  // Smart warm-up / prehab flow (rendered before lifting).
+  const [prehabVisible, setPrehabVisible] = useState(false);
 
   // ---------------------------------------------------------------- Keep-awake
   useEffect(() => {
@@ -313,6 +318,24 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
               <AlertTriangle size={20} color={colors.accentRed} strokeWidth={2.2} />
             </Pressable>
           </View>
+
+          {/* Smart warm-up launcher — priming routine before lifting */}
+          {prehabVisible ? (
+            <View style={styles.prehabWrap}>
+              <PrehabSection exercises={exercises} compact />
+            </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open smart warm-up and prehab"
+              onPress={() => setPrehabVisible(true)}
+              style={styles.prehabLauncher}
+            >
+              <Flame size={16} color={colors.accentAmber} strokeWidth={2.2} />
+              <Text style={styles.prehabLauncherText}>Smart Warm-up & Prehab</Text>
+              <Text style={styles.prehabLauncherHint}>Joint priming · 5-10 min</Text>
+            </Pressable>
+          )}
 
           <View style={styles.body}>
             {/* Exercise accordion */}
@@ -614,6 +637,34 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+  },
+  prehabLauncher: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 2,
+    marginBottom: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+  },
+  prehabLauncherText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  prehabLauncherHint: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+  },
+  prehabWrap: {
+    marginHorizontal: 20,
+    marginBottom: 12,
   },
   body: {
     paddingHorizontal: 20,

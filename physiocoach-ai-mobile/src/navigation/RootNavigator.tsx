@@ -21,6 +21,8 @@ import MyPlanScreen from '../screens/MyPlanScreen';
 import WorkoutScreen from '../screens/WorkoutScreen';
 import ExploreScreen from '../screens/ExploreScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import CalculatorScreen from '../screens/tools/CalculatorScreen';
+import PrehabScreen from '../screens/explore/PrehabScreen';
 import LiveSessionScreen from '../screens/session/LiveSessionScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -106,6 +108,22 @@ export function RootNavigator() {
       ) : isAuthenticated ? (
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           <RootStack.Screen name="MainTabs" component={MainTabs} />
+          <RootStack.Screen
+            name="Calculator"
+            component={CalculatorScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <RootStack.Screen
+            name="Prehab"
+            component={PrehabScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
           <RootStack.Screen
             name="LiveSession"
             component={LiveSessionScreen}
