@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -28,6 +29,7 @@ import type { Exercise, PlanSet, WorkoutDay, WorkoutPlan } from '../api/plans';
 import type { RootStackParamList } from '../navigation/types';
 import { useSync } from '../context/SyncContext';
 import { isNetworkError } from '../services/offlineSync';
+import { getExerciseMediaUrl, getPlanCoverImage } from '../utils/mediaUtils';
 
 type MyPlanNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -209,6 +211,13 @@ export default function MyPlanScreen() {
         <>
           {/* ------------------------------------------------ Plan header */}
           <Card elevated>
+            {plan?.title ? (
+              <Image
+                source={{ uri: getPlanCoverImage(plan?.split ?? '', [plan?.title ?? '']) }}
+                style={styles.planCoverImage}
+                resizeMode="cover"
+              />
+            ) : null}
             <View style={styles.rowBetween}>
               <View style={styles.flex}>
                 <Text style={styles.cardLabel}>ACTIVE PLAN</Text>
@@ -292,6 +301,11 @@ export default function MyPlanScreen() {
                       onPress={() => setExpandedExerciseId(expanded ? null : exercise.id)}
                       style={styles.exerciseHeader}
                     >
+                      <Image
+                        source={{ uri: getExerciseMediaUrl(exercise) }}
+                        style={styles.exerciseThumb}
+                        resizeMode="cover"
+                      />
                       <View style={styles.flex}>
                         <Text style={styles.exerciseName}>{exercise.name}</Text>
                         <Text style={styles.exerciseSummary}>
@@ -576,6 +590,20 @@ const styles = StyleSheet.create({
   },
   dayPillTextSelected: {
     color: colors.bgPrimary,
+  },
+  planCoverImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 10,
+    backgroundColor: colors.bgElevated,
+    marginBottom: 12,
+  },
+  exerciseThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: colors.bgElevated,
+    marginRight: 10,
   },
   gapTop: { marginTop: 16 },
   gapSm: { marginTop: 10 },

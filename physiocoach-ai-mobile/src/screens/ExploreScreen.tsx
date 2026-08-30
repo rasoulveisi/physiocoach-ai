@@ -2,11 +2,18 @@ import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calculator as CalculatorIcon, Compass, HeartPulse, type LucideIcon } from 'lucide-react-native';
+import {
+  Calculator as CalculatorIcon,
+  Compass,
+  Dumbbell,
+  HeartPulse,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { ScreenContainer } from '../components/ui';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight } from '../theme/typography';
 import ExplorePlansScreen from './explore/ExplorePlansScreen';
+import ExploreExercisesScreen from './explore/ExploreExercisesScreen';
 import CalculatorScreen from './tools/CalculatorScreen';
 import PrehabSection from '../components/workout/PrehabSection';
 import type { RootStackParamList } from '../navigation/types';
@@ -17,18 +24,18 @@ type ExploreNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 // Segmented sub-navigation
 // ---------------------------------------------------------------------------
 
-type ExploreSegment = 'plans' | 'calculator' | 'prehab';
+type ExploreSegment = 'plans' | 'exercises' | 'tools';
 
 const SEGMENTS: Array<{ key: ExploreSegment; label: string }> = [
-  { key: 'plans', label: 'Explore Plans' },
-  { key: 'calculator', label: '1RM & Plates' },
-  { key: 'prehab', label: 'Prehab Generator' },
+  { key: 'plans', label: 'Workout Plans' },
+  { key: 'exercises', label: 'Exercises' },
+  { key: 'tools', label: '1RM & Tools' },
 ];
 
 const SEGMENT_ICONS: Record<ExploreSegment, LucideIcon> = {
   plans: Compass,
-  calculator: CalculatorIcon,
-  prehab: HeartPulse,
+  exercises: Dumbbell,
+  tools: CalculatorIcon,
 };
 
 export default function ExploreScreen() {
@@ -81,35 +88,8 @@ export default function ExploreScreen() {
       {/* Segment content */}
       <View style={styles.content}>
         {segment === 'plans' ? <ExplorePlansScreen /> : null}
-        {segment === 'calculator' ? <CalculatorScreen /> : null}
-        {segment === 'prehab' ? (
-          <View style={styles.prehabWrap}>
-            <PrehabSection />
-            <Text style={styles.prehabHint}>
-              You can also open this as a full screen from the tools launcher.
-            </Text>
-            <View style={styles.launcherRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open calculator full screen"
-                onPress={openCalculatorScreen}
-                style={styles.launcherBtn}
-              >
-                <CalculatorIcon size={18} color={colors.accentVolt} strokeWidth={2} />
-                <Text style={styles.launcherText}>1RM Calculator</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open prehab generator full screen"
-                onPress={openPrehabScreen}
-                style={styles.launcherBtn}
-              >
-                <HeartPulse size={18} color={colors.accentAmber} strokeWidth={2} />
-                <Text style={styles.launcherText}>Prehab Generator</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
+        {segment === 'exercises' ? <ExploreExercisesScreen /> : null}
+        {segment === 'tools' ? <CalculatorScreen /> : null}
       </View>
     </ScreenContainer>
   );

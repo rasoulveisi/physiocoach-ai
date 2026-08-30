@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -71,18 +71,18 @@ function MainTabs() {
         tabBarActiveTintColor: colors.accentVolt,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: styles.tabBar,
+        tabBarItemStyle: styles.tabBarItem,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused, color }) => {
           const Icon = TAB_ICONS[route.name as keyof MainTabParamList];
-          // Workout tab gets an elevated, highlighted treatment.
           if (route.name === 'Workout') {
             return (
               <View style={[styles.workoutBadge, focused && styles.workoutBadgeActive]}>
-                <Icon size={size - 2} color={focused ? colors.accentVolt : colors.textMuted} strokeWidth={2.2} />
+                <Icon size={20} color={focused ? colors.accentVolt : colors.textMuted} strokeWidth={2.2} />
               </View>
             );
           }
-          return <Icon size={size} color={color} strokeWidth={focused ? 2.2 : 1.8} />;
+          return <Icon size={20} color={color} strokeWidth={focused ? 2.2 : 1.8} />;
         },
       })}
     >
@@ -161,17 +161,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSurface,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
     borderTopWidth: 1,
+    height: Platform.OS === 'ios' ? 84 : 62,
+    paddingTop: 6,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 6,
     elevation: 0,
     shadowOpacity: 0,
   },
+  tabBarItem: {
+    paddingVertical: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabLabel: {
-    fontSize: fontSize.xs,
+    fontSize: 10,
     fontWeight: '600',
+    marginTop: 2,
   },
   workoutBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 26,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
@@ -179,11 +188,11 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   workoutBadgeActive: {
-    backgroundColor: 'rgba(16, 231, 96, 0.14)',
+    backgroundColor: 'rgba(16, 231, 96, 0.12)',
     borderColor: 'rgba(16, 231, 96, 0.35)',
   },
   workoutLabel: {
-    fontSize: fontSize.xs,
+    fontSize: 10,
     fontWeight: '700',
   },
 });

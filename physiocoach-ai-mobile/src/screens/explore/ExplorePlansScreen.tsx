@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,6 +18,7 @@ import { fontSize, fontWeight } from '../../theme/typography';
 import { clonePlan, getExplorePlans, isNetworkError } from '../../api/explore';
 import type { ExplorePlanDto, PersonaTag, JointTag } from '../../api/explore';
 import { useSync } from '../../context/SyncContext';
+import { getPlanCoverImage } from '../../utils/mediaUtils';
 
 // ---------------------------------------------------------------------------
 // Filters
@@ -301,6 +303,12 @@ export default function ExplorePlansScreen() {
                   accessibilityLabel={`Preview ${plan.title}`}
                   onPress={() => openPreview(plan)}
                 >
+                  <Image
+                    source={{ uri: getPlanCoverImage(plan.split, [plan.title, ...(plan.jointTags ?? [])]) }}
+                    style={styles.planCoverImage}
+                    resizeMode="cover"
+                  />
+
                   {/* Title + author */}
                   <View style={styles.cardTopRow}>
                     <Text style={styles.cardTitle} numberOfLines={2}>
@@ -513,6 +521,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginTop: 12,
+  },
+  planCoverImage: {
+    width: '100%',
+    height: 110,
+    borderRadius: 10,
+    backgroundColor: colors.bgElevated,
+    marginBottom: 12,
   },
   cardTopRow: {
     flexDirection: 'row',
