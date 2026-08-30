@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Activity, Flame, Footprints, ShieldCheck, Dumbbell } from 'lucide-react-native';
 import { ScreenContainer, Header, Card, Badge, Button } from '../components/ui';
@@ -88,6 +88,7 @@ function computeWeeklySets(sessions: WorkoutSession[]): number {
 
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNavigationProp>();
+  const isFocused = useIsFocused();
 
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
@@ -113,18 +114,10 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await fetchData();
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchData]);
+    if (isFocused) {
+      fetchData().finally(() => setLoading(false));
+    }
+  }, [fetchData, isFocused]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

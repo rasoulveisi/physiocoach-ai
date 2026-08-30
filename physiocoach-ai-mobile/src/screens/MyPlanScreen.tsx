@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   CalendarDays,
@@ -55,6 +56,7 @@ function formatReps(min?: number | null, max?: number | null): string {
 
 export default function MyPlanScreen() {
   const navigation = useNavigation<MyPlanNavigationProp>();
+  const isFocused = useIsFocused();
   const { enqueueAction } = useSync();
 
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
@@ -96,18 +98,10 @@ export default function MyPlanScreen() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await loadPlan();
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadPlan]);
+    if (isFocused) {
+      loadPlan().finally(() => setLoading(false));
+    }
+  }, [isFocused, loadPlan]);
 
   const days: WorkoutDay[] = useMemo(() => plan?.days ?? [], [plan]);
   const selectedDay = useMemo(
@@ -367,7 +361,7 @@ export default function MyPlanScreen() {
           <Modal
             visible={libraryVisible}
             animationType="slide"
-            presentationStyle="pageSheet"
+            presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'}
             onRequestClose={() => setLibraryVisible(false)}
           >
             <View style={styles.modalRoot}>

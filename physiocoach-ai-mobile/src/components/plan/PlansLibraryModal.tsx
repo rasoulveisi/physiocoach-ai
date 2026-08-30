@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Library } from 'lucide-react-native';
 import { Badge, Button } from '../ui';
 import { colors } from '../../theme/colors';
@@ -29,7 +29,7 @@ export function PlansLibraryModal({
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'}
       onRequestClose={onClose}
     >
       <View style={styles.root}>

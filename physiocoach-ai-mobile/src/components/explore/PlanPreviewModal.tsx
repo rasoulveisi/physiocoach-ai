@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -56,7 +57,13 @@ export function PlanPreviewModal({
   if (!visible) return null;
 
   return (
-    <Modal visible transparent animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible
+      transparent
+      animationType="slide"
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'}
+      onRequestClose={onClose}
+    >
       <View style={styles.root}>
         {/* Header */}
         <View style={styles.header}>
