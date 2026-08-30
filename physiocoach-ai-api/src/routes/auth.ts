@@ -509,11 +509,7 @@ function resolveOAuthReturnTo(c: ExpressRouteContext): string | null {
 
   try {
     const parsed = new URL(candidate);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return null;
-    }
-
-    if (!isAllowedOAuthReturnOrigin(parsed.origin, c.env.CORS_ORIGIN ?? '')) {
+    if (!isAllowedOAuthReturnUrl(parsed, c.env.CORS_ORIGIN ?? '')) {
       return null;
     }
 
@@ -522,6 +518,17 @@ function resolveOAuthReturnTo(c: ExpressRouteContext): string | null {
   } catch {
     return null;
   }
+}
+
+function isAllowedOAuthReturnUrl(url: URL, corsOrigins: string): boolean {
+  // Mobile app deep link schemes (Expo Go and native standalone builds)
+  if (url.protocol === 'exp:' || url.protocol === 'physiocoach:') {
+    return true;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return false;
+  }
+  return isAllowedOAuthReturnOrigin(url.origin, corsOrigins);
 }
 
 function isAllowedOAuthReturnOrigin(origin: string, corsOrigins: string): boolean {
@@ -593,14 +600,14 @@ async function verifyOAuthState(env: WorkerBindings, state: string): Promise<OAu
     throw new AuthError('oauth_state_mismatch', 'OAuth callback state is invalid.');
   }
 
-  let returnOrigin: string;
+  let parsedReturn: URL;
   try {
-    returnOrigin = new URL(payload.returnTo).origin;
+    parsedReturn = new URL(payload.returnTo);
   } catch {
     throw new AuthError('oauth_state_mismatch', 'OAuth callback state is invalid.');
   }
 
-  if (!isAllowedOAuthReturnOrigin(returnOrigin, env.CORS_ORIGIN)) {
+  if (!isAllowedOAuthReturnUrl(parsedReturn, env.CORS_ORIGIN ?? '')) {
     throw new AuthError('oauth_state_mismatch', 'OAuth callback state is invalid.');
   }
 
