@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
+import { ScrollView, StyleSheet, View, ViewStyle, StyleProp, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '../../theme/colors';
@@ -13,6 +13,10 @@ export interface ScreenContainerProps {
   style?: StyleProp<ViewStyle>;
   /** Status bar style; defaults to light for the dark theme. */
   statusBarStyle?: 'light' | 'dark' | 'auto';
+  /** Pull-to-refresh callback (only with `scrollable`). Renders the spinner. */
+  onRefresh?: () => Promise<void> | void;
+  /** External refreshing flag; defaults to an internally-managed one. */
+  refreshing?: boolean;
 }
 
 export function ScreenContainer({
@@ -21,7 +25,22 @@ export function ScreenContainer({
   padded = true,
   style,
   statusBarStyle = 'light',
+  onRefresh,
+  refreshing: refreshingProp,
 }: ScreenContainerProps) {
+  const [internalRefreshing, setInternalRefreshing] = React.useState(false);
+  const refreshing = refreshingProp ?? internalRefreshing;
+
+  const handleRefresh = async () => {
+    if (!onRefresh) return;
+    setInternalRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setInternalRefreshing(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <StatusBar style={statusBarStyle} backgroundColor={colors.bgPrimary} />
@@ -31,6 +50,17 @@ export function ScreenContainer({
           contentContainerStyle={[padded && styles.padded, style]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.accentVolt}
+                colors={[colors.accentVolt]}
+                progressBackgroundColor={colors.bgSurface}
+              />
+            ) : undefined
+          }
         >
           {children}
         </ScrollView>

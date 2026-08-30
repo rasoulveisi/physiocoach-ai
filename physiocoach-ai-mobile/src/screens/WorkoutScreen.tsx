@@ -1,11 +1,44 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Dumbbell } from 'lucide-react-native';
 import { ScreenContainer, Header, Card, Badge, Button } from '../components/ui';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight } from '../theme/typography';
+import { getCurrentPlan } from '../api/plans';
+import type { WorkoutPlan } from '../api/plans';
+import type { RootStackParamList } from '../navigation/types';
+
+type WorkoutNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function WorkoutScreen() {
+  const navigation = useNavigation<WorkoutNavigationProp>();
+  const [plan, setPlan] = React.useState<WorkoutPlan | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    getCurrentPlan()
+      .then((result) => {
+        if (!cancelled) setPlan(result.plan);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const todayDay =
+    plan?.days?.find((day) => day.dayIndex === plan.currentDayIndex) ?? plan?.days?.[0] ?? null;
+
+  const startSession = React.useCallback(() => {
+    navigation.navigate('LiveSession', {
+      plan,
+      dayIndex: todayDay?.dayIndex,
+      dayName: todayDay?.name,
+    });
+  }, [navigation, plan, todayDay]);
+
   return (
     <ScreenContainer scrollable>
       <Header
@@ -16,41 +49,19 @@ export default function WorkoutScreen() {
 
       <Card elevated>
         <Text style={styles.cardLabel}>CURRENT SESSION</Text>
-        <Text style={styles.sessionTitle}>Lower Body — Strength</Text>
+        <Text style={styles.sessionTitle}>
+          {todayDay ? `${todayDay.name} — ${plan?.title ?? 'Active Plan'}` : 'Freestyle Session'}
+        </Text>
         <View style={styles.badgeRow}>
-          <Badge label="Set 2 of 5" variant="volt" />
-          <Badge label="Back Squat" variant="cyan" />
-        </View>
-      </Card>
-
-      <Card style={styles.gapTop}>
-        <Text style={styles.cardLabel}>LIVE TELEMETRY</Text>
-        <View style={styles.metricRow}>
-          <View style={styles.metric}>
-            <Text style={[styles.metricValue, { color: colors.accentVolt }]}>120kg</Text>
-            <Text style={styles.metricLabel}>Target</Text>
-          </View>
-          <View style={styles.metric}>
-            <Text style={[styles.metricValue, { color: colors.accentCyan }]}>0:45</Text>
-            <Text style={styles.metricLabel}>Rest</Text>
-          </View>
-          <View style={styles.metric}>
-            <Text style={[styles.metricValue, { color: colors.accentAmber }]}>RPE 8</Text>
-            <Text style={styles.metricLabel}>Effort</Text>
-          </View>
+          <Badge label={todayDay ? `Day ${todayDay.dayIndex}` : 'Open'} variant="volt" />
+          <Badge label={`${todayDay?.exercises?.length ?? 0} exercises`} variant="cyan" />
         </View>
       </Card>
 
       <View style={[styles.gapTop, styles.buttonRow]}>
         <View style={styles.buttonFlex}>
-          <Button label="Log Set" variant="volt" fullWidth />
+          <Button label="Start Live Session" variant="volt" fullWidth onPress={startSession} />
         </View>
-        <View style={styles.buttonFlex}>
-          <Button label="Skip" variant="secondary" fullWidth />
-        </View>
-      </View>
-      <View style={styles.gapTop}>
-        <Button label="End Session" variant="danger" fullWidth />
       </View>
       <View style={styles.gapTop}>
         <Button label="Demo: Loading…" variant="ghost" loading disabled fullWidth />
@@ -77,29 +88,6 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     gap: 8,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  metric: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    padding: 12,
-  },
-  metricValue: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  metricLabel: {
-    marginTop: 4,
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
   },
   buttonRow: {
     flexDirection: 'row',
