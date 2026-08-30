@@ -5,16 +5,15 @@
   "packageManager": "npm@11.9.0",
   "workspaces": [
     "physiocoach-ai-api",
-    "physiocoach-ai-web",
-    "physiocoach-ai-mobile"
+    "physiocoach-ai-web"
   ],
   "scripts": {
     "start": "npx concurrently -k -p \"[{name}]\" -c \"cyan,magenta\" -n \"API,WEB\" \"npm run dev:api\" \"npm run dev:web\"",
     "dev": "npm run start",
     "dev:api": "npm --workspace=physiocoach-ai-api run dev",
     "dev:web": "npm --workspace=physiocoach-ai-web run dev",
-    "dev:mobile": "npm --workspace=physiocoach-ai-mobile start",
-    "mobile": "npm --workspace=physiocoach-ai-mobile start",
+    "dev:mobile": "npm --prefix physiocoach-ai-mobile run start",
+    "mobile": "npm --prefix physiocoach-ai-mobile run start",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
   },
