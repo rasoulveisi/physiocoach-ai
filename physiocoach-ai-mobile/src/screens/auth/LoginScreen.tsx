@@ -11,7 +11,7 @@ import type { AuthStackParamList } from '../../navigation/types';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Sample credentials for quick demo access on staging/production seeds. */
-const DEMO_EMAIL = 'athlete@physiocoach.dev';
+const DEMO_EMAIL = 'demo@physiocoach.dev';
 const DEMO_PASSWORD = 'Password123!';
 
 type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;

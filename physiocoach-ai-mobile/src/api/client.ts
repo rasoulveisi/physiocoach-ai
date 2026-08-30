@@ -175,14 +175,35 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 }
 
 async function toApiError(response: Response): Promise<ApiError> {
-  let payload: Partial<ApiErrorPayload> | undefined;
+  let payload: Record<string, unknown> | undefined;
   try {
-    payload = (await response.json()) as Partial<ApiErrorPayload>;
+    payload = (await response.json()) as Record<string, unknown>;
   } catch {
-    // Non-JSON error body — fall back to a generic message.
+    // Non-JSON error body — fall back to generic message.
   }
-  const message = payload?.message ?? `Request failed with status ${response.status}`;
-  return new ApiError(response.status, message, payload);
+
+  const nestedError = typeof payload?.error === 'object' && payload.error !== null
+    ? (payload.error as Record<string, unknown>)
+    : undefined;
+
+  const retryAfter = response.headers.get('retry-after');
+  const code = (nestedError?.code ?? payload?.code) as string | undefined;
+  let message = (nestedError?.message ?? payload?.message) as string | undefined;
+
+  if (!message) {
+    if (response.status === 429) {
+      message = retryAfter
+        ? `Too many attempts. Please wait ${retryAfter} seconds before retrying.`
+        : 'Too many attempts. Please wait 1 minute before retrying.';
+    } else {
+      message = `Request failed with status ${response.status}`;
+    }
+  }
+
+  const traceId = (nestedError?.requestId ?? payload?.traceId ?? payload?.requestId) as string | undefined;
+  const auditLogId = (nestedError?.auditLogId ?? payload?.auditLogId) as string | undefined;
+
+  return new ApiError(response.status, message, { code, message, traceId, auditLogId });
 }
 
 // ---------------------------------------------------------------------------
