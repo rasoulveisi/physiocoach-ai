@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "physiocoach-ai-mobile",
+    "slug": "physiocoach-ai-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#090D15"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "backgroundColor": "#090D15"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#090D15"
+      },
+      "backgroundColor": "#090D15"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

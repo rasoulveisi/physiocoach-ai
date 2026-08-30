@@ -1,0 +1,118 @@
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import {
+  Calendar,
+  Compass,
+  Dumbbell,
+  Home,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react-native';
+import { colors } from '../theme/colors';
+import { fontSize } from '../theme/typography';
+import type { MainTabParamList } from './types';
+import DashboardScreen from '../screens/DashboardScreen';
+import MyPlanScreen from '../screens/MyPlanScreen';
+import WorkoutScreen from '../screens/WorkoutScreen';
+import ExploreScreen from '../screens/ExploreScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+
+const Tab = createBottomTabNavigator<MainTabParamList>();
+
+const TAB_ICONS: Record<keyof MainTabParamList, LucideIcon> = {
+  Dashboard: Home,
+  MyPlan: Calendar,
+  Workout: Dumbbell,
+  Explore: Compass,
+  Settings: Settings,
+};
+
+/** Navigation theme: keeps transitions/headers on the Precision Dark canvas. */
+const navigationTheme = {
+  ...DefaultTheme,
+  dark: true,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.accentVolt,
+    background: colors.bgPrimary,
+    card: colors.bgSurface,
+    text: colors.textPrimary,
+    border: colors.borderSubtle,
+    notification: colors.accentAmber,
+  },
+};
+
+export function RootNavigator() {
+  return (
+    <NavigationContainer theme={navigationTheme}>
+      <Tab.Navigator
+        initialRouteName="Dashboard"
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarActiveTintColor: colors.accentVolt,
+          tabBarInactiveTintColor: colors.textMuted,
+          tabBarStyle: styles.tabBar,
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarIcon: ({ focused, color, size }) => {
+            const Icon = TAB_ICONS[route.name as keyof MainTabParamList];
+            // Workout tab gets an elevated, highlighted treatment.
+            if (route.name === 'Workout') {
+              return (
+                <View style={[styles.workoutBadge, focused && styles.workoutBadgeActive]}>
+                  <Icon size={size - 2} color={focused ? colors.accentVolt : colors.textMuted} strokeWidth={2.2} />
+                </View>
+              );
+            }
+            return <Icon size={size} color={color} strokeWidth={focused ? 2.2 : 1.8} />;
+          },
+        })}
+      >
+        <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
+        <Tab.Screen name="MyPlan" component={MyPlanScreen} options={{ title: 'My Plan' }} />
+        <Tab.Screen
+          name="Workout"
+          component={WorkoutScreen}
+          options={{ title: 'Workout', tabBarLabelStyle: styles.workoutLabel }}
+        />
+        <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: 'Explore' }} />
+        <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: colors.bgSurface,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopWidth: 1,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  tabLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+  },
+  workoutBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  workoutBadgeActive: {
+    backgroundColor: 'rgba(16, 231, 96, 0.14)',
+    borderColor: 'rgba(16, 231, 96, 0.35)',
+  },
+  workoutLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+  },
+});
+
+export default RootNavigator;
