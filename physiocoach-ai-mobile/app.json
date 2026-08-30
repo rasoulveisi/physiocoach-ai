@@ -2,6 +2,7 @@
   "expo": {
     "name": "physiocoach-ai-mobile",
     "slug": "physiocoach-ai-mobile",
+    "scheme": "physiocoach",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -27,7 +28,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      "expo-web-browser"
     ]
   }
 }

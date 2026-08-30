@@ -20,13 +20,14 @@ interface RegisterFieldErrors {
 }
 
 export default function RegisterScreen({ navigation }: RegisterScreenProps) {
-  const { register, error, clearError } = useAuth();
+  const { register, loginWithGoogle, error, clearError } = useAuth();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const validate = useCallback((): boolean => {
     const next: RegisterFieldErrors = {};
@@ -48,18 +49,27 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
   }, [displayName, email, password]);
 
   const handleSubmit = useCallback(async () => {
-    if (submitting) return;
+    if (submitting || googleLoading) return;
     clearError();
     if (!validate()) return;
     setSubmitting(true);
     try {
       await register(email.trim(), password, displayName.trim());
-      // Successful registration signs the athlete in; RootNavigator swaps to
-      // the main tabs automatically.
     } finally {
       setSubmitting(false);
     }
-  }, [clearError, displayName, email, password, register, submitting, validate]);
+  }, [clearError, displayName, email, googleLoading, password, register, submitting, validate]);
+
+  const handleGoogleLogin = useCallback(async () => {
+    if (submitting || googleLoading) return;
+    clearError();
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [clearError, googleLoading, loginWithGoogle, submitting]);
 
   const passwordHint = useMemo(
     () => 'At least 8 characters, with one letter and one number.',
@@ -146,7 +156,23 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
             size="lg"
             fullWidth
             loading={submitting}
+            disabled={googleLoading}
             onPress={() => void handleSubmit()}
+          />
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Button
+            label="Continue with Google"
+            variant="secondary"
+            fullWidth
+            loading={googleLoading}
+            disabled={submitting}
+            onPress={() => void handleGoogleLogin()}
           />
 
           <View style={styles.switchRow}>
@@ -238,5 +264,22 @@ const styles = StyleSheet.create({
   switchHint: {
     fontSize: fontSize.sm,
     color: colors.textMuted,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.borderSubtle,
+  },
+  dividerText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textMuted,
+    letterSpacing: 1,
   },
 });

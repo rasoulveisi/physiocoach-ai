@@ -16,10 +16,13 @@ import React, {
   useState,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 
 import * as authApi from '../api/auth';
 import {
   ApiError,
+  BASE_URL,
   STORAGE_KEYS,
   clearTokens,
   getAccessToken,
@@ -30,6 +33,8 @@ import {
 } from '../api/client';
 import type { AuthResponse, User } from '../api/types';
 
+WebBrowser.maybeCompleteAuthSession();
+
 /** Session state + actions exposed to the app. */
 export interface AuthContextValue {
   user: User | null;
@@ -39,6 +44,7 @@ export interface AuthContextValue {
   error: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, displayName?: string) => Promise<boolean>;
+  loginWithGoogle: () => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -90,6 +96,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [applyAuthResponse],
   );
+
+  const loginWithGoogle = useCallback(async (): Promise<boolean> => {
+    setError(null);
+    try {
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'physiocoach',
+        path: 'oauth-callback',
+      });
+      const authUrl = `${BASE_URL}/auth/google?returnTo=${encodeURIComponent(redirectUri)}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type !== 'success' || !result.url) {
+        return false;
+      }
+
+      const parsedUrl = new URL(result.url);
+      const code = parsedUrl.searchParams.get('code');
+      const state = parsedUrl.searchParams.get('state');
+
+      if (!code || !state) {
+        throw new Error('OAuth callback was missing authorization code or state.');
+      }
+
+      const response = await authApi.exchangeOAuthCode(code, state);
+      await applyAuthResponse(response);
+      return true;
+    } catch (err) {
+      setError(toFriendlyAuthError(err));
+      return false;
+    }
+  }, [applyAuthResponse]);
 
   const logout = useCallback(async (): Promise<void> => {
     try {
@@ -174,10 +211,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       login,
       register,
+      loginWithGoogle,
       logout,
       clearError,
     }),
-    [user, token, isLoading, error, login, register, logout, clearError],
+    [user, token, isLoading, error, login, register, loginWithGoogle, logout, clearError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

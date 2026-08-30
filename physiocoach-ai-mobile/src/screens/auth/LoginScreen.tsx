@@ -17,12 +17,13 @@ const DEMO_PASSWORD = 'Password123!';
 type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
-  const { login, error, clearError } = useAuth();
+  const { login, loginWithGoogle, error, clearError } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const validate = useCallback((): boolean => {
     const next: { email?: string; password?: string } = {};
@@ -39,18 +40,27 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   }, [email, password]);
 
   const handleSubmit = useCallback(async () => {
-    if (submitting) return;
+    if (submitting || googleLoading) return;
     clearError();
     if (!validate()) return;
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      // Successful login flips isAuthenticated in the context; RootNavigator
-      // swaps the auth stack for the main tabs automatically.
     } finally {
       setSubmitting(false);
     }
-  }, [clearError, email, login, password, submitting, validate]);
+  }, [clearError, email, googleLoading, login, password, submitting, validate]);
+
+  const handleGoogleLogin = useCallback(async () => {
+    if (submitting || googleLoading) return;
+    clearError();
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [clearError, googleLoading, loginWithGoogle, submitting]);
 
   const handleDemoLogin = useCallback(() => {
     clearError();
@@ -122,14 +132,30 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             size="lg"
             fullWidth
             loading={submitting}
+            disabled={googleLoading}
             onPress={() => void handleSubmit()}
+          />
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Button
+            label="Continue with Google"
+            variant="secondary"
+            fullWidth
+            loading={googleLoading}
+            disabled={submitting}
+            onPress={() => void handleGoogleLogin()}
           />
 
           <Button
             label="Quick Demo Athlete Login"
             variant="outline"
             fullWidth
-            disabled={submitting}
+            disabled={submitting || googleLoading}
             onPress={handleDemoLogin}
           />
 
@@ -216,5 +242,22 @@ const styles = StyleSheet.create({
   switchHint: {
     fontSize: fontSize.sm,
     color: colors.textMuted,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.borderSubtle,
+  },
+  dividerText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textMuted,
+    letterSpacing: 1,
   },
 });

@@ -8,22 +8,16 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
-import { LogOut, Settings as SettingsIcon, ShieldAlert } from 'lucide-react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { HeartPulse, LogOut, Settings as SettingsIcon, ShieldAlert, ShieldCheck } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { ScreenContainer, Header, Card, Badge, Button, OfflineBanner } from '../components/ui';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight } from '../theme/typography';
 import { useAuth } from '../context/AuthContext';
+import type { RootStackParamList } from '../navigation/types';
 import {
   DEFAULT_SETTINGS,
   REST_TIMER_OPTIONS,
@@ -109,6 +103,7 @@ function ChipSelector<T extends string | number>({
 }
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, logout } = useAuth();
   const { settings, updateSetting, resetToDefaults } = useSettings();
   const { isConnected, pendingCount, isSyncing, processQueue, clearQueue } = useSync();
@@ -307,7 +302,24 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
-      {/* ================================ 4 · System & Clinical Safety */}
+      {/* ======================= 4 · Movement & Injury Assessment */}
+      <Card style={styles.gapTop}>
+        <SectionLabel text="MOVEMENT & INJURY ASSESSMENT" />
+
+        <PrefRow
+          title="Physio Profile"
+          hint="Customize injury safeguards, posture goals, and equipment"
+        >
+          <Button
+            label="Edit Assessment ›"
+            variant="volt"
+            size="sm"
+            onPress={() => navigation.navigate('Assessment')}
+          />
+        </PrefRow>
+      </Card>
+
+      {/* ================================ 5 · System & Clinical Safety */}
       <Card style={styles.gapTop}>
         <SectionLabel text="SYSTEM & CLINICAL SAFETY" />
 

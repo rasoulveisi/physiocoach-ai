@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -197,12 +198,37 @@ export default function DashboardScreen() {
               <Text style={styles.statValue}>{streakDays}</Text>
               <Text style={styles.statLabel}>Streak Days</Text>
             </View>
-            <View style={styles.statCard}>
+            <Pressable
+              onPress={() => navigation.navigate('Assessment')}
+              style={styles.statCard}
+            >
               <ShieldCheck size={18} color={colors.accentVolt} strokeWidth={2} />
-              <Text style={styles.statValue}>{PLACEHOLDER_SAFEGUARDS}</Text>
-              <Text style={styles.statLabel}>Safeguards</Text>
-            </View>
+              <Text style={styles.statValue}>Safeguards</Text>
+              <Text style={styles.statLabel}>Assessment ›</Text>
+            </Pressable>
           </View>
+
+          {/* ----------------------------------- Movement Assessment Banner */}
+          <Card style={styles.gapTop}>
+            <View style={styles.rowBetween}>
+              <View style={styles.flex}>
+                <Text style={styles.cardLabel}>MOVEMENT & INJURY SAFEGUARDS</Text>
+                <Text style={styles.sessionTitle}>Physio Assessment</Text>
+                <Text style={styles.emptyText}>
+                  Customize injury safeguards (Knee-friendly, Shoulder-safe, Low-spine shear) to tailor all AI routines.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.gapSm}>
+              <Button
+                label="Open Movement Assessment"
+                variant="outline"
+                size="sm"
+                fullWidth
+                onPress={() => navigation.navigate('Assessment')}
+              />
+            </View>
+          </Card>
 
           {/* -------------------------------------------- Recent Sessions */}
           <Card style={styles.gapTop}>

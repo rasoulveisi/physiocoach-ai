@@ -24,6 +24,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import CalculatorScreen from '../screens/tools/CalculatorScreen';
 import PrehabScreen from '../screens/explore/PrehabScreen';
 import LiveSessionScreen from '../screens/session/LiveSessionScreen';
+import AssessmentScreen from '../screens/assessment/AssessmentScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -131,6 +132,14 @@ export function RootNavigator() {
               presentation: 'fullScreenModal',
               animation: 'slide_from_bottom',
               gestureEnabled: false,
+            }}
+          />
+          <RootStack.Screen
+            name="Assessment"
+            component={AssessmentScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
             }}
           />
         </RootStack.Navigator>

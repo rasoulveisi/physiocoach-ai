@@ -61,3 +61,12 @@ export async function logout(): Promise<{ success: boolean }> {
 export async function getMe(): Promise<{ user: User }> {
   return request<{ user: User }>('/auth/me', { method: 'GET' });
 }
+
+/** POST /auth/oauth/exchange — exchanges Google OAuth authorization code and state for JWT session tokens. */
+export async function exchangeOAuthCode(code: string, state: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/oauth/exchange', {
+    method: 'POST',
+    body: { code, state },
+    auth: false,
+  });
+}

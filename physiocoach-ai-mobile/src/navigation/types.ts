@@ -48,6 +48,7 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
   LiveSession: LiveSessionParams | undefined;
+  Assessment: undefined;
   Calculator: ExploreToolParamList['Calculator'];
   Prehab: ExploreToolParamList['Prehab'];
 };
