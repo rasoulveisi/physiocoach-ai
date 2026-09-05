@@ -93,6 +93,22 @@ export const customPlanPayloadSchema = z.object({
 
 export type CustomPlanPayload = z.infer<typeof customPlanPayloadSchema>;
 
+function safeParseStoredJson(value: unknown): unknown {
+  if (value === undefined || value === null) {
+    return {};
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
 function normalizeCustomMovementPattern(
   pattern: string,
 ): 'squat' | 'hinge' | 'push' | 'pull' | 'lunge' | 'carry' | 'core' | 'mobility' {
@@ -1414,25 +1430,14 @@ export function createWorkoutPlanRoutes() {
           return notFound(c, 'Workout plan not found.');
         }
 
-        let targetAiMetadata: Record<string, unknown> = {};
-        try {
-          targetAiMetadata =
-            typeof targetPlan.aiMetadataJson === 'string'
-              ? JSON.parse(targetPlan.aiMetadataJson)
-              : (targetPlan.aiMetadataJson ?? {});
-        } catch {
-          targetAiMetadata = {};
-        }
-
-        let targetPlanObj: Record<string, unknown> = {};
-        try {
-          targetPlanObj =
-            typeof targetPlan.planJson === 'string'
-              ? JSON.parse(targetPlan.planJson)
-              : (targetPlan.planJson ?? {});
-        } catch {
-          targetPlanObj = {};
-        }
+      const targetAiMetadata: Record<string, unknown> = safeParseStoredJson(targetPlan.aiMetadataJson) as Record<
+        string,
+        unknown
+      >;
+      const targetPlanObj: Record<string, unknown> = safeParseStoredJson(targetPlan.planJson) as Record<
+        string,
+        unknown
+      >;
 
         const sourceAuthor =
           (typeof targetAiMetadata.authorName === 'string' && targetAiMetadata.authorName) ||
@@ -1626,25 +1631,14 @@ export function createWorkoutPlanRoutes() {
         return notFound(c, 'Workout plan not found.');
       }
 
-      let parsedPlan: Record<string, unknown> = {};
-      try {
-        parsedPlan =
-          typeof targetPlan.planJson === 'string'
-            ? JSON.parse(targetPlan.planJson)
-            : (targetPlan.planJson ?? {});
-      } catch {
-        parsedPlan = {};
-      }
-
-      let parsedAiMetadata: Record<string, unknown> = {};
-      try {
-        parsedAiMetadata =
-          typeof targetPlan.aiMetadataJson === 'string'
-            ? JSON.parse(targetPlan.aiMetadataJson)
-            : (targetPlan.aiMetadataJson ?? {});
-      } catch {
-        parsedAiMetadata = {};
-      }
+      const parsedPlan: Record<string, unknown> = safeParseStoredJson(targetPlan.planJson) as Record<
+        string,
+        unknown
+      >;
+      const parsedAiMetadata: Record<string, unknown> = safeParseStoredJson(targetPlan.aiMetadataJson) as Record<
+        string,
+        unknown
+      >;
 
       const { personas, targetAudience, jointTags } = evaluatePlanPersonas(parsedPlan);
       const authorName = user.displayName || user.email?.split('@')[0] || 'Community Athlete';
