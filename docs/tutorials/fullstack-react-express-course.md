@@ -36,7 +36,7 @@ Code blocks marked `(abridged)` show the lines that matter; `…` marks an elisi
 | App | Directory | Stack | Job |
 | --- | --- | --- | --- |
 | API | `physiocoach-ai-api/` | Express 5, Drizzle, Neon Postgres, zod, jose, Cloudflare Workers | Serves `/api/v1/*`, owns data, auth, AI generation |
-| Web | `physiocoach-ai-web/` | React 19, react-router-dom v7, Vite 6, Tailwind 3, Capacitor shell | Athlete UI: dashboard, plan, sessions, settings |
+| Web | `physiocoach-ai-web/` | React 19, react-router-dom v7, Vite 6, Tailwind 3, PWA | Athlete UI: dashboard, plan, sessions, settings |
 
 Two deliberate choices in the web app:
 

@@ -1,0 +1,102 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - prod
+    paths:
+      - 'physiocoach-ai-mobile/**'
+      - '.github/workflows/build-android.yml'
+  pull_request:
+    paths:
+      - 'physiocoach-ai-mobile/**'
+      - '.github/workflows/build-android.yml'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: physiocoach-ai-mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: physiocoach-ai-mobile/package-lock.json
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prebuild Native Android Project
+        run: npx expo prebuild --platform android --clean
+
+      - name: Decode signing key (if configured)
+        id: keystore
+        env:
+          SIGNING_KEY_BASE64: ${{ secrets.ANDROID_SIGNING_KEY }}
+        run: |
+          if [ -n "$SIGNING_KEY_BASE64" ]; then
+            echo "Decoding signing keystore..."
+            echo "$SIGNING_KEY_BASE64" | base64 -d > android/app/signingKey.jks
+            echo "has_keystore=true" >> $GITHUB_OUTPUT
+          else
+            echo "No signing key secret found, building unsigned / standard APK"
+            echo "has_keystore=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Android Release APK
+        if: "${{ github.event.inputs.build_type != 'debug' }}"
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --build-cache --no-daemon
+        env:
+          ANDROID_KEYSTORE_PATH: signingKey.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Build Android Debug APK
+        if: "${{ github.event.inputs.build_type == 'debug' }}"
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --build-cache --no-daemon
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: physiocoach-ai-android-apk
+          path: physiocoach-ai-mobile/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14

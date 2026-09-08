@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "physiocoach-ai-mobile",
+    "name": "PhysioCoach AI",
     "slug": "physiocoach-ai-mobile",
     "scheme": "physiocoach",
     "version": "1.0.0",
@@ -15,9 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "backgroundColor": "#090D15"
+      "backgroundColor": "#090D15",
+      "bundleIdentifier": "ir.otconnect.physiocoach"
     },
     "android": {
+      "package": "ir.otconnect.physiocoach",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#090D15"

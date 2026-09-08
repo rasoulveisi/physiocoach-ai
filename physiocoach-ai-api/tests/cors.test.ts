@@ -40,7 +40,7 @@ describe('cors origins', () => {
     );
   });
 
-  it('allows the Capacitor Android hostname from default origins', () => {
+  it('allows the production Android and Web hostname from default origins', () => {
     expect(isCorsOriginAllowed('https://physiocoach.otconnect.ir', DEFAULT_CORS_ORIGIN)).toBe(true);
     expect(
       isCorsOriginAllowed('https://dev.physiocoach-ai-web.pages.dev', DEFAULT_CORS_ORIGIN),
