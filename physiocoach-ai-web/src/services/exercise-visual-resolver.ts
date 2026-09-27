@@ -31,6 +31,36 @@ export interface ExerciseVisualInput {
 const CATALOG_BASE = '/images/exercises/catalog';
 const FALLBACK_IMAGE = '/images/exercises/fallback.webp';
 
+const DEFAULT_FALLBACK_BY_MUSCLE: Record<string, string> = {
+  chest: '0025',
+  pectorals: '0025',
+  back: '0007',
+  lats: '0007',
+  quads: '0043',
+  quadriceps: '0043',
+  hamstrings: '0085',
+  glutes: '0085',
+  shoulders: '0071',
+  delts: '0071',
+  deltoids: '0071',
+  serratus: '0071',
+  biceps: '0010',
+  triceps: '0055',
+  core: '0001',
+  abs: '0001',
+  calves: '0088',
+};
+
+const DEFAULT_FALLBACK_BY_PATTERN: Record<string, string> = {
+  push: '0025',
+  pull: '0007',
+  squat: '0043',
+  hinge: '0085',
+  lunge: '0043',
+  core: '0001',
+  mobility: '0071',
+};
+
 export function resolveCatalogExerciseId(id?: string | null): string | null {
   if (!id) return null;
   const trimmed = id.trim();
@@ -54,7 +84,7 @@ export function resolveExerciseVisual(input: ExerciseVisualInput): ExerciseVisua
     };
   }
 
-  // 2. Deterministic PhysioCoach-owned catalog visual (.webp)
+  // 2. Deterministic PhysioCoach-owned catalog visual (.webp) from masterExerciseId
   const catalogNum = resolveCatalogExerciseId(input.masterExerciseId);
   if (catalogNum) {
     const catalogUrl = `${CATALOG_BASE}/${catalogNum}.webp`;
@@ -70,12 +100,21 @@ export function resolveExerciseVisual(input: ExerciseVisualInput): ExerciseVisua
     };
   }
 
-  // 3. Fallback visual
+  // 3. Fallback based on muscleGroup or movementPattern
+  const muscleKey = input.muscleGroup?.toLowerCase().trim();
+  const patternKey = input.movementPattern?.toLowerCase().trim();
+  const fallbackNum =
+    (muscleKey && DEFAULT_FALLBACK_BY_MUSCLE[muscleKey]) ||
+    (patternKey && DEFAULT_FALLBACK_BY_PATTERN[patternKey]) ||
+    '0025';
+
+  const fallbackCatalogUrl = `${CATALOG_BASE}/${fallbackNum}.webp`;
   return {
     kind: 'media',
-    url: FALLBACK_IMAGE,
+    url: fallbackCatalogUrl,
+    fallbackUrl: FALLBACK_IMAGE,
     media: {
-      imageUrl: FALLBACK_IMAGE,
+      imageUrl: fallbackCatalogUrl,
       source: 'PhysioCoach Visual Library',
       attributionText: 'PhysioCoach visual assets',
     },

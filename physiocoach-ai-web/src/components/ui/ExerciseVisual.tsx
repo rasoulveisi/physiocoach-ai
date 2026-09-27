@@ -13,6 +13,8 @@ export interface ExerciseVisualProps {
   media?: ExerciseImageMedia | null;
   compact?: boolean;
   className?: string;
+  imageClassName?: string;
+  fit?: 'contain' | 'cover';
   showAttribution?: boolean;
 }
 
@@ -24,6 +26,8 @@ export function ExerciseVisual({
   media,
   compact = false,
   className = '',
+  imageClassName = '',
+  fit = 'contain',
   showAttribution = false,
 }: ExerciseVisualProps) {
   const [errorCount, setErrorCount] = useState(0);
@@ -53,16 +57,16 @@ export function ExerciseVisual({
   if (compact) {
     return (
       <div
-        className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-zinc-900/60 p-1 ${className}`}
+        className={`relative flex h-full w-full items-center justify-center overflow-hidden ${className}`}
       >
         <img
           src={currentSrc}
           alt={name}
           onError={handleError}
           onLoad={handleLoad}
-          className={`h-full w-full object-contain transition-opacity duration-200 ${
+          className={`h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'} transition-opacity duration-200 ${
             loaded ? 'opacity-100' : 'opacity-0'
-          }`}
+          } ${imageClassName}`}
           loading="lazy"
         />
         {!loaded && (

@@ -920,17 +920,18 @@ export function ExplorePlansPage() {
                         >
                           {/* Main Row: Half Image (~42%) + Truncated Name & Repeats on Right */}
                           <div className="flex items-stretch gap-3 p-2.5 sm:gap-4 sm:p-3">
-                            {/* Left: Large Exercise Visual */}
-                            <div className="relative aspect-[4/3] w-[42%] sm:w-44 shrink-0 overflow-hidden rounded-xl border border-zinc-800/80 bg-gradient-to-br from-[#162136] via-[#0e1422] to-[#090c14] flex items-center justify-center p-2 shadow-inner">
+                            {/* Left: Large Exercise Visual (Fills frame edge-to-edge, matching 1:1 illustration) */}
+                            <div className="relative aspect-square w-28 sm:w-36 shrink-0 overflow-hidden rounded-xl border border-zinc-800/80 bg-white flex items-center justify-center shadow-inner">
                               <ExerciseVisual
                                 name={exercise.name}
                                 masterExerciseId={exercise.masterExerciseId || exercise.id}
                                 movementPattern={exercise.movementPattern}
                                 muscleGroup={exercise.muscleGroup}
                                 compact={true}
-                                className="!bg-transparent w-full h-full object-contain pointer-events-none"
+                                fit="cover"
+                                className="w-full h-full pointer-events-none"
                               />
-                              <span className="absolute bottom-1.5 left-1.5 rounded-md bg-zinc-950/80 border border-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-400">
+                              <span className="absolute bottom-1.5 left-1.5 rounded-md bg-zinc-950/85 border border-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-300 shadow-sm">
                                 #{exIdx + 1}
                               </span>
                             </div>
