@@ -69,11 +69,12 @@ export class OpenRouterProvider implements AIProvider {
     this.referer = config.referer ?? 'https://physiocoach.otconnect.ir';
     this.title = config.title ?? 'PhysioCoach AI';
     this.defaultPrimaryModel =
-      config.defaultPrimaryModel ?? 'z-ai/glm-5.2:free';
+      config.defaultPrimaryModel ?? 'nvidia/nemotron-3-ultra-550b-a55b:free';
     this.defaultFallbackModels = config.defaultFallbackModels ?? [
-      'minimax/minimax-m3:free',
-      'google/gemma-2-9b-it:free',
-      'qwen/qwen-2.5-72b-instruct:free',
+      'inclusionai/ling-3.0-flash-sante:free',
+      'nvidia/nemotron-3.5-lightning:free',
+      'google/gemma-4-31b-it:free',
+      'openrouter/free',
     ];
     this.defaultTimeoutMs = config.defaultTimeoutMs ?? 180_000;
     this.defaultMaxRetries = config.defaultMaxRetries ?? 0;

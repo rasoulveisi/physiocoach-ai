@@ -34,6 +34,7 @@ import { apiClient } from '../services/api-client';
 import { resolveExerciseSafetyNotes } from '../services/exercise-safety-notes';
 import { getPersonaColorClasses } from '../services/persona-matcher';
 import { usePageMetadata } from '../services/metadata';
+import { ExplorePlanCard } from '../components/ui/ExplorePlanCard';
 
 export interface ExploreExerciseItem {
   id: string;
@@ -544,245 +545,24 @@ export function ExplorePlansPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {plans.map((plan) => {
-                const isCloning = cloningPlanId === plan.id;
-                const isSaving = savingPlanId === plan.id;
-                const isCopied = copiedId === plan.id;
-
-                const primaryExName =
-                  plan.primaryExercise?.name || plan.days[0]?.exercises[0]?.name || plan.title;
-                const primaryExId =
-                  plan.primaryExercise?.masterExerciseId ||
-                  plan.days[0]?.exercises[0]?.masterExerciseId ||
-                  plan.days[0]?.exercises[0]?.id;
-                const primaryExPattern =
-                  plan.primaryExercise?.movementPattern || plan.days[0]?.exercises[0]?.movementPattern;
-                const primaryExMuscle =
-                  plan.primaryExercise?.muscleGroup || plan.days[0]?.exercises[0]?.muscleGroup;
-
-                return (
-                  <div
-                    key={plan.id}
-                    className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-zinc-800/90 bg-[#121722] p-4 sm:p-5 shadow-xl transition-all duration-200 hover:border-[#10E760]/40 hover:bg-[#141b27]"
-                  >
-                    <div>
-                      {/* 1. Visual Card Header Banner with Exercise Preview Graphic */}
-                      <div className="relative mb-4 h-48 w-full overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-[#0e1420] via-[#121722] to-[#121722] shadow-inner">
-                        {/* Ambient subtle glow */}
-                        <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-lime-500/5 blur-2xl" />
-                        <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-cyan-500/5 blur-2xl" />
-
-                        {/* Exercise Visual Graphic */}
-                        <div className="absolute inset-0 flex items-center justify-center p-3 opacity-95 transition-transform duration-300 group-hover:scale-105">
-                          <ExerciseVisual
-                            name={primaryExName}
-                            masterExerciseId={primaryExId}
-                            movementPattern={primaryExPattern}
-                            muscleGroup={primaryExMuscle}
-                            compact={false}
-                            className="!border-none !bg-transparent w-full h-full shadow-none"
-                          />
-                        </div>
-
-                        {/* Seamless bottom blend overlay */}
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#121722] via-[#121722]/60 to-transparent" />
-
-                        {/* Top Floating Badges */}
-                        <div className="absolute left-3 top-3 right-3 flex items-center justify-between gap-2 z-10">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-mono text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-zinc-950/90 text-zinc-200 border border-zinc-700/80 backdrop-blur-md shadow-sm">
-                              {plan.split.replace(/_/g, ' ')}
-                            </span>
-                            {primaryExPattern && (
-                              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg bg-zinc-950/90 text-zinc-300 border border-zinc-800 backdrop-blur-md shadow-sm capitalize">
-                                <Dumbbell className="h-3 w-3 text-lime-400" />
-                                {primaryExPattern}
-                              </span>
-                            )}
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-zinc-900/90 text-zinc-300 border border-zinc-800 backdrop-blur-md">
-                              {plan.experienceLevel}
-                            </span>
-                          </div>
-
-                          {plan.isVerified ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#10E760] bg-zinc-950/90 border border-[#10E760]/40 px-2.5 py-1 rounded-lg backdrop-blur-md shadow-sm shrink-0">
-                              <ShieldCheck className="h-3.5 w-3.5" /> Clinical Verified
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#06B6D4] bg-zinc-950/90 border border-[#06B6D4]/40 px-2.5 py-1 rounded-lg backdrop-blur-md shadow-sm shrink-0">
-                              <Globe className="h-3 w-3" /> Community
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Bottom Floating Rating & Saves Stats */}
-                        <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between z-10">
-                          <div className="flex items-center gap-1 text-xs font-mono font-black text-amber-300 bg-zinc-950/90 px-2.5 py-1 rounded-lg border border-amber-500/30 backdrop-blur-md shadow-sm">
-                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                            {plan.reviewsCount === 0 ? (
-                              <span>
-                                5.0 <span className="text-[10px] font-normal text-zinc-400">(New)</span>
-                              </span>
-                            ) : (
-                              <>
-                                <span>{plan.rating ? plan.rating.toFixed(1) : '5.0'}</span>
-                                <span className="text-[10px] font-normal text-zinc-400">
-                                  ({plan.reviewsCount} {plan.reviewsCount === 1 ? 'review' : 'reviews'})
-                                </span>
-                              </>
-                            )}
-                          </div>
-
-                          <span className="text-[10px] font-mono font-bold text-zinc-200 bg-zinc-950/90 px-2.5 py-1 rounded-lg border border-zinc-800 backdrop-blur-md">
-                            👥 {plan.cloneCount} saves
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 2. Title & Concise Scannable Description */}
-                      <div className="space-y-1.5">
-                        <h3 className="text-lg sm:text-xl font-black text-white tracking-tight group-hover:text-[#10E760] transition-colors line-clamp-1">
-                          {plan.title}
-                        </h3>
-                        {plan.forkedFrom && (
-                          <div className="flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-300 w-fit">
-                            <GitFork className="h-3 w-3 shrink-0 text-cyan-400" />
-                            <span className="truncate">
-                              Forked from <span className="text-white font-extrabold">{plan.forkedFrom.planTitle || 'Community Plan'}</span> by {plan.forkedFrom.authorName}
-                            </span>
-                          </div>
-                        )}
-                        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
-                          {plan.description}
-                        </p>
-                      </div>
-
-                      {/* 3. Target Personas Match Badges */}
-                      {plan.targetPersonas && plan.targetPersonas.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {plan.targetPersonas.slice(0, 2).map((persona, pIdx) => {
-                            const colors = getPersonaColorClasses(persona);
-                            return (
-                              <button
-                                key={pIdx}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSearchQuery(persona);
-                                }}
-                                title={`Filter by persona: ${persona}`}
-                                className={`rounded-lg border px-2.5 py-0.5 text-[10px] font-bold transition-all hover:scale-105 ${colors.badgeBg} ${colors.textColor} ${colors.borderColor}`}
-                              >
-                                {persona}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* 4. Joint Safety Safeguard Badges */}
-                      <div className="mt-2.5 flex flex-wrap gap-1.5">
-                        {plan.jointTags.slice(0, 3).map((tag, tIdx) => {
-                          const isKnee = tag.toLowerCase().includes('knee');
-                          const isSpine = tag.toLowerCase().includes('spine');
-                          const isShoulder = tag.toLowerCase().includes('shoulder');
-                          const colorClass = isKnee
-                            ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-                            : isSpine
-                              ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30'
-                              : isShoulder
-                                ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
-                                : 'text-zinc-300 bg-zinc-800/60 border-zinc-700/60';
-
-                          return (
-                            <span
-                              key={tIdx}
-                              className={`rounded-md border px-2 py-0.5 text-[10px] font-bold tracking-wide ${colorClass}`}
-                            >
-                              {tag}
-                            </span>
-                          );
-                        })}
-                      </div>
-
-                      {/* 5. Telemetry Breakdown */}
-                      <div className="mt-3.5 grid grid-cols-3 gap-2 rounded-2xl bg-zinc-950/80 p-2.5 border border-zinc-800/80 text-center font-mono">
-                        <div>
-                          <span className="block text-[9px] text-zinc-500 uppercase font-bold">Frequency</span>
-                          <span className="text-xs font-black text-white">{plan.frequencyDays} Days/Wk</span>
-                        </div>
-                        <div>
-                          <span className="block text-[9px] text-zinc-500 uppercase font-bold">Weekly Sets</span>
-                          <span className="text-xs font-black text-lime-400">{plan.totalWeeklySets} Sets</span>
-                        </div>
-                        <div>
-                          <span className="block text-[9px] text-zinc-500 uppercase font-bold">Author</span>
-                          <span className="text-xs font-bold text-zinc-300 truncate block max-w-[90px] mx-auto">
-                            {plan.author.name.split(' ')[0]}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 6. Actions Bar */}
-                    <div className="mt-4 flex items-center gap-2 border-t border-zinc-800/80 pt-3.5">
-                      {/* Set as Active Plan (1-Click) */}
-                      <Button
-                        type="button"
-                        variant="volt"
-                        size="sm"
-                        loading={isCloning}
-                        onClick={() => handleClonePlan(plan)}
-                        className="flex-1 text-xs font-black shadow-md shadow-lime-400/10"
-                        title="Set as your primary active routine"
-                      >
-                        <Zap className="h-3.5 w-3.5 mr-1" /> Set Active
-                      </Button>
-
-                      {/* Save to My Plans (1-Click) */}
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        loading={isSaving}
-                        onClick={(e) => handleSaveToMyPlans(plan, e)}
-                        title="Save to your library"
-                        className="h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-200 hover:border-cyan-400 hover:text-cyan-400"
-                      >
-                        <BookmarkPlus className="h-3.5 w-3.5 mr-1" /> Save
-                      </Button>
-
-                      {/* Preview Routine */}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        title="Preview Routine"
-                        onClick={() => {
-                          setPreviewPlan(plan);
-                          setPreviewActiveDay(0);
-                          setSearchParams({ plan: plan.id });
-                        }}
-                        className="size-9 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-
-                      {/* Social Share Button */}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        title="Share Plan Link"
-                        onClick={(e) => handleSharePlan(plan, e)}
-                        className="size-9 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white"
-                      >
-                        {isCopied ? <Check className="h-4 w-4 text-lime-400" /> : <Share2 className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+              {plans.map((plan) => (
+                <ExplorePlanCard
+                  key={plan.id}
+                  plan={plan}
+                  isCloning={cloningPlanId === plan.id}
+                  isSaving={savingPlanId === plan.id}
+                  isCopied={copiedId === plan.id}
+                  onClone={handleClonePlan}
+                  onSave={handleSaveToMyPlans}
+                  onPreview={(p) => {
+                    setPreviewPlan(p);
+                    setPreviewActiveDay(0);
+                    setSearchParams({ plan: p.id });
+                  }}
+                  onShare={handleSharePlan}
+                  onSelectFilterTag={(tag) => setSearchQuery(tag)}
+                />
+              ))}
             </div>
           )}
         </div>
