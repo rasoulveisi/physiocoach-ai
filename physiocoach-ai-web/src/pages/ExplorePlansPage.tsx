@@ -916,68 +916,98 @@ export function ExplorePlansPage() {
                       return (
                         <div
                           key={exercise.id || exIdx}
-                          className="rounded-2xl border border-zinc-800/80 bg-zinc-950/80 p-3.5 sm:p-4 space-y-2.5"
+                          className="overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/80 transition-all hover:border-zinc-700"
                         >
-                          <div className="flex items-center gap-3.5">
-                            {/* Exercise Visual */}
-                            <div className="size-14 sm:size-16 shrink-0 overflow-hidden rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-center p-1">
+                          {/* Main Row: Half Image (~42%) + Truncated Name & Repeats on Right */}
+                          <div className="flex items-stretch gap-3 p-2.5 sm:gap-4 sm:p-3">
+                            {/* Left: Large Exercise Visual */}
+                            <div className="relative aspect-[4/3] w-[42%] sm:w-44 shrink-0 overflow-hidden rounded-xl border border-zinc-800/80 bg-gradient-to-br from-[#162136] via-[#0e1422] to-[#090c14] flex items-center justify-center p-2 shadow-inner">
                               <ExerciseVisual
                                 name={exercise.name}
                                 masterExerciseId={exercise.masterExerciseId || exercise.id}
                                 movementPattern={exercise.movementPattern}
                                 muscleGroup={exercise.muscleGroup}
                                 compact={true}
+                                className="!bg-transparent w-full h-full object-contain pointer-events-none"
                               />
+                              <span className="absolute bottom-1.5 left-1.5 rounded-md bg-zinc-950/80 border border-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-400">
+                                #{exIdx + 1}
+                              </span>
                             </div>
 
-                            {/* Exercise Details */}
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <h5 className="truncate text-sm font-bold text-white capitalize">
-                                {exercise.name}
-                              </h5>
-                              <div className="flex flex-wrap items-center gap-2 text-xs">
-                                <span className="font-mono font-black text-lime-400">
-                                  {exercise.sets} Sets × {exercise.reps} Reps
-                                </span>
-                                {exercise.rpe && (
-                                  <span className="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-300">
-                                    Effort: {exercise.rpe}/10
+                            {/* Right: Truncated Name, Repeats, and Meta */}
+                            <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="rounded-md bg-lime-400/10 border border-lime-400/30 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-lime-400 truncate">
+                                    {exercise.muscleGroup || exercise.movementPattern || 'Target'}
                                   </span>
-                                )}
-                                <span className="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">
-                                  {exercise.restSeconds}s Rest
-                                </span>
+                                  {exercise.rpe && (
+                                    <span className="rounded-md bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono text-zinc-400">
+                                      RPE {exercise.rpe}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <h5 className="truncate text-xs sm:text-sm font-extrabold text-white capitalize">
+                                  {exercise.name}
+                                </h5>
+
+                                <div className="text-xs sm:text-sm font-mono font-black text-lime-400">
+                                  {exercise.sets} Sets × {exercise.reps} Reps
+                                </div>
                               </div>
-                              {exercise.notes && (
-                                <p className="text-[11px] text-zinc-400 italic line-clamp-2">
-                                  {exercise.notes}
-                                </p>
-                              )}
+
+                              <div className="flex items-center justify-between pt-1 text-[11px]">
+                                <span className="text-zinc-500 font-mono text-[10px]">
+                                  {exercise.restSeconds}s rest
+                                </span>
+
+                                {(safetyNotes.length > 0 || exercise.notes) && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => toggleCue(cueKey, e)}
+                                    title="Toggle exercise notes"
+                                    className="flex items-center gap-0.5 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-1.5 py-0.5 text-[10px] font-mono font-bold text-zinc-300 transition-colors"
+                                  >
+                                    <span>{isExpanded ? 'Less' : 'More'}</span>
+                                    {isExpanded ? (
+                                      <ChevronUp className="h-3 w-3 text-lime-400" />
+                                    ) : (
+                                      <ChevronDown className="h-3 w-3 text-zinc-400" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {/* Expandable Safety Notes */}
-                          {safetyNotes.length > 0 && (
-                            <div className="border-t border-zinc-800/80 pt-2">
-                              <button
-                                type="button"
-                                onClick={(e) => toggleCue(cueKey, e)}
-                                className="flex items-center gap-1.5 text-[11px] font-bold text-lime-400 hover:text-lime-300"
-                              >
-                                <ShieldCheck className="h-3.5 w-3.5" />
-                                <span>Biomechanical Safeguards</span>
-                                {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                              </button>
+                          {/* Toggled Details */}
+                          {isExpanded && (
+                            <div className="border-t border-zinc-800/80 bg-zinc-900/60 p-3 space-y-2 text-xs animate-in fade-in duration-150">
+                              {exercise.notes && (
+                                <p className="text-[11px] text-zinc-400 italic bg-zinc-950/60 rounded-lg p-2 border border-zinc-800/40">
+                                  {exercise.notes}
+                                </p>
+                              )}
 
-                              {isExpanded && (
-                                <ul className="mt-2 space-y-1 rounded-xl bg-zinc-900 p-2.5 text-[11px] text-zinc-300">
-                                  {safetyNotes.map((note, nIdx) => (
-                                    <li key={nIdx} className="flex items-start gap-1.5">
-                                      <span className="text-lime-400 font-bold">•</span>
-                                      <span>{note}</span>
-                                    </li>
-                                  ))}
-                                </ul>
+                              {safetyNotes.length > 0 && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-lime-400 uppercase">
+                                    <ShieldCheck className="h-3 w-3" /> Biomechanical Safeguards ({safetyNotes.length})
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {safetyNotes.map((note, nIdx) => (
+                                      <span
+                                        key={nIdx}
+                                        className="inline-flex items-center gap-1 rounded-md bg-zinc-950 border border-zinc-800 px-2 py-0.5 text-[10px] text-zinc-300"
+                                      >
+                                        <span className="h-1 w-1 rounded-full bg-lime-400 shrink-0" />
+                                        {note}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
                             </div>
                           )}

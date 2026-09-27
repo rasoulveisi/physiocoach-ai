@@ -585,138 +585,163 @@ export function PlanPage() {
                                 const cueKey = `${dayIndex}-${index}`;
                                 const isCueExpanded = !!expandedFormCues[cueKey];
 
+                                const overloadRec = calculateProgressiveOverload({
+                                  exerciseName: exercise.name,
+                                  currentWeightKg: 20,
+                                  currentReps: typeof exercise.reps === 'number' ? exercise.reps : Number(exercise.reps) || 10,
+                                  targetReps: exercise.reps,
+                                  previousPerformance: {
+                                    weight: 20,
+                                    reps: typeof exercise.reps === 'number' ? exercise.reps : Number(exercise.reps) || 10,
+                                    rpe: exercise.rpe || 7.5,
+                                  },
+                                  unitSystem,
+                                });
+
                                 return (
                                   <div
                                     key={exercise.id || `${exercise.name}-${index}`}
-                                    onClick={() =>
-                                      setPreviewExercise({
-                                        id: exercise.masterExerciseId || exercise.id || '',
-                                        masterExerciseId: exercise.masterExerciseId,
-                                        name: exercise.name,
-                                        movementPattern: exercise.movementPattern,
-                                        muscleGroup: exercise.muscleGroup,
-                                      })
-                                    }
-                                    className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-900 p-3.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/80 active:scale-[0.99] sm:p-4"
+                                    className="group relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-900/95 transition-all hover:border-lime-400/50 hover:bg-zinc-900 active:scale-[0.99]"
                                   >
-                                    <div className="flex items-center gap-3.5 sm:gap-4">
-                                      {/* Thumbnail */}
-                                      <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/80 flex items-center justify-center p-1 shadow-sm">
+                                    {/* Main Row: Half Image (~44% width) + Truncated Name & Repeats on Right */}
+                                    <div
+                                      onClick={() =>
+                                        setPreviewExercise({
+                                          id: exercise.masterExerciseId || exercise.id || '',
+                                          masterExerciseId: exercise.masterExerciseId,
+                                          name: exercise.name,
+                                          sets: exercise.sets,
+                                          reps: exercise.reps,
+                                          rpe: exercise.rpe || undefined,
+                                          restSeconds: exercise.restSeconds,
+                                          movementPattern: exercise.movementPattern,
+                                          muscleGroup: exercise.muscleGroup,
+                                          safetyNotes: exercise.notes || undefined,
+                                        })
+                                      }
+                                      className="flex cursor-pointer items-stretch gap-3 p-2.5 sm:gap-4 sm:p-3"
+                                    >
+                                      {/* Left: Large Exercise Visual (Half of row, much bigger than text) */}
+                                      <div className="relative aspect-[4/3] w-[42%] sm:w-48 shrink-0 overflow-hidden rounded-xl border border-zinc-800/80 bg-gradient-to-br from-[#162136] via-[#0e1422] to-[#090c14] flex items-center justify-center p-2 shadow-inner">
                                         <ExerciseVisual
                                           name={exercise.name}
                                           masterExerciseId={exercise.masterExerciseId || exercise.id}
                                           movementPattern={exercise.movementPattern}
                                           muscleGroup={exercise.muscleGroup}
                                           compact={true}
+                                          className="!bg-transparent w-full h-full object-contain pointer-events-none"
                                         />
+                                        <span className="absolute bottom-1.5 left-1.5 rounded-md bg-zinc-950/80 border border-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-400">
+                                          #{index + 1}
+                                        </span>
                                       </div>
 
-                                      {/* Info */}
-                                      <div className="min-w-0 flex-1 space-y-1">
-                                        <h4 className="truncate text-sm font-bold text-zinc-100 transition-colors group-hover:text-lime-400 sm:text-base capitalize">
-                                          {exercise.name}
-                                        </h4>
-
-                                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                                          <span className="font-mono font-black text-lime-400">
-                                            {exercise.sets} Sets × {exercise.reps} Reps
-                                          </span>
-                                          {exercise.rpe && (
-                                            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-300">
-                                              Effort: {exercise.rpe}/10
+                                      {/* Right: Truncated Name, Repeats (Sets × Reps), and Key Signals */}
+                                      <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
+                                        <div className="space-y-1">
+                                          {/* Target Muscle / Movement Category */}
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="rounded-md bg-lime-400/10 border border-lime-400/30 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-lime-400 truncate">
+                                              {exercise.muscleGroup || exercise.movementPattern || 'Target'}
                                             </span>
-                                          )}
-                                          <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">
-                                            {exercise.restSeconds || 60}s Rest
-                                          </span>
+                                            {exercise.rpe && (
+                                              <span className="rounded-md bg-zinc-800 px-1.5 py-0.5 text-[9px] font-mono text-zinc-400">
+                                                RPE {exercise.rpe}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          {/* Exercise Name (Truncated) */}
+                                          <h4 className="text-xs sm:text-sm font-extrabold text-white tracking-tight line-clamp-1 group-hover:text-lime-400 transition-colors capitalize">
+                                            {exercise.name}
+                                          </h4>
+
+                                          {/* Repeats (Sets × Reps) */}
+                                          <div className="text-xs sm:text-sm font-mono font-black text-lime-400">
+                                            {exercise.sets} Sets × {exercise.reps} Reps
+                                          </div>
                                         </div>
 
-                                        {exercise.notes && (
-                                          <p className="text-[11px] text-zinc-400 line-clamp-1 italic">
-                                            {exercise.notes}
-                                          </p>
-                                        )}
-                                      </div>
+                                        {/* Meta & Toggled Menu / Detail Action */}
+                                        <div className="flex items-center justify-between pt-1 text-[11px]">
+                                          <span className="text-zinc-500 font-mono text-[10px]">
+                                            {exercise.restSeconds || 60}s rest
+                                          </span>
 
-                                      <div className="flex shrink-0 items-center">
-                                        <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-lime-400 transition-colors" />
+                                          <div className="flex items-center gap-1.5">
+                                            {(safetyNotes.length > 0 || overloadRec.isApplicable || exercise.notes) && (
+                                              <button
+                                                type="button"
+                                                onClick={(e) => toggleCue(cueKey, e)}
+                                                title="Toggle exercise details"
+                                                className="flex items-center gap-0.5 rounded-md bg-zinc-800/80 hover:bg-zinc-700/80 px-1.5 py-0.5 text-[10px] font-mono font-bold text-zinc-300 transition-colors"
+                                              >
+                                                <span>{isCueExpanded ? 'Less' : 'More'}</span>
+                                                {isCueExpanded ? (
+                                                  <ChevronUp className="h-3 w-3 text-lime-400" />
+                                                ) : (
+                                                  <ChevronDown className="h-3 w-3 text-zinc-400" />
+                                                )}
+                                              </button>
+                                            )}
+                                            <div className="flex items-center text-zinc-400 group-hover:text-lime-400 transition-colors">
+                                              <ChevronRight className="h-3.5 w-3.5" />
+                                            </div>
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
 
-                                    {/* Progressive Overload Recommendation Badge with Tooltip */}
-                                    {(() => {
-                                      const overloadRec = calculateProgressiveOverload({
-                                        exerciseName: exercise.name,
-                                        currentWeightKg: 20,
-                                        currentReps: typeof exercise.reps === 'number' ? exercise.reps : Number(exercise.reps) || 10,
-                                        targetReps: exercise.reps,
-                                        previousPerformance: {
-                                          weight: 20,
-                                          reps: typeof exercise.reps === 'number' ? exercise.reps : Number(exercise.reps) || 10,
-                                          rpe: exercise.rpe || 7.5,
-                                        },
-                                        unitSystem,
-                                      });
-
-                                      return (
-                                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-2 text-xs">
-                                          <Tooltip content={overloadRec.reason} position="top">
-                                            <Badge
-                                              variant={overloadRec.badgeVariant === 'lime' ? 'volt' : 'cyan'}
-                                              className="cursor-help py-1"
+                                    {/* Toggled Menu: Detailed Text, Overload Target, Form Safeguards */}
+                                    {isCueExpanded && (
+                                      <div className="border-t border-zinc-800/80 bg-zinc-950/90 p-3 space-y-2.5 animate-in fade-in duration-150 text-xs">
+                                        {/* Progressive Overload Box */}
+                                        {overloadRec.isApplicable && (
+                                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-2">
+                                            <div className="flex items-center gap-1.5 text-xs">
+                                              <Zap className="h-3.5 w-3.5 text-lime-400 shrink-0" />
+                                              <span className="font-bold text-zinc-200">{overloadRec.chipLabel}</span>
+                                              <span className="text-[10px] text-zinc-400 hidden sm:inline">• {overloadRec.reason}</span>
+                                            </div>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="volt"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate('/session');
+                                              }}
+                                              className="h-6 text-[10px] font-black px-2.5 rounded-md"
                                             >
-                                              <Zap className="h-3 w-3 shrink-0" />
-                                              <span>{overloadRec.chipLabel}</span>
-                                            </Badge>
-                                          </Tooltip>
+                                              Apply & Train
+                                            </Button>
+                                          </div>
+                                        )}
 
-                                          <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="volt"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              navigate('/session');
-                                            }}
-                                            className="h-6 text-[10px] font-black px-2.5 rounded-md shrink-0"
-                                          >
-                                            Apply & Train
-                                          </Button>
-                                        </div>
-                                      );
-                                    })()}
+                                        {/* Exercise Notes / Warmup Instruction */}
+                                        {exercise.notes && (
+                                          <p className="text-[11px] text-zinc-400 italic bg-zinc-900/50 rounded-lg p-2 border border-zinc-800/40">
+                                            {exercise.notes}
+                                          </p>
+                                        )}
 
-                                    {/* Biomechanical Form Safeguards (Tags in Compact Disclosure) */}
-                                    {safetyNotes.length > 0 && (
-                                      <div className="mt-3 border-t border-zinc-800/80 pt-2.5">
-                                        <button
-                                          type="button"
-                                          onClick={(e) => toggleCue(cueKey, e)}
-                                          className="flex items-center gap-1.5 text-[11px] font-bold text-lime-400 hover:text-lime-300 transition-colors"
-                                        >
-                                          <ShieldCheck className="h-3.5 w-3.5" />
-                                          <span>Biomechanical Form Safeguards</span>
-                                          <span className="rounded-full bg-lime-400/10 px-1.5 py-0.2 text-[10px] font-mono text-lime-400 border border-lime-400/20">
-                                            {safetyNotes.length}
-                                          </span>
-                                          {isCueExpanded ? (
-                                            <ChevronUp className="h-3 w-3 ml-auto text-zinc-500" />
-                                          ) : (
-                                            <ChevronDown className="h-3 w-3 ml-auto text-zinc-500" />
-                                          )}
-                                        </button>
-
-                                        {isCueExpanded && (
-                                          <div className="mt-2 flex flex-wrap gap-1.5 rounded-xl bg-zinc-950/80 p-2.5 border border-zinc-800/60 animate-in fade-in duration-150">
-                                            {safetyNotes.map((note, nIdx) => (
-                                              <span
-                                                key={nIdx}
-                                                className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 border border-zinc-800 px-2 py-1 text-[11px] text-zinc-300"
-                                              >
-                                                <span className="h-1.5 w-1.5 rounded-full bg-lime-400 shrink-0" />
-                                                {note}
-                                              </span>
-                                            ))}
+                                        {/* Biomechanical Form Safeguards */}
+                                        {safetyNotes.length > 0 && (
+                                          <div className="space-y-1">
+                                            <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-lime-400 uppercase">
+                                              <ShieldCheck className="h-3 w-3" /> Biomechanical Form Safeguards ({safetyNotes.length})
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                              {safetyNotes.map((note, nIdx) => (
+                                                <span
+                                                  key={nIdx}
+                                                  className="inline-flex items-center gap-1 rounded-md bg-zinc-900 border border-zinc-800 px-2 py-0.5 text-[10px] text-zinc-300"
+                                                >
+                                                  <span className="h-1 w-1 rounded-full bg-lime-400 shrink-0" />
+                                                  {note}
+                                                </span>
+                                              ))}
+                                            </div>
                                           </div>
                                         )}
                                       </div>
