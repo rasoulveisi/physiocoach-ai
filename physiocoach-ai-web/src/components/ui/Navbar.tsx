@@ -6,10 +6,9 @@ import type { User } from '../../context/AuthContext';
 const baseLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/explore', label: 'Explore', icon: Compass },
-  { to: '/exercises', label: 'Exercises', icon: Dumbbell },
-  { to: '/calculator', label: 'Calculator', icon: Calculator },
   { to: '/plan', label: 'Plan', icon: CalendarDays },
   { to: '/session', label: 'Session', icon: Activity },
+  { to: '/calculator', label: 'Calculator', icon: Calculator },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -91,24 +90,24 @@ export function MobileNavbar({ user }: { user: User | null }) {
   const allLinks = getNavLinks(user);
 
   return (
-    <nav className="w-full flex border-t border-zinc-800 bg-zinc-950/95 px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-1 backdrop-blur-lg">
+    <nav className="w-full flex items-center justify-around border-t border-zinc-800/80 bg-zinc-950/95 px-3 pb-[max(env(safe-area-inset-bottom),8px)] pt-1.5 backdrop-blur-lg">
       {allLinks.map(({ to, label, icon: Icon }) => (
         <NavLink
           key={to}
           to={to}
           className={({ isActive }) =>
             clsx(
-              'relative flex flex-1 flex-col items-center gap-1 py-1.5 text-[10px] tracking-wider transition-colors',
-              isActive ? 'text-lime-400 font-black' : 'text-zinc-500 hover:text-zinc-300 font-bold',
+              'relative flex flex-1 flex-col items-center justify-center gap-1 py-1 text-[10px] tracking-wider transition-all',
+              isActive ? 'text-lime-400 font-extrabold scale-105' : 'text-zinc-400 hover:text-zinc-200 font-medium',
             )
           }
         >
           {({ isActive }) => (
             <>
-              <Icon className={clsx('h-5 w-5 transition-transform', isActive && 'scale-110')} />
+              <Icon className={clsx('h-5 w-5 transition-transform', isActive && 'stroke-[2.5]')} />
               <span>{label}</span>
               {isActive && (
-                <span className="absolute bottom-0 size-1.5 rounded-full bg-lime-400 mt-0.5" />
+                <span className="absolute bottom-0 size-1 rounded-full bg-lime-400" />
               )}
             </>
           )}

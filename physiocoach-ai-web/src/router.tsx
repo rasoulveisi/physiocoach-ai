@@ -93,7 +93,7 @@ export const router = createBrowserRouter([
           { path: '/onboarding', element: withSuspense(OnboardingPage) },
           { path: '/assessment', element: withSuspense(AssessmentPage) },
           { path: '/dashboard', element: withSuspense(DashboardPage) },
-          { path: '/exercises', element: withSuspense(ExercisesPage) },
+          { path: '/exercises', element: <Navigate to="/explore?tab=exercises" replace /> },
           { path: '/calculator', element: withSuspense(CalculatorPage) },
           { path: '/tools/calculator', element: withSuspense(CalculatorPage) },
           { path: '/plan', element: withSuspense(PlanPage) },

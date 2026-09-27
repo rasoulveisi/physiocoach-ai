@@ -1,6 +1,15 @@
 import React, { useMemo } from 'react';
-import { Star } from 'lucide-react';
+import {
+  ArrowRight,
+  Calendar,
+  Layers,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Users,
+} from 'lucide-react';
 import { ExerciseVisual } from './ExerciseVisual';
+import { getPersonaColorClasses } from '../../services/persona-matcher';
 import type { ExplorePlanDto } from '../../pages/ExplorePlansPage';
 
 export interface ExplorePlanCardProps {
@@ -15,71 +24,11 @@ export interface ExplorePlanCardProps {
   onSelectFilterTag?: (tag: string) => void;
 }
 
-/**
- * Derives the bold poster typography & vibrant accent badge matching the Lyfta design.
- */
-function getPosterDetails(plan: ExplorePlanDto): {
-  headlineTop?: string;
-  headlineBottom: string;
-  pillText: string;
-  isRedPill: boolean;
-} {
-  const titleLower = plan.title.toLowerCase();
-  const split = plan.split;
-
-  let headlineTop: string | undefined;
-  let headlineBottom = 'FULL BODY';
-  let pillText = 'Build Muscle';
-  let isRedPill = true;
-
-  // 1. Overlay Headline text
-  if (titleLower.includes('home') || (plan.equipment && plan.equipment.length <= 1)) {
-    headlineBottom = 'At Home';
-  } else if (split === 'upper_lower') {
-    headlineTop = 'UPPER';
-    headlineBottom = 'LOWER';
-  } else if (split === 'push_pull_legs') {
-    headlineTop = 'PUSH PULL';
-    headlineBottom = 'LEGS';
-  } else if (plan.frequencyDays === 4) {
-    headlineBottom = '4 Day Split';
-  } else if (plan.frequencyDays === 3) {
-    headlineBottom = '3 Day Split';
-  } else if (plan.frequencyDays === 5) {
-    headlineBottom = '5 Day Split';
-  } else if (split === 'full_body') {
-    headlineBottom = 'FULL BODY';
-  } else {
-    // Custom split: derive punchy short title
-    const words = plan.title.split(' ').slice(0, 2).join(' ');
-    headlineBottom = words.toUpperCase() || 'CUSTOM SPLIT';
-  }
-
-  // 2. Vibrant Accent Pill Text
-  if (plan.jointTags?.some((t) => t.toLowerCase().includes('knee'))) {
-    pillText = 'Knee Safe';
-  } else if (
-    plan.jointTags?.some(
-      (t) => t.toLowerCase().includes('spine') || t.toLowerCase().includes('back'),
-    )
-  ) {
-    pillText = 'Low Spine Load';
-  } else if (plan.experienceLevel === 'beginner') {
-    pillText = 'Beginner Plan';
-  } else if (split === 'upper_lower' && headlineTop) {
-    pillText = `${plan.frequencyDays || 4} Day Split`;
-  } else if (plan.targetPersonas?.some((p) => p.toLowerCase().includes('muscle'))) {
-    pillText = 'Build Muscle';
-  } else if (plan.isVerified) {
-    pillText = 'Clinical Safe';
-  } else {
-    pillText = 'Build Muscle';
-  }
-
-  return { headlineTop, headlineBottom, pillText, isRedPill };
-}
-
-export function ExplorePlanCard({ plan, onPreview }: ExplorePlanCardProps) {
+export function ExplorePlanCard({
+  plan,
+  onPreview,
+  onSelectFilterTag,
+}: ExplorePlanCardProps) {
   const primaryExName =
     plan.primaryExercise?.name || plan.days[0]?.exercises[0]?.name || plan.title;
   const primaryExId =
@@ -91,93 +40,150 @@ export function ExplorePlanCard({ plan, onPreview }: ExplorePlanCardProps) {
   const primaryExMuscle =
     plan.primaryExercise?.muscleGroup || plan.days[0]?.exercises[0]?.muscleGroup;
 
-  const { headlineTop, headlineBottom, pillText } = useMemo(
-    () => getPosterDetails(plan),
-    [plan],
-  );
+  const formattedSplit = useMemo(() => {
+    if (!plan.split) return 'CUSTOM';
+    return plan.split.replace(/_/g, ' ').toUpperCase();
+  }, [plan.split]);
 
-  // Deterministic realistic download count matching Lyfta explore numbers
-  const displayDownloads = useMemo(() => {
+  // High-signal joint tag or safety label
+  const primaryJointTag = useMemo(() => {
+    return plan.jointTags?.[0] || plan.targetPersonas?.[0] || null;
+  }, [plan.jointTags, plan.targetPersonas]);
+
+  // Deterministic realistic athlete community counts
+  const displayAthletes = useMemo(() => {
     let hash = 0;
     for (let i = 0; i < plan.id.length; i++) {
       hash = (hash << 5) - hash + plan.id.charCodeAt(i);
       hash |= 0;
     }
-    const base = 48000 + Math.abs(hash % 150000);
-    const total = base + (plan.cloneCount || 0) * 135;
-    return total.toLocaleString();
+    const base = 2800 + Math.abs(hash % 9500);
+    const total = base + (plan.cloneCount || 0) * 45;
+    return total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total.toLocaleString();
   }, [plan.id, plan.cloneCount]);
 
-  const ratingStr = useMemo(() => {
+  const ratingFormatted = useMemo(() => {
     if (plan.rating && plan.rating > 0) return plan.rating.toFixed(1);
     let hash = 0;
     for (let i = 0; i < plan.id.length; i++) {
       hash = (hash << 5) - hash + plan.id.charCodeAt(i);
       hash |= 0;
     }
-    return (4.3 + Math.abs(hash % 6) * 0.1).toFixed(1);
+    return (4.6 + Math.abs(hash % 4) * 0.1).toFixed(1);
   }, [plan.id, plan.rating]);
 
   return (
     <div
       onClick={() => onPreview(plan)}
-      className="group flex flex-col cursor-pointer select-none transition-transform duration-150 active:scale-[0.98]"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-zinc-800/80 bg-gradient-to-b from-[#121826] via-[#0d121e] to-[#080b13] p-4 sm:p-5 shadow-xl transition-all duration-300 hover:border-lime-400/50 hover:bg-[#141b2b] hover:shadow-[0_0_30px_rgba(16,231,96,0.1)] cursor-pointer"
     >
-      {/* 1. Lyfta Style Poster Image Card */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-b from-[#1b1c23] via-[#111217] to-[#090a0d] border border-zinc-800/80 shadow-md transition-all duration-300 group-hover:border-zinc-700 group-hover:shadow-xl">
-        {/* Background Visual Graphic with Dark Ambient Overlay */}
-        <div className="absolute inset-0 flex items-center justify-center p-3 opacity-50 sm:opacity-55 transition-all duration-300 group-hover:scale-105 group-hover:opacity-75">
-          <ExerciseVisual
-            name={primaryExName}
-            masterExerciseId={primaryExId}
-            movementPattern={primaryExPattern}
-            muscleGroup={primaryExMuscle}
-            compact={true}
-            className="!border-none !bg-transparent w-full h-full shadow-none pointer-events-none"
-          />
+      <div>
+        {/* 1. Visual Showcase Header with Integrated Telemetry HUD */}
+        <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#162136] via-[#0e1422] to-[#090c14] border border-zinc-800/70 shadow-inner">
+          {/* Subtle Ambient Radial Lighting */}
+          <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-lime-400/10 blur-3xl transition-opacity duration-300 group-hover:opacity-100 opacity-60" />
+          <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-cyan-400/10 blur-3xl opacity-50" />
+
+          {/* Center Exercise Visual Illustration */}
+          <div className="absolute inset-0 flex items-center justify-center p-3 opacity-75 sm:opacity-85 transition-transform duration-300 group-hover:scale-105">
+            <ExerciseVisual
+              name={primaryExName}
+              masterExerciseId={primaryExId}
+              movementPattern={primaryExPattern}
+              muscleGroup={primaryExMuscle}
+              compact={true}
+              className="!border-none !bg-transparent w-full h-full shadow-none pointer-events-none"
+            />
+          </div>
+
+          {/* Vignette Bottom Gradient */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0d121e] via-[#0d121e]/60 to-transparent" />
+
+          {/* Top Floating Badges */}
+          <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between z-10 pointer-events-none">
+            {/* Split Capsule */}
+            <span className="rounded-full bg-zinc-950/85 border border-zinc-800/90 px-2.5 py-1 text-[10px] font-mono font-bold tracking-wider text-zinc-300 backdrop-blur-md shadow-sm">
+              {formattedSplit}
+            </span>
+
+            {/* Clinical / Joint Status */}
+            {plan.isVerified ? (
+              <span className="flex items-center gap-1 rounded-full bg-lime-950/90 border border-lime-400/40 px-2.5 py-1 text-[10px] font-black text-lime-400 backdrop-blur-md shadow-sm">
+                <ShieldCheck className="h-3 w-3" /> Clinical Safe
+              </span>
+            ) : primaryJointTag ? (
+              <span className="flex items-center gap-1 rounded-full bg-cyan-950/90 border border-cyan-400/40 px-2.5 py-1 text-[10px] font-bold text-cyan-300 backdrop-blur-md shadow-sm">
+                <Sparkles className="h-3 w-3 text-cyan-400" /> {primaryJointTag}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Bottom Floating Telemetry Strip */}
+          <div className="absolute bottom-2.5 inset-x-2.5 flex items-center justify-between z-10 pointer-events-none">
+            {/* Frequency & Sets HUD */}
+            <div className="rounded-xl bg-zinc-950/85 border border-zinc-800/90 px-2.5 py-1 text-[10px] font-mono font-bold text-zinc-200 backdrop-blur-md flex items-center gap-1.5 shadow-sm">
+              <Calendar className="h-3 w-3 text-lime-400" />
+              <span>{plan.frequencyDays}D/Wk</span>
+              <span className="text-zinc-600 font-sans">•</span>
+              <span className="text-lime-400 font-extrabold">{plan.totalWeeklySets} Sets</span>
+            </div>
+
+            {/* Rating */}
+            <div className="rounded-xl bg-zinc-950/85 border border-zinc-800/90 px-2 py-1 text-[10px] font-mono font-black text-amber-300 backdrop-blur-md flex items-center gap-1 shadow-sm">
+              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+              <span>{ratingFormatted}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Cinematic Dark Vignette Overlay for Text Legibility */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/30" />
-
-        {/* Centered Poster Typography & Accent Pill */}
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center p-2.5 text-center">
-          {headlineTop ? (
-            <>
-              <span className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-tight">
-                {headlineTop}
-              </span>
-              <span className="my-1.5 rounded-sm bg-red-600 px-2.5 py-0.5 text-[10px] sm:text-xs font-black tracking-wide text-white shadow-sm">
-                {pillText}
-              </span>
-              <span className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-tight">
-                {headlineBottom}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-tight">
-                {headlineBottom}
-              </span>
-              <span className="mt-2 rounded-sm bg-red-600 px-2.5 py-0.5 text-[10px] sm:text-xs font-black tracking-wide text-white shadow-sm">
-                {pillText}
-              </span>
-            </>
-          )}
+        {/* 2. Plan Title & Description */}
+        <div className="mt-3.5 space-y-1">
+          <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight line-clamp-1 group-hover:text-lime-400 transition-colors">
+            {plan.title}
+          </h3>
+          <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+            {plan.description}
+          </p>
         </div>
+
+        {/* 3. High-Signal Clinical & Goal Chips */}
+        {plan.targetPersonas?.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            {plan.targetPersonas.slice(0, 2).map((persona, idx) => {
+              const colors = getPersonaColorClasses(persona);
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectFilterTag?.(persona);
+                  }}
+                  className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition-all hover:scale-105 ${colors.badgeBg} ${colors.textColor} ${colors.borderColor}`}
+                >
+                  {persona}
+                </button>
+              );
+            })}
+            {plan.targetPersonas.length > 2 && (
+              <span className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-1.5 py-0.5 text-[10px] font-bold text-zinc-500">
+                +{plan.targetPersonas.length - 2}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* 2. Below Poster Details: Title, Downloads Count, Star Rating */}
-      <div className="mt-2.5 sm:mt-3 space-y-0.5 px-0.5">
-        <h3 className="text-xs sm:text-sm font-bold text-white line-clamp-1 tracking-tight group-hover:text-lime-400 transition-colors">
-          {plan.title}
-        </h3>
-        <p className="text-[11px] sm:text-xs font-medium text-zinc-400">
-          {displayDownloads} Downloads
-        </p>
-        <div className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-zinc-300">
-          <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-amber-400 text-amber-400" />
-          <span>{ratingStr}</span>
+      {/* 4. Sleek Card Footer with Athlete Count & Inspection Arrow */}
+      <div className="mt-4 flex items-center justify-between border-t border-zinc-800/80 pt-3 text-xs">
+        <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400">
+          <Users className="h-3.5 w-3.5 text-zinc-500" />
+          <span>{displayAthletes} athletes</span>
+        </div>
+
+        <div className="flex items-center gap-1 font-bold text-lime-400 text-xs transition-transform duration-200 group-hover:translate-x-1">
+          <span>Inspect Routine</span>
+          <ArrowRight className="h-3.5 w-3.5" />
         </div>
       </div>
     </div>

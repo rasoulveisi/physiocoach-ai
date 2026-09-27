@@ -37,6 +37,8 @@ import { resolveExerciseSafetyNotes } from '../services/exercise-safety-notes';
 import { getPersonaColorClasses } from '../services/persona-matcher';
 import { usePageMetadata } from '../services/metadata';
 import { ExplorePlanCard } from '../components/ui/ExplorePlanCard';
+import { ExploreExercisesTab } from '../components/explore/ExploreExercisesTab';
+import { clsx } from 'clsx';
 
 export interface ExploreExerciseItem {
   id: string;
@@ -139,6 +141,16 @@ const EXPERIENCE_OPTIONS = [
   { id: 'advanced', label: 'Advanced' },
 ];
 
+const QUICK_SPLIT_PILLS = [
+  { id: 'all', label: 'All Splits' },
+  { id: 'push_pull_legs', label: 'Push Pull Legs' },
+  { id: 'upper_lower', label: 'Upper / Lower' },
+  { id: 'full_body', label: 'Full Body' },
+  { id: 'knee_friendly', label: 'Knee-Friendly', isInjury: true },
+  { id: 'low_spine_load', label: 'Low Spine Load', isInjury: true },
+  { id: 'shoulder_safe', label: 'Shoulder-Safe', isInjury: true },
+];
+
 export function ExplorePlansPage() {
   const [plans, setPlans] = useState<ExplorePlanDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,20 +173,36 @@ export function ExplorePlansPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const activeTab = (searchParams.get('tab') as 'plans' | 'exercises') || 'plans';
+
+  const handleTabChange = (newTab: 'plans' | 'exercises') => {
+    const next = new URLSearchParams(searchParams);
+    if (newTab === 'plans') {
+      next.delete('tab');
+    } else {
+      next.set('tab', 'exercises');
+    }
+    setSearchParams(next, { replace: true });
+  };
+
   usePageMetadata(
     {
-      title: previewPlan
-        ? `${previewPlan.title} · Verified Workout Routine`
-        : 'Explore Workout Plans · Verified Injury-Safe Routines',
-      description: previewPlan
-        ? `${previewPlan.description} Tailored for ${previewPlan.targetPersonas.join(', ')}.`
-        : 'Browse clinical-grade workout routines filterable by split, available equipment, and joint-safety tags (Knee-Friendly, Low Spine Load, Shoulder-Safe).',
-      canonicalUrl: previewPlan
-        ? `https://physiocoach.ai/explore?plan=${previewPlan.id}`
-        : 'https://physiocoach.ai/explore',
+      title:
+        activeTab === 'exercises'
+          ? 'Exercise Library · 7,000+ Biomechanical Movements'
+          : previewPlan
+            ? `${previewPlan.title} · Verified Workout Routine`
+            : 'Explore Workout Plans · Verified Injury-Safe Routines',
+      description:
+        activeTab === 'exercises'
+          ? 'Browse 7,000+ biomechanically indexed exercises with target muscle anatomy and joint safety cues.'
+          : previewPlan
+            ? `${previewPlan.description} Tailored for ${previewPlan.targetPersonas.join(', ')}.`
+            : 'Browse clinical-grade workout routines filterable by split, available equipment, and joint-safety tags (Knee-Friendly, Low Spine Load, Shoulder-Safe).',
+      canonicalUrl: `https://physiocoach.ai/explore?tab=${activeTab}`,
       ogType: 'website',
     },
-    [previewPlan],
+    [previewPlan, activeTab],
   );
 
   const fetchPlans = useCallback(async () => {
@@ -414,240 +442,291 @@ export function ExplorePlansPage() {
   }, [plans, isSearchingOrFiltered]);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-black text-zinc-100 selection:bg-lime-400 selection:text-zinc-950">
-      {/* 1. DESKTOP STICKY FILTER SIDEBAR */}
-      <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-r border-zinc-900 bg-zinc-950/80 p-5 lg:flex">
-        <ExploreFilterPanel
-          selectedSplit={selectedSplit}
-          onSelectSplit={setSelectedSplit}
-          selectedInjuryFilter={selectedInjuryFilter}
-          onSelectInjuryFilter={setSelectedInjuryFilter}
-          selectedEquipment={selectedEquipment}
-          onSelectEquipment={setSelectedEquipment}
-          selectedExperience={selectedExperience}
-          onSelectExperience={setSelectedExperience}
-          isFiltered={isFiltered}
-          onReset={resetAllFilters}
-        />
-      </aside>
-
-      {/* 2. MAIN PLANS FEED CONTENT AREA */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-black">
-        {/* Top Header: Rounded-full Search Capsule & Lyfta Sub-Navigation Tabs */}
-        <div className="shrink-0 border-b border-zinc-900 bg-black/95 px-4 pt-3.5 pb-0 backdrop-blur-md">
-          {/* Rounded-full Search Bar + Mobile Filter Trigger */}
-          <div className="flex items-center gap-2.5 max-w-xl mx-auto">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search programs..."
-                className="w-full rounded-full bg-[#24252a] py-2.5 pl-11 pr-10 text-xs sm:text-sm font-medium text-white placeholder-zinc-400 outline-none transition-colors focus:bg-[#2b2c34] focus:ring-1 focus:ring-zinc-600"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Mobile Filter Button */}
-            <button
-              type="button"
-              onClick={() => setMobileFilterOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-[#24252a] px-3.5 py-2.5 text-xs font-bold text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors lg:hidden"
-              title="Filter routines"
-            >
-              <Filter className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Filters</span>
-              {activeChips.length > 0 && (
-                <span className="grid size-4 place-items-center rounded-full bg-lime-400 text-[10px] font-black text-zinc-950">
-                  {activeChips.length}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Active Chips Strip (if filtered) */}
-          {activeChips.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2 pb-1 max-w-xl mx-auto">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase">Filtered:</span>
-              {activeChips.map((chip) => (
-                <span
-                  key={chip.key}
-                  className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 text-[11px] font-bold text-zinc-300"
-                >
-                  {chip.label}
-                  <button type="button" onClick={chip.clear} className="text-zinc-500 hover:text-white">
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-              <button
-                type="button"
-                onClick={resetAllFilters}
-                className="ml-1 text-[11px] font-bold text-lime-400 hover:underline"
-              >
-                Reset
-              </button>
-            </div>
-          )}
-
-          {/* Sub-Navigation Tabs: Programs (Active) | Exercises | Coaches */}
-          <div className="mt-2.5 flex items-center justify-around sm:justify-center sm:gap-20">
-            <button
-              type="button"
-              className="flex flex-col items-center gap-1 pb-2 border-b-2 border-white text-white font-bold text-xs"
-            >
-              <Calendar className="h-4 sm:h-5 w-4 sm:w-5" />
-              <span>Programs</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/exercises')}
-              className="flex flex-col items-center gap-1 pb-2 border-b-2 border-transparent text-zinc-500 hover:text-zinc-300 font-bold text-xs transition-colors"
-            >
-              <Dumbbell className="h-4 sm:h-5 w-4 sm:w-5" />
-              <span>Exercises</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/plans/builder')}
-              className="flex flex-col items-center gap-1 pb-2 border-b-2 border-transparent text-zinc-500 hover:text-zinc-300 font-bold text-xs transition-colors"
-            >
-              <User className="h-4 sm:h-5 w-4 sm:w-5" />
-              <span>Coaches</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Scrollable Plans Grid Viewport */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-black">
-          {loading ? (
-            <div className="grid grid-cols-2 gap-3.5 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="animate-pulse space-y-2">
-                  <div className="aspect-square w-full rounded-2xl sm:rounded-3xl bg-zinc-900 border border-zinc-800/80" />
-                  <div className="h-3.5 w-3/4 rounded bg-zinc-800" />
-                  <div className="h-3 w-1/2 rounded bg-zinc-900" />
-                </div>
-              ))}
-            </div>
-          ) : plans.length === 0 ? (
-            <Card className="border-zinc-800 bg-zinc-900/70 max-w-md mx-auto my-12">
-              <CardContent className="py-16 text-center space-y-4">
-                <ShieldAlert className="mx-auto h-12 w-12 text-zinc-600 animate-pulse" />
-                <h2 className="text-xl font-black text-white">No Matching Plans Found</h2>
-                <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto">
-                  No workout routine matches your current filter combination. Try clearing filters or searching for different terms.
-                </p>
-                <Button onClick={resetAllFilters} variant="volt" size="sm">
-                  <RotateCcw className="h-4 w-4 mr-1.5" /> Clear All Filters
-                </Button>
-              </CardContent>
-            </Card>
-          ) : isSearchingOrFiltered ? (
-            <div className="max-w-6xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                  {searchQuery.trim() ? `Search: "${searchQuery.trim()}"` : 'Filtered Programs'}
-                </h2>
-                <span className="text-xs font-mono font-bold text-zinc-400">
-                  {plans.length} {plans.length === 1 ? 'Program' : 'Programs'}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-3.5 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-                {plans.map((plan) => (
-                  <ExplorePlanCard
-                    key={plan.id}
-                    plan={plan}
-                    isCloning={cloningPlanId === plan.id}
-                    isSaving={savingPlanId === plan.id}
-                    isCopied={copiedId === plan.id}
-                    onClone={handleClonePlan}
-                    onSave={handleSaveToMyPlans}
-                    onPreview={(p) => {
-                      setPreviewPlan(p);
-                      setPreviewActiveDay(0);
-                      setSearchParams({ plan: p.id });
-                    }}
-                    onShare={handleSharePlan}
-                    onSelectFilterTag={(tag) => setSearchQuery(tag)}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="max-w-6xl mx-auto space-y-8">
-              {/* Popular Programs Section */}
-              {popularPlans.length > 0 && (
-                <div className="space-y-3">
-                  <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                    Popular Programs
-                  </h2>
-                  <div className="grid grid-cols-2 gap-3.5 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-                    {popularPlans.map((plan) => (
-                      <ExplorePlanCard
-                        key={plan.id}
-                        plan={plan}
-                        isCloning={cloningPlanId === plan.id}
-                        isSaving={savingPlanId === plan.id}
-                        isCopied={copiedId === plan.id}
-                        onClone={handleClonePlan}
-                        onSave={handleSaveToMyPlans}
-                        onPreview={(p) => {
-                          setPreviewPlan(p);
-                          setPreviewActiveDay(0);
-                          setSearchParams({ plan: p.id });
-                        }}
-                        onShare={handleSharePlan}
-                        onSelectFilterTag={(tag) => setSearchQuery(tag)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recommended for You Section */}
-              {recommendedPlans.length > 0 && (
-                <div className="space-y-3 pt-2">
-                  <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                    Recommended for You
-                  </h2>
-                  <div className="grid grid-cols-2 gap-3.5 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-                    {recommendedPlans.map((plan) => (
-                      <ExplorePlanCard
-                        key={plan.id}
-                        plan={plan}
-                        isCloning={cloningPlanId === plan.id}
-                        isSaving={savingPlanId === plan.id}
-                        isCopied={copiedId === plan.id}
-                        onClone={handleClonePlan}
-                        onSave={handleSaveToMyPlans}
-                        onPreview={(p) => {
-                          setPreviewPlan(p);
-                          setPreviewActiveDay(0);
-                          setSearchParams({ plan: p.id });
-                        }}
-                        onShare={handleSharePlan}
-                        onSelectFilterTag={(tag) => setSearchQuery(tag)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+    <div className="flex h-full w-full flex-col overflow-hidden bg-black text-zinc-100 selection:bg-lime-400 selection:text-zinc-950">
+      {/* 1. TOP HEADER SEGMENTED PILL SWITCHER: Workout Plans vs Exercise Library */}
+      <div className="shrink-0 border-b border-zinc-900 bg-black/95 px-4 pt-3 pb-2.5 backdrop-blur-md z-20">
+        <div className="flex items-center justify-center p-1 rounded-full bg-[#181a24] border border-zinc-800 max-w-sm mx-auto shadow-inner">
+          <button
+            type="button"
+            onClick={() => handleTabChange('plans')}
+            className={clsx(
+              'flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-full text-xs font-black transition-all duration-200',
+              activeTab === 'plans'
+                ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-400/20'
+                : 'text-zinc-400 hover:text-white',
+            )}
+          >
+            <Compass className="h-3.5 w-3.5" />
+            Workout Plans
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange('exercises')}
+            className={clsx(
+              'flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-full text-xs font-black transition-all duration-200',
+              activeTab === 'exercises'
+                ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-400/20'
+                : 'text-zinc-400 hover:text-white',
+            )}
+          >
+            <Dumbbell className="h-3.5 w-3.5" />
+            Exercise Library
+          </button>
         </div>
       </div>
+
+      {/* 2. TAB CONTENT VIEWPORT */}
+      {activeTab === 'exercises' ? (
+        <div className="flex-1 overflow-hidden min-h-0">
+          <ExploreExercisesTab />
+        </div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden min-h-0">
+          {/* DESKTOP STICKY FILTER SIDEBAR */}
+          <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-r border-zinc-900 bg-zinc-950/80 p-5 lg:flex">
+            <ExploreFilterPanel
+              selectedSplit={selectedSplit}
+              onSelectSplit={setSelectedSplit}
+              selectedInjuryFilter={selectedInjuryFilter}
+              onSelectInjuryFilter={setSelectedInjuryFilter}
+              selectedEquipment={selectedEquipment}
+              onSelectEquipment={setSelectedEquipment}
+              selectedExperience={selectedExperience}
+              onSelectExperience={setSelectedExperience}
+              isFiltered={isFiltered}
+              onReset={resetAllFilters}
+            />
+          </aside>
+
+          {/* MAIN PLANS FEED CONTENT AREA */}
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-black">
+            {/* Top Search & Filter Bar */}
+            <div className="shrink-0 border-b border-zinc-900 bg-black/95 px-4 pt-3 pb-3 backdrop-blur-md">
+              {/* Rounded-full Search Capsule + Mobile Filter Trigger */}
+              <div className="flex items-center gap-2.5 max-w-xl mx-auto">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search routines by split, goal, or injury condition..."
+                    className="w-full rounded-full bg-[#1e2026] py-2.5 pl-11 pr-10 text-xs sm:text-sm font-medium text-white placeholder-zinc-500 outline-none transition-colors focus:bg-[#252830] focus:ring-1 focus:ring-zinc-600"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile Filter Button */}
+                <button
+                  type="button"
+                  onClick={() => setMobileFilterOpen(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-[#1e2026] px-3.5 py-2.5 text-xs font-bold text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors lg:hidden"
+                  title="Filter routines"
+                >
+                  <Filter className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Filters</span>
+                  {activeChips.length > 0 && (
+                    <span className="grid size-4 place-items-center rounded-full bg-lime-400 text-[10px] font-black text-zinc-950">
+                      {activeChips.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* Quick Split & Safeguard Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none max-w-xl mx-auto mt-2">
+                {QUICK_SPLIT_PILLS.map((p) => {
+                  const active = p.isInjury
+                    ? selectedInjuryFilter === p.id
+                    : selectedSplit === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        if (p.isInjury) {
+                          setSelectedInjuryFilter(selectedInjuryFilter === p.id ? 'all' : p.id);
+                        } else {
+                          setSelectedSplit(p.id);
+                        }
+                      }}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold transition-all duration-150 ${
+                        active
+                          ? 'bg-lime-400 text-zinc-950 shadow-sm shadow-lime-400/20'
+                          : 'border border-zinc-800 bg-[#16181e] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active Chips Strip (if filtered) */}
+              {activeChips.length > 0 && (
+                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2 max-w-xl mx-auto">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase">Filtered:</span>
+                  {activeChips.map((chip) => (
+                    <span
+                      key={chip.key}
+                      className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 text-[11px] font-bold text-zinc-300"
+                    >
+                      {chip.label}
+                      <button type="button" onClick={chip.clear} className="text-zinc-500 hover:text-white">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={resetAllFilters}
+                    className="ml-1 text-[11px] font-bold text-lime-400 hover:underline"
+                  >
+                    Reset
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Scrollable Plans Grid Viewport */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-black">
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 max-w-6xl mx-auto">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="animate-pulse rounded-3xl border border-zinc-850 bg-zinc-900/60 p-4 space-y-3">
+                      <div className="aspect-[16/10] w-full rounded-2xl bg-zinc-800" />
+                      <div className="h-4 w-3/4 rounded bg-zinc-800" />
+                      <div className="h-3 w-1/2 rounded bg-zinc-850" />
+                    </div>
+                  ))}
+                </div>
+              ) : plans.length === 0 ? (
+                <Card className="border-zinc-800 bg-zinc-900/70 max-w-md mx-auto my-12">
+                  <CardContent className="py-16 text-center space-y-4">
+                    <ShieldAlert className="mx-auto h-12 w-12 text-zinc-600 animate-pulse" />
+                    <h2 className="text-xl font-black text-white">No Matching Plans Found</h2>
+                    <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto">
+                      No workout routine matches your current filter combination. Try clearing filters or searching for different terms.
+                    </p>
+                    <Button onClick={resetAllFilters} variant="volt" size="sm">
+                      <RotateCcw className="h-4 w-4 mr-1.5" /> Clear All Filters
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : isSearchingOrFiltered ? (
+                <div className="max-w-6xl mx-auto space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                      {searchQuery.trim() ? `Search: "${searchQuery.trim()}"` : 'Filtered Programs'}
+                    </h2>
+                    <span className="text-xs font-mono font-bold text-zinc-400">
+                      {plans.length} {plans.length === 1 ? 'Program' : 'Programs'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                    {plans.map((plan) => (
+                      <ExplorePlanCard
+                        key={plan.id}
+                        plan={plan}
+                        isCloning={cloningPlanId === plan.id}
+                        isSaving={savingPlanId === plan.id}
+                        isCopied={copiedId === plan.id}
+                        onClone={handleClonePlan}
+                        onSave={handleSaveToMyPlans}
+                        onPreview={(p) => {
+                          setPreviewPlan(p);
+                          setPreviewActiveDay(0);
+                          setSearchParams({ plan: p.id });
+                        }}
+                        onShare={handleSharePlan}
+                        onSelectFilterTag={(tag) => setSearchQuery(tag)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="max-w-6xl mx-auto space-y-8">
+                  {/* Popular Programs Section */}
+                  {popularPlans.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                          Popular Clinical Splits
+                        </h2>
+                        <span className="text-xs font-mono text-zinc-500">
+                          {popularPlans.length} Featured
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                        {popularPlans.map((plan) => (
+                          <ExplorePlanCard
+                            key={plan.id}
+                            plan={plan}
+                            isCloning={cloningPlanId === plan.id}
+                            isSaving={savingPlanId === plan.id}
+                            isCopied={copiedId === plan.id}
+                            onClone={handleClonePlan}
+                            onSave={handleSaveToMyPlans}
+                            onPreview={(p) => {
+                              setPreviewPlan(p);
+                              setPreviewActiveDay(0);
+                              setSearchParams({ plan: p.id });
+                            }}
+                            onShare={handleSharePlan}
+                            onSelectFilterTag={(tag) => setSearchQuery(tag)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recommended for You Section */}
+                  {recommendedPlans.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                          Recommended for You
+                        </h2>
+                        <span className="text-xs font-mono text-zinc-500">
+                          {recommendedPlans.length} Routines
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                        {recommendedPlans.map((plan) => (
+                          <ExplorePlanCard
+                            key={plan.id}
+                            plan={plan}
+                            isCloning={cloningPlanId === plan.id}
+                            isSaving={savingPlanId === plan.id}
+                            isCopied={copiedId === plan.id}
+                            onClone={handleClonePlan}
+                            onSave={handleSaveToMyPlans}
+                            onPreview={(p) => {
+                              setPreviewPlan(p);
+                              setPreviewActiveDay(0);
+                              setSearchParams({ plan: p.id });
+                            }}
+                            onShare={handleSharePlan}
+                            onSelectFilterTag={(tag) => setSearchQuery(tag)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. MOBILE FILTER BOTTOM SHEET */}
       {mobileFilterOpen && (
