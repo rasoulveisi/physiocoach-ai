@@ -28,11 +28,20 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'z-ai/glm-5.2:free';
+export const DEFAULT_WORKOUT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 15_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
 export const ALLOWED_WORKOUT_MODELS = [
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'inclusionai/ling-3.0-flash-sante:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'google/gemma-4-31b-it:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'qwen/qwen3.8-27b:free',
+  'openrouter/free',
+  'liquid/lfm-2.5-2.6b:free',
   'z-ai/glm-5.2:free',
   'minimax/minimax-m3:free',
   'minimax/minimax-m3',
@@ -46,27 +55,25 @@ export const ALLOWED_WORKOUT_MODELS = [
   'google/gemini-2.5-flash',
   'google/gemini-flash-1.5',
   'google/gemini-2.0-flash-exp:free',
-  'google/gemma-4-26b-a4b-it:free',
   'google/gemma-2-9b-it:free',
   'meta-llama/llama-3.1-8b-instruct',
   'meta-llama/llama-3.1-8b-instruct:free',
   'meta-llama/llama-3.3-70b-instruct',
   'meta-llama/llama-3.3-70b-instruct:free',
   'nvidia/nemotron-3-nano-30b-a3b:free',
-  'nvidia/nemotron-3.5-lightning:free',
   'poolside/laguna-s-2.1:free',
-  'liquid/lfm-2.5-2.6b:free',
   'deepseek/deepseek-chat',
   'qwen/qwen-2.5-72b-instruct',
 ] as const;
 export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
+  'inclusionai/ling-3.0-flash-sante:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'google/gemma-4-31b-it:free',
+  'openrouter/free',
+  'google/gemma-4-26b-a4b-it:free',
+  'qwen/qwen3.8-27b:free',
   'minimax/minimax-m3:free',
-  'gemini-3.7-flash',
-  'gemini-3.5-flash-lite',
-  'meta-llama/llama-3.1-8b-instruct',
-  'google/gemini-2.0-flash-001',
-  'meta-llama/llama-3.3-70b-instruct',
-  'nvidia/nemotron-3-nano-30b-a3b:free',
+  'liquid/lfm-2.5-2.6b:free',
 ] as const;
 export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([...ALLOWED_WORKOUT_MODELS]);
 export const WORKOUT_MODEL_ALLOWLIST = new Set<string>(ALLOWED_WORKOUT_MODELS);
