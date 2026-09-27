@@ -8,7 +8,6 @@ import {
   ChevronUp,
   Globe,
   GitFork,
-  Info,
   Layers,
   Play,
   Plus,
@@ -31,6 +30,9 @@ import { Toast } from '../components/ui/Toast';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { ExercisePreviewModal, type ExercisePreviewItem } from '../components/ui/ExercisePreviewModal';
 import { PlanSkeleton } from '../components/ui/Skeleton';
+import { Tooltip } from '../components/ui/Tooltip';
+import { Badge } from '../components/ui/Badge';
+import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import { resolveExerciseSafetyNotes } from '../services/exercise-safety-notes';
 import { apiClient } from '../services/api-client';
 import { usePreferences } from '../context/PreferencesContext';
@@ -125,6 +127,7 @@ export function PlanPage() {
   const [ratingVal, setRatingVal] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [reviewNote, setReviewNote] = useState('');
+  const [showReviewInput, setShowReviewInput] = useState(false);
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [planRatingStats, setPlanRatingStats] = useState<{ rating: number; reviewsCount: number }>({
     rating: 5.0,
@@ -248,6 +251,7 @@ export function PlanPage() {
         type: 'success',
       });
       setReviewNote('');
+      setShowReviewInput(false);
     } catch (err) {
       setToast({
         message: err instanceof Error ? err.message : 'Could not submit rating.',
@@ -430,65 +434,72 @@ export function PlanPage() {
                   </p>
                 </div>
 
+                {/* Streamlined Action Buttons with Tooltips */}
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setLibraryOpen(true);
-                      fetchMyPlans();
-                    }}
-                    title="My Plans Library (Switch Active Routine)"
-                    className="h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-200 hover:border-lime-400 hover:text-lime-400 shadow-sm"
-                  >
-                    <Layers className="h-3.5 w-3.5 mr-1 text-[#10E760]" />
-                    My Library
-                  </Button>
+                  <Tooltip content="My Plans Library (Switch Active Routine)" position="bottom">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setLibraryOpen(true);
+                        fetchMyPlans();
+                      }}
+                      className="h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-200 hover:border-lime-400 hover:text-lime-400 shadow-sm"
+                    >
+                      <Layers className="h-3.5 w-3.5 sm:mr-1 text-[#10E760]" />
+                      <span className="hidden sm:inline">My Library</span>
+                      <span className="sm:hidden">Library</span>
+                    </Button>
+                  </Tooltip>
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate('/plans/builder')}
-                    title="Create Custom Plan"
-                    className="h-9 px-3 rounded-xl border border-zinc-800 bg-zinc-900 text-xs font-bold text-zinc-300 hover:border-lime-400 hover:text-lime-400"
-                  >
-                    <Sliders className="h-3.5 w-3.5 mr-1" />
-                    Builder
-                  </Button>
+                  <Tooltip content="Custom Routine Builder" position="bottom">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate('/plans/builder')}
+                      className="h-9 px-3 rounded-xl border border-zinc-800 bg-zinc-900 text-xs font-bold text-zinc-300 hover:border-lime-400 hover:text-lime-400"
+                    >
+                      <Sliders className="h-3.5 w-3.5 sm:mr-1" />
+                      <span className="hidden sm:inline">Builder</span>
+                    </Button>
+                  </Tooltip>
 
                   {planView && (
+                    <Tooltip content="Publish to Explore Community Hub" position="bottom">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        loading={publishingPlanId === planView.id}
+                        onClick={() => handlePublishPlan(planView.id, planView.plan.name)}
+                        className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-cyan-400 hover:text-cyan-400"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </Tooltip>
+                  )}
+
+                  <Tooltip content="Regenerate Plan with AI" position="bottom">
                     <Button
                       variant="ghost"
                       size="icon"
-                      loading={publishingPlanId === planView.id}
-                      onClick={() => handlePublishPlan(planView.id, planView.plan.name)}
-                      title="Publish to Explore Community Hub"
-                      className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-cyan-400 hover:text-cyan-400"
+                      onClick={generateNewPlan}
+                      loading={generating}
+                      className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white"
                     >
-                      <Share2 className="h-4 w-4" />
+                      <RotateCcw className="h-4 w-4" />
                     </Button>
-                  )}
+                  </Tooltip>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={generateNewPlan}
-                    loading={generating}
-                    title="Regenerate Plan"
-                    className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={deletePlan}
-                    title="Delete Plan"
-                    className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-red-500/40 hover:text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Tooltip content="Delete Current Routine" position="bottom">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={deletePlan}
+                      className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-red-500/40 hover:text-red-400"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
                 </div>
               </div>
 
@@ -652,12 +663,12 @@ export function PlanPage() {
                                         )}
                                       </div>
 
-                    <div className="flex shrink-0 items-center">
+                                      <div className="flex shrink-0 items-center">
                                         <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-lime-400 transition-colors" />
                                       </div>
                                     </div>
 
-                                    {/* Progressive Overload Recommendation Chip */}
+                                    {/* Progressive Overload Recommendation Badge with Tooltip */}
                                     {(() => {
                                       const overloadRec = calculateProgressiveOverload({
                                         exerciseName: exercise.name,
@@ -674,17 +685,15 @@ export function PlanPage() {
 
                                       return (
                                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-2 text-xs">
-                                          <span
-                                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg ${
-                                              overloadRec.badgeVariant === 'lime'
-                                                ? 'bg-lime-400/15 text-lime-300 border border-lime-400/30'
-                                                : 'bg-cyan-400/15 text-cyan-300 border border-cyan-400/30'
-                                            }`}
-                                            title={overloadRec.reason}
-                                          >
-                                            <Zap className="h-3 w-3" />
-                                            {overloadRec.chipLabel}
-                                          </span>
+                                          <Tooltip content={overloadRec.reason} position="top">
+                                            <Badge
+                                              variant={overloadRec.badgeVariant === 'lime' ? 'volt' : 'cyan'}
+                                              className="cursor-help py-1"
+                                            >
+                                              <Zap className="h-3 w-3 shrink-0" />
+                                              <span>{overloadRec.chipLabel}</span>
+                                            </Badge>
+                                          </Tooltip>
 
                                           <Button
                                             type="button"
@@ -694,7 +703,7 @@ export function PlanPage() {
                                               e.stopPropagation();
                                               navigate('/session');
                                             }}
-                                            className="h-6 text-[10px] font-black px-2 rounded-md shrink-0"
+                                            className="h-6 text-[10px] font-black px-2.5 rounded-md shrink-0"
                                           >
                                             Apply & Train
                                           </Button>
@@ -702,28 +711,38 @@ export function PlanPage() {
                                       );
                                     })()}
 
-                                    {/* Expandable Posture & Safety Cues */}
+                                    {/* Biomechanical Form Safeguards (Tags in Compact Disclosure) */}
                                     {safetyNotes.length > 0 && (
                                       <div className="mt-3 border-t border-zinc-800/80 pt-2.5">
                                         <button
                                           type="button"
                                           onClick={(e) => toggleCue(cueKey, e)}
-                                          className="flex items-center gap-1.5 text-[11px] font-bold text-lime-400 hover:text-lime-300"
+                                          className="flex items-center gap-1.5 text-[11px] font-bold text-lime-400 hover:text-lime-300 transition-colors"
                                         >
                                           <ShieldCheck className="h-3.5 w-3.5" />
                                           <span>Biomechanical Form Safeguards</span>
-                                          {isCueExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                          <span className="rounded-full bg-lime-400/10 px-1.5 py-0.2 text-[10px] font-mono text-lime-400 border border-lime-400/20">
+                                            {safetyNotes.length}
+                                          </span>
+                                          {isCueExpanded ? (
+                                            <ChevronUp className="h-3 w-3 ml-auto text-zinc-500" />
+                                          ) : (
+                                            <ChevronDown className="h-3 w-3 ml-auto text-zinc-500" />
+                                          )}
                                         </button>
 
                                         {isCueExpanded && (
-                                          <ul className="mt-2 space-y-1 rounded-xl bg-zinc-950 p-2.5 text-[11px] text-zinc-300">
+                                          <div className="mt-2 flex flex-wrap gap-1.5 rounded-xl bg-zinc-950/80 p-2.5 border border-zinc-800/60 animate-in fade-in duration-150">
                                             {safetyNotes.map((note, nIdx) => (
-                                              <li key={nIdx} className="flex items-start gap-1.5">
-                                                <span className="text-lime-400 font-bold">•</span>
-                                                <span>{note}</span>
-                                              </li>
+                                              <span
+                                                key={nIdx}
+                                                className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 border border-zinc-800 px-2 py-1 text-[11px] text-zinc-300"
+                                              >
+                                                <span className="h-1.5 w-1.5 rounded-full bg-lime-400 shrink-0" />
+                                                {note}
+                                              </span>
                                             ))}
-                                          </ul>
+                                          </div>
                                         )}
                                       </div>
                                     )}
@@ -754,16 +773,14 @@ export function PlanPage() {
                       </p>
                     </div>
 
-                    <div className="text-right font-mono">
-                      <span className="text-lg font-black text-amber-300">
-                        {planRatingStats.reviewsCount === 0 ? '5.0' : planRatingStats.rating.toFixed(1)}
-                      </span>
-                      <span className="text-[10px] text-zinc-500 block">
+                    <Badge variant="amber" pill className="text-xs font-mono font-black px-2.5 py-1">
+                      ★ {planRatingStats.reviewsCount === 0 ? '5.0' : planRatingStats.rating.toFixed(1)}
+                      <span className="text-[10px] text-amber-300/70 font-normal ml-0.5">
                         {planRatingStats.reviewsCount === 0
                           ? '(New)'
-                          : `(${planRatingStats.reviewsCount} ${planRatingStats.reviewsCount === 1 ? 'review' : 'reviews'})`}
+                          : `(${planRatingStats.reviewsCount})`}
                       </span>
-                    </div>
+                    </Badge>
                   </div>
 
                   {/* Interactive Star Buttons */}
@@ -792,64 +809,121 @@ export function PlanPage() {
                     })}
                   </div>
 
-                  {/* Optional Review Input Note */}
-                  <div className="space-y-2">
-                    <textarea
-                      value={reviewNote}
-                      onChange={(e) => setReviewNote(e.target.value)}
-                      placeholder="Optional feedback: joint feel, recovery, effectiveness..."
-                      rows={2}
-                      className="w-full rounded-xl border border-zinc-800 bg-zinc-950 p-2.5 text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-amber-400 transition-colors"
-                    />
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      loading={isSubmittingRating}
-                      onClick={handleRatePlan}
-                      className="w-full text-xs font-bold border-zinc-700 hover:border-amber-400 hover:text-amber-400"
-                    >
-                      Submit Rating ({ratingVal} ⭐)
-                    </Button>
-                  </div>
+                  {/* Optional Review Input Note Toggle & Action */}
+                  {!showReviewInput ? (
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        loading={isSubmittingRating}
+                        onClick={handleRatePlan}
+                        className="flex-1 text-xs font-bold border-zinc-700 hover:border-amber-400 hover:text-amber-400"
+                      >
+                        Submit Rating ({ratingVal} ⭐)
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => setShowReviewInput(true)}
+                        className="text-[11px] font-bold text-zinc-400 hover:text-amber-400 transition-colors px-2 py-1"
+                      >
+                        + Add review notes
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pt-1 animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                        <span>Review Notes</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowReviewInput(false)}
+                          className="text-zinc-500 hover:text-zinc-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <textarea
+                        value={reviewNote}
+                        onChange={(e) => setReviewNote(e.target.value)}
+                        placeholder="Optional feedback: joint feel, recovery, effectiveness..."
+                        rows={2}
+                        className="w-full rounded-xl border border-zinc-800 bg-zinc-950 p-2.5 text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-amber-400 transition-colors"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        loading={isSubmittingRating}
+                        onClick={handleRatePlan}
+                        className="w-full text-xs font-bold border-zinc-700 hover:border-amber-400 hover:text-amber-400"
+                      >
+                        Submit Rating & Review ({ratingVal} ⭐)
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
-                {/* 2. Plan Progression & Safeguard Details */}
+                {/* 2. Plan Progression & Safeguard Details (Progressive Disclosure Accordion) */}
                 <div className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg space-y-4">
                   <div className="flex items-center gap-2 text-sm font-black text-white">
                     <BrainCircuit className="h-4 w-4 text-lime-400" />
                     <span>AI Overload & Safeguards</span>
                   </div>
 
-                  {planView?.plan?.summary && (
-                    <p className="text-xs leading-relaxed text-zinc-400">{planView.plan.summary}</p>
-                  )}
-
-                  {planView?.plan?.progression && (
-                    <div className="space-y-1 rounded-2xl bg-zinc-950 p-3 border border-zinc-800/80 text-xs">
-                      <span className="font-bold text-white text-[11px] uppercase tracking-wider text-lime-400">
-                        Overload Rule
-                      </span>
-                      <p className="text-zinc-300 text-xs mt-0.5">
-                        {planView.plan.progression.progressionRule || 'Standard progressive overload (+5–10% volume on pain-free lifts)'}
+                  <Accordion className="space-y-2.5">
+                    <AccordionItem
+                      title="Clinical Summary & Intent"
+                      icon={<BrainCircuit className="h-4 w-4" />}
+                      defaultOpen={true}
+                    >
+                      <p className="text-xs leading-relaxed text-zinc-300">
+                        {planView?.plan?.summary || 'Personalized multi-day program tailored to your biomechanical profile.'}
                       </p>
-                    </div>
-                  )}
+                    </AccordionItem>
 
-                  {planView?.plan?.safetyNotes && planView.plan.safetyNotes.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-xs font-bold text-white">Posture Safeguards:</span>
-                      <ul className="space-y-1 text-xs text-zinc-400 pl-1">
-                        {planView.plan.safetyNotes.map((note, idx) => (
-                          <li key={idx} className="flex items-start gap-1.5">
-                            <span className="text-lime-400 font-bold">•</span>
-                            <span>{note}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    <AccordionItem
+                      title="Progressive Overload Rule"
+                      icon={<Zap className="h-4 w-4" />}
+                      defaultOpen={true}
+                    >
+                      <div className="space-y-1">
+                        <p className="text-zinc-300 text-xs">
+                          {planView?.plan?.progression?.progressionRule || 'Standard progressive overload (+5–10% volume on pain-free lifts)'}
+                        </p>
+                        {planView?.plan?.progression?.baselineIntensity && (
+                          <p className="text-[11px] text-zinc-400 mt-1">
+                            Baseline Intensity: <span className="text-lime-400 font-mono font-bold">{planView.plan.progression.baselineIntensity}</span>
+                          </p>
+                        )}
+                      </div>
+                    </AccordionItem>
+
+                    <AccordionItem
+                      title="Posture & Joint Safeguards"
+                      icon={<ShieldCheck className="h-4 w-4" />}
+                      badge={
+                        planView?.plan?.safetyNotes && planView.plan.safetyNotes.length > 0 ? (
+                          <Badge variant="volt" pill className="text-[10px] px-1.5 py-0">
+                            {planView.plan.safetyNotes.length}
+                          </Badge>
+                        ) : undefined
+                      }
+                      defaultOpen={false}
+                    >
+                      {planView?.plan?.safetyNotes && planView.plan.safetyNotes.length > 0 ? (
+                        <ul className="space-y-1.5 text-xs text-zinc-300">
+                          {planView.plan.safetyNotes.map((note, idx) => (
+                            <li key={idx} className="flex items-start gap-1.5">
+                              <span className="text-lime-400 font-bold">•</span>
+                              <span>{note}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-zinc-400">No active joint flags detected for this routine.</p>
+                      )}
+                    </AccordionItem>
+                  </Accordion>
 
                   {/* Plan Feedback */}
                   <div className="border-t border-zinc-800 pt-4">

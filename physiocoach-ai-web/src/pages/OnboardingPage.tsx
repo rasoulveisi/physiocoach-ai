@@ -6,6 +6,7 @@ import {
   Dumbbell,
   Flame,
   HeartPulse,
+  Info,
   Scale,
   ShieldAlert,
   ShieldCheck,
@@ -17,6 +18,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { SliderStepper } from '../components/ui/SliderStepper';
 import { NumberStepper } from '../components/ui/NumberStepper';
+import { Badge } from '../components/ui/Badge';
+import { Tooltip } from '../components/ui/Tooltip';
 import { Toast } from '../components/ui/Toast';
 import { apiClient } from '../services/api-client';
 
@@ -380,19 +383,28 @@ export function OnboardingPage() {
           <div className="grid gap-3 w-full max-w-md">
             {[
               {
-                id: 'desk_job',
-                title: 'Desk Job / Seated',
-                desc: 'Prolonged sitting with kyphosis or lumbar compression risks',
+                id: 'desk_job' as const,
+                title: 'Desk / Sedentary',
+                badge: 'Sedentary',
+                badgeVariant: 'amber' as const,
+                summary: 'High postural load and lumbar compression risk',
+                tooltip: 'Prolonged sitting with kyphosis or lumbar compression risks',
               },
               {
-                id: 'standing_job',
+                id: 'standing_job' as const,
                 title: 'Standing Job',
-                desc: 'On your feet most of the day, moderate daily energy expenditure',
+                badge: 'Moderate',
+                badgeVariant: 'cyan' as const,
+                summary: 'On your feet with regular active daily movement',
+                tooltip: 'On your feet most of the day with moderate daily energy expenditure',
               },
               {
-                id: 'active',
+                id: 'active' as const,
                 title: 'Physically Active',
-                desc: 'High daily movement, physical labor, or high athletic baseline',
+                badge: 'High Baseline',
+                badgeVariant: 'lime' as const,
+                summary: 'High daily movement, manual work, or athletic baseline',
+                tooltip: 'High daily movement, physical labor, or high athletic baseline',
               },
             ].map((item) => {
               const active = lifestyle === item.id;
@@ -400,15 +412,25 @@ export function OnboardingPage() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => handleSelectWithAutoAdvance(() => setLifestyle(item.id as any))}
+                  onClick={() => handleSelectWithAutoAdvance(() => setLifestyle(item.id))}
                   className={`rounded-2xl border p-4 text-left transition-all duration-150 active:scale-[0.98] ${
                     active
                       ? 'border-lime-400 bg-lime-400/10 text-white shadow-sm ring-1 ring-lime-400'
                       : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
                   }`}
                 >
-                  <span className="block text-base font-black text-white">{item.title}</span>
-                  <span className="mt-1 block text-xs text-zinc-400 leading-relaxed">{item.desc}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black text-white">{item.title}</span>
+                      <Tooltip content={item.tooltip} position="top">
+                        <Info className="h-3.5 w-3.5 text-zinc-500 hover:text-zinc-300 transition-colors cursor-help" />
+                      </Tooltip>
+                    </div>
+                    <Badge variant={item.badgeVariant} pill>
+                      {item.badge}
+                    </Badge>
+                  </div>
+                  <span className="mt-1 block text-xs text-zinc-400 leading-relaxed">{item.summary}</span>
                 </button>
               );
             })}
@@ -429,24 +451,55 @@ export function OnboardingPage() {
         >
           <div className="grid gap-3 w-full max-w-md">
             {[
-              { id: 'beginner', label: 'Beginner (< 1 Year)', desc: 'Focus on movement mechanics, posture cues, and base motor learning.' },
-              { id: 'intermediate', label: 'Intermediate (1–3 Years)', desc: 'Consistent resistance training background ready for progressive overload.' },
-              { id: 'advanced', label: 'Advanced (3+ Years)', desc: 'High volume work capacity and specialized biomechanical variations.' },
+              {
+                id: 'beginner' as const,
+                title: 'Beginner (< 1 Year)',
+                badge: 'Beginner',
+                badgeVariant: 'lime' as const,
+                summary: 'Movement mechanics & postural motor learning',
+                tooltip: 'Focus on movement mechanics, posture cues, and base motor learning.',
+              },
+              {
+                id: 'intermediate' as const,
+                title: 'Intermediate (1–3 Years)',
+                badge: 'Intermediate',
+                badgeVariant: 'cyan' as const,
+                summary: 'Consistent progressive overload & hypertrophy volume',
+                tooltip: 'Consistent resistance training background ready for progressive overload.',
+              },
+              {
+                id: 'advanced' as const,
+                title: 'Advanced (3+ Years)',
+                badge: 'Advanced',
+                badgeVariant: 'amber' as const,
+                summary: 'High work capacity & specialized variations',
+                tooltip: 'High volume work capacity and specialized biomechanical variations.',
+              },
             ].map((lvl) => {
               const active = experienceLevel === lvl.id;
               return (
                 <button
                   key={lvl.id}
                   type="button"
-                  onClick={() => handleSelectWithAutoAdvance(() => setExperienceLevel(lvl.id as any))}
+                  onClick={() => handleSelectWithAutoAdvance(() => setExperienceLevel(lvl.id))}
                   className={`rounded-2xl border p-4 text-left transition-all duration-150 active:scale-[0.98] ${
                     active
                       ? 'border-lime-400 bg-lime-400/10 text-white shadow-sm ring-1 ring-lime-400'
                       : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
                   }`}
                 >
-                  <span className="block text-base font-black text-white">{lvl.label}</span>
-                  <span className="mt-1 block text-xs text-zinc-400 leading-relaxed">{lvl.desc}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black text-white">{lvl.title}</span>
+                      <Tooltip content={lvl.tooltip} position="top">
+                        <Info className="h-3.5 w-3.5 text-zinc-500 hover:text-zinc-300 transition-colors cursor-help" />
+                      </Tooltip>
+                    </div>
+                    <Badge variant={lvl.badgeVariant} pill>
+                      {lvl.badge}
+                    </Badge>
+                  </div>
+                  <span className="mt-1 block text-xs text-zinc-400 leading-relaxed">{lvl.summary}</span>
                 </button>
               );
             })}
@@ -499,31 +552,32 @@ export function OnboardingPage() {
           subtitle="Calibrates rest intervals and total number of working sets per day."
           badge="Duration"
         >
-          <div className="grid gap-3 w-full max-w-md">
+          <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
             {[
-              { mins: 30, label: '30 Minutes', desc: 'Express / High-density circuit with minimal downtime.' },
-              { mins: 45, label: '45 Minutes', desc: 'Standard hypertrophy split balancing strength & recovery.' },
-              { mins: 60, label: '60 Minutes', desc: 'Full compound strength work with optimal rest sets.' },
-              { mins: 75, label: '75+ Minutes', desc: 'Comprehensive athlete session including warm-ups & accessories.' },
+              { mins: 30, num: '30', label: 'Minutes', tag: 'Express', tooltip: 'Express / High-density circuit with minimal downtime.' },
+              { mins: 45, num: '45', label: 'Minutes', tag: 'Balanced', tooltip: 'Standard hypertrophy split balancing strength & recovery.' },
+              { mins: 60, num: '60', label: 'Minutes', tag: 'Compound', tooltip: 'Full compound strength work with optimal rest sets.' },
+              { mins: 75, num: '75+', label: 'Minutes', tag: 'Athlete', tooltip: 'Comprehensive athlete session including warm-ups & accessories.' },
             ].map((item) => {
               const active = sessionMinutes === item.mins;
               return (
-                <button
-                  key={item.mins}
-                  type="button"
-                  onClick={() => handleSelectWithAutoAdvance(() => setSessionMinutes(item.mins))}
-                  className={`rounded-2xl border p-4 text-left transition-all duration-150 active:scale-[0.98] ${
-                    active
-                      ? 'border-lime-400 bg-lime-400/10 text-white shadow-sm ring-1 ring-lime-400'
-                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-base font-black text-white">{item.label}</span>
-                    <Clock className={`h-4 w-4 ${active ? 'text-lime-400' : 'text-zinc-500'}`} />
-                  </div>
-                  <span className="mt-1 block text-xs text-zinc-400 leading-relaxed">{item.desc}</span>
-                </button>
+                <Tooltip key={item.mins} content={item.tooltip} position="top" className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectWithAutoAdvance(() => setSessionMinutes(item.mins))}
+                    className={`w-full h-28 rounded-2xl border p-3 flex flex-col items-center justify-center transition-all duration-150 active:scale-95 text-center relative ${
+                      active
+                        ? 'border-lime-400 bg-lime-400/10 text-white shadow-sm ring-1 ring-lime-400'
+                        : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-3xl font-black tabular-nums tracking-tight text-white">{item.num}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5">{item.label}</span>
+                    <Badge variant={active ? 'lime' : 'neutral'} pill className="mt-1 text-[10px] px-2 py-0">
+                      {item.tag}
+                    </Badge>
+                  </button>
+                </Tooltip>
               );
             })}
           </div>
@@ -543,10 +597,26 @@ export function OnboardingPage() {
         >
           <div className="grid gap-3 w-full max-w-md">
             {[
-              { id: 'full_gym', label: 'Full Commercial Gym', desc: 'Barbells, dumbbells, cables, squat racks, leg press, machines' },
-              { id: 'home_gym', label: 'Home Gym Setup', desc: 'Barbell, squat rack, adjustable bench, select dumbbells' },
-              { id: 'dumbbells_only', label: 'Dumbbells & Flat Bench', desc: 'Pair of adjustable dumbbells and bench/floor' },
-              { id: 'resistance_bands', label: 'Bands & Bodyweight', desc: 'Loop bands, pull-up bar, and calisthenics floor setup' },
+              {
+                id: 'full_gym',
+                label: 'Full Commercial Gym',
+                tags: ['Barbells', 'Dumbbells', 'Cables', 'Squat Racks', 'Machines'],
+              },
+              {
+                id: 'home_gym',
+                label: 'Home Gym Setup',
+                tags: ['Barbell', 'Squat Rack', 'Bench', 'Dumbbells'],
+              },
+              {
+                id: 'dumbbells_only',
+                label: 'Dumbbells & Flat Bench',
+                tags: ['Adjustable Dumbbells', 'Bench / Floor'],
+              },
+              {
+                id: 'resistance_bands',
+                label: 'Bands & Bodyweight',
+                tags: ['Loop Bands', 'Pull-Up Bar', 'Calisthenics'],
+              },
             ].map((gear) => {
               const active = selectedEquipment.includes(gear.id);
               return (
@@ -556,7 +626,7 @@ export function OnboardingPage() {
                   onClick={() => toggleEquipment(gear.id)}
                   className={`rounded-2xl border p-4 text-left transition-all duration-150 active:scale-[0.98] ${
                     active
-                      ? 'border-lime-400 bg-lime-400/10 text-white'
+                      ? 'border-lime-400 bg-lime-400/10 text-white shadow-sm ring-1 ring-lime-400/30'
                       : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
                   }`}
                 >
@@ -570,7 +640,17 @@ export function OnboardingPage() {
                       {active && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                     </div>
                   </div>
-                  <span className="mt-1 block text-xs text-zinc-400 leading-relaxed">{gear.desc}</span>
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {gear.tags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant={active ? 'lime' : 'neutral'}
+                        className="text-[10px] py-0.5"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
                 </button>
               );
             })}
@@ -589,59 +669,67 @@ export function OnboardingPage() {
           subtitle="Exercises causing impingement or shearing loads will be filtered out."
           badge={`${painCount} Safeguards`}
         >
-          <div className="grid gap-2.5 w-full max-w-lg max-h-[50vh] overflow-y-auto pr-1">
+          <div className="grid gap-2 w-full max-w-lg max-h-[50vh] overflow-y-auto pr-1">
             {ANATOMY_PINS.map((pin) => {
               const active = activePains[pin.code];
               return (
                 <div
                   key={pin.code}
-                  className={`rounded-2xl border p-3.5 transition-all ${
+                  className={`rounded-xl border px-3 py-2.5 transition-all flex items-center justify-between gap-2 ${
                     active
-                      ? 'border-amber-500/50 bg-amber-500/10'
+                      ? 'border-amber-400/60 bg-amber-500/10 shadow-sm ring-1 ring-amber-400/20'
                       : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => togglePainPin(pin.code)}
-                      className="flex items-center gap-2.5 text-left min-w-0 flex-1"
+                  <button
+                    type="button"
+                    onClick={() => togglePainPin(pin.code)}
+                    className="flex items-center gap-2.5 text-left min-w-0 flex-1 py-0.5"
+                  >
+                    <div
+                      className={`size-4.5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                        active
+                          ? 'border-amber-400 bg-amber-400 text-zinc-950'
+                          : 'border-zinc-700 bg-zinc-800'
+                      }`}
                     >
-                      <div
-                        className={`size-5 rounded-md border flex items-center justify-center shrink-0 ${
-                          active
-                            ? 'border-amber-400 bg-amber-400 text-zinc-950'
-                            : 'border-zinc-700 bg-zinc-800'
-                        }`}
-                      >
-                        {active && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                      </div>
+                      {active && <Check className="h-3 w-3 stroke-[3]" />}
+                    </div>
+                    <div className="flex items-center gap-2 min-w-0">
                       <span className="truncate text-xs sm:text-sm font-bold text-white">{pin.label}</span>
-                    </button>
+                      <Badge variant="dark" pill className="text-[10px] text-zinc-400 px-1.5 py-0 shrink-0 hidden sm:inline-flex">
+                        {pin.region}
+                      </Badge>
+                    </div>
+                  </button>
 
-                    {active && (
-                      <div className="flex rounded-lg border border-zinc-700 bg-zinc-900 p-0.5 text-[10px]">
-                        {(['mild', 'moderate', 'severe'] as const).map((s) => (
+                  {active && (
+                    <div className="flex items-center rounded-lg border border-zinc-700 bg-zinc-950 p-0.5 shrink-0">
+                      {(
+                        [
+                          { key: 'mild', label: 'Mild', activeClass: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' },
+                          { key: 'moderate', label: 'Mod', activeClass: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
+                          { key: 'severe', label: 'Sev', activeClass: 'bg-red-500/20 text-red-300 border border-red-500/30' },
+                        ] as const
+                      ).map(({ key, label, activeClass }) => {
+                        const isSelected = active.severity === key;
+                        return (
                           <button
-                            key={s}
+                            key={key}
                             type="button"
-                            onClick={() => setPainSeverity(pin.code, s)}
-                            className={`rounded px-2 py-0.5 font-bold uppercase transition-colors ${
-                              active.severity === s
-                                ? s === 'severe'
-                                  ? 'bg-red-500/30 text-red-300'
-                                  : s === 'moderate'
-                                  ? 'bg-amber-500/30 text-amber-300'
-                                  : 'bg-emerald-500/30 text-emerald-300'
+                            onClick={() => setPainSeverity(pin.code, key)}
+                            className={`rounded px-2 py-0.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                              isSelected
+                                ? activeClass
                                 : 'text-zinc-500 hover:text-zinc-300'
                             }`}
                           >
-                            {s[0].toUpperCase()}
+                            {label}
                           </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -664,14 +752,15 @@ export function OnboardingPage() {
         >
           <div className="grid gap-2.5 sm:grid-cols-2 w-full max-w-lg mb-4">
             {[
-              { id: 'posture_improvement', label: 'Posture Correction', desc: 'Fix rounded shoulders & anterior tilt' },
-              { id: 'strength', label: 'Maximum Strength', desc: 'Compound overload & neural drive' },
-              { id: 'muscle_gain', label: 'Muscular Hypertrophy', desc: 'Muscle volume & aesthetic definition' },
-              { id: 'mobility', label: 'Joint Mobility & Resilience', desc: 'Resilient knees, hips, and rotator cuff' },
-              { id: 'fat_loss', label: 'Metabolic Fat Loss', desc: 'High density conditioning & calorie burn' },
-              { id: 'recomposition', label: 'Body Recomposition', desc: 'Simultaneous lean gain & fat reduction' },
+              { id: 'posture_improvement', label: 'Posture Correction', tag: 'Alignment', icon: ShieldCheck, desc: 'Fix rounded shoulders & anterior tilt' },
+              { id: 'strength', label: 'Maximum Strength', tag: 'Power', icon: Dumbbell, desc: 'Compound overload & neural drive' },
+              { id: 'muscle_gain', label: 'Hypertrophy', tag: 'Volume', icon: Zap, desc: 'Muscle volume & aesthetic definition' },
+              { id: 'mobility', label: 'Joint Mobility', tag: 'Durability', icon: Activity, desc: 'Resilient knees, hips & rotator cuff' },
+              { id: 'fat_loss', label: 'Metabolic Burn', tag: 'Conditioning', icon: Flame, desc: 'High density conditioning & calorie burn' },
+              { id: 'recomposition', label: 'Body Recomposition', tag: 'Hybrid', icon: Scale, desc: 'Simultaneous lean gain & fat reduction' },
             ].map((g) => {
               const active = selectedGoals.includes(g.id);
+              const Icon = g.icon;
               return (
                 <button
                   key={g.id}
@@ -679,25 +768,66 @@ export function OnboardingPage() {
                   onClick={() => toggleGoal(g.id)}
                   className={`rounded-2xl border p-3.5 text-left transition-all duration-150 active:scale-[0.98] ${
                     active
-                      ? 'border-lime-400 bg-lime-400/10 text-white'
+                      ? 'border-lime-400 bg-lime-400/10 text-white shadow-sm ring-1 ring-lime-400/30'
                       : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-black text-white">{g.label}</span>
-                    {active && <Check className="h-4 w-4 text-lime-400 stroke-[3]" />}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`size-7 rounded-lg border flex items-center justify-center shrink-0 ${
+                          active
+                            ? 'border-lime-400/40 bg-lime-400/20 text-lime-400'
+                            : 'border-zinc-800 bg-zinc-950 text-zinc-400'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      <span className="text-sm font-black text-white">{g.label}</span>
+                    </div>
+                    <Badge variant={active ? 'lime' : 'neutral'} pill className="text-[10px] px-1.5 py-0">
+                      {g.tag}
+                    </Badge>
                   </div>
-                  <span className="mt-1 block text-xs text-zinc-400">{g.desc}</span>
+                  <span className="block text-xs text-zinc-400 leading-relaxed">{g.desc}</span>
                 </button>
               );
             })}
           </div>
 
           {generating && (
-            <div className="w-full max-w-md rounded-2xl border border-lime-400/30 bg-lime-400/10 p-5 text-center space-y-2">
-              <div className="flex items-center justify-center gap-2 font-mono text-xs font-bold text-lime-400">
-                <span className="size-2 rounded-full bg-lime-400 animate-ping" />
-                <span>{phaseText}</span>
+            <div className="w-full max-w-lg rounded-2xl border border-lime-400/30 bg-zinc-950/90 p-5 shadow-2xl backdrop-blur-md space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-lime-400" />
+                  </span>
+                  <span className="font-mono text-xs font-black uppercase tracking-wider text-lime-400">
+                    AI Synthesis Engine Active
+                  </span>
+                </div>
+                <Sparkles className="h-4 w-4 text-lime-400 animate-pulse" />
+              </div>
+
+              {/* Stage Pills */}
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Badge variant="success" pill className="text-[11px] py-1 px-2.5 font-mono">
+                  <Check className="h-3 w-3 stroke-[3]" /> Posture Matrix
+                </Badge>
+                <Badge variant="cyan" pill className="text-[11px] py-1 px-2.5 font-mono">
+                  <Check className="h-3 w-3 stroke-[3]" /> Volume Balanced
+                </Badge>
+                <Badge variant="lime" pill className="text-[11px] py-1 px-2.5 font-mono">
+                  <Sparkles className="h-3 w-3" /> AI Plan Ready
+                </Badge>
+              </div>
+
+              {/* Phase Status Text */}
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 py-2.5 px-3 text-center">
+                <p className="font-mono text-xs font-semibold text-zinc-300">
+                  {phaseText || 'Synthesizing evidence-based AI workout split…'}
+                </p>
               </div>
             </div>
           )}
