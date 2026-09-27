@@ -412,128 +412,121 @@ export function PlanPage() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <main className="flex-1 overflow-y-auto min-h-0 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-8 overscroll-contain">
+      <main className="flex-1 overflow-y-auto min-h-0 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-6 space-y-3.5 pb-8 overscroll-contain">
         {daysCount > 0 ? (
           <>
-            {/* Schedule Top Header & Action Controls */}
-            <section className="space-y-4 shrink-0">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                      {planView?.plan.name || 'Workout Schedule'}
-                    </h1>
-                    {planView?.forkedFrom && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-                        <GitFork className="h-3 w-3" /> Forked from {planView.forkedFrom.planTitle || planView.forkedFrom.authorName}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    {planView?.plan.description || 'Weekly Biomechanical Training Split'}
-                  </p>
-                </div>
-
-                {/* Streamlined Action Buttons with Tooltips */}
+            {/* 1. Compact Top Bar: Title & Action Controls */}
+            <div className="flex items-center justify-between gap-3 shrink-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <Tooltip content="My Plans Library (Switch Active Routine)" position="bottom">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setLibraryOpen(true);
-                        fetchMyPlans();
-                      }}
-                      className="h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-200 hover:border-lime-400 hover:text-lime-400 shadow-sm"
-                    >
-                      <Layers className="h-3.5 w-3.5 sm:mr-1 text-[#10E760]" />
-                      <span className="hidden sm:inline">My Library</span>
-                      <span className="sm:hidden">Library</span>
-                    </Button>
-                  </Tooltip>
-
-                  <Tooltip content="Custom Routine Builder" position="bottom">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate('/plans/builder')}
-                      className="h-9 px-3 rounded-xl border border-zinc-800 bg-zinc-900 text-xs font-bold text-zinc-300 hover:border-lime-400 hover:text-lime-400"
-                    >
-                      <Sliders className="h-3.5 w-3.5 sm:mr-1" />
-                      <span className="hidden sm:inline">Builder</span>
-                    </Button>
-                  </Tooltip>
-
-                  {planView && (
-                    <Tooltip content="Publish to Explore Community Hub" position="bottom">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        loading={publishingPlanId === planView.id}
-                        onClick={() => handlePublishPlan(planView.id, planView.plan.name)}
-                        className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-cyan-400 hover:text-cyan-400"
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                    </Tooltip>
+                  <h1 className="text-base sm:text-lg font-black tracking-tight text-white truncate">
+                    {planView?.plan.name || 'Workout Schedule'}
+                  </h1>
+                  {planView?.forkedFrom && (
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                      <GitFork className="h-3 w-3" /> Forked
+                    </span>
                   )}
-
-                  <Tooltip content="Regenerate Plan with AI" position="bottom">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={generateNewPlan}
-                      loading={generating}
-                      className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </Button>
-                  </Tooltip>
-
-                  <Tooltip content="Delete Current Routine" position="bottom">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={deletePlan}
-                      className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-red-500/40 hover:text-red-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </Tooltip>
                 </div>
               </div>
 
-              {/* Day Selection Strip */}
-              <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
-                {days.map((day, idx) => {
-                  const isActive = idx === selectedDay;
-                  return (
-                    <button
-                      key={day.dayNumber}
-                      type="button"
-                      onClick={() => setSelectedDay(idx)}
-                      className={`flex min-w-[84px] sm:min-w-[100px] flex-1 flex-col items-center justify-center rounded-2xl p-3 text-center transition-all duration-200 ${
-                        isActive
-                          ? 'bg-lime-400 text-zinc-950 font-black shadow-lg shadow-lime-400/20 scale-[1.02]'
-                          : 'bg-zinc-900 border border-zinc-800/90 text-zinc-400 hover:border-zinc-700 hover:text-white'
-                      }`}
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Tooltip content="My Plans Library" position="bottom">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setLibraryOpen(true);
+                      fetchMyPlans();
+                    }}
+                    className="h-8 px-2.5 rounded-xl border border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-200 hover:border-lime-400 hover:text-lime-400"
+                  >
+                    <Layers className="h-3.5 w-3.5 sm:mr-1 text-[#10E760]" />
+                    <span className="hidden sm:inline">My Library</span>
+                    <span className="sm:hidden text-[11px]">Library</span>
+                  </Button>
+                </Tooltip>
+
+                <Tooltip content="Custom Routine Builder" position="bottom">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigate('/plans/builder')}
+                    className="size-8 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white"
+                  >
+                    <Sliders className="h-3.5 w-3.5" />
+                  </Button>
+                </Tooltip>
+
+                {planView && (
+                  <Tooltip content="Publish Routine" position="bottom">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      loading={publishingPlanId === planView.id}
+                      onClick={() => handlePublishPlan(planView.id, planView.plan.name)}
+                      className="size-8 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-cyan-400"
                     >
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-zinc-950/70' : 'text-zinc-500'}`}>
-                        Day {day.dayNumber}
-                      </span>
-                      <span className="mt-0.5 text-base sm:text-lg font-black tabular-nums truncate max-w-full">
-                        {day.name.replace(/day\s*\d+:\s*/i, '').split(' ')[0] || `D${day.dayNumber}`}
-                      </span>
-                    </button>
-                  );
-                })}
+                      <Share2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </Tooltip>
+                )}
+
+                <Tooltip content="Regenerate with AI" position="bottom">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={generateNewPlan}
+                    loading={generating}
+                    className="size-8 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                </Tooltip>
+
+                <Tooltip content="Delete Routine" position="bottom">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={deletePlan}
+                    className="size-8 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-rose-400"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </Tooltip>
               </div>
-            </section>
+            </div>
+
+            {/* 2. Sleek Day Selection Pills */}
+            <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none shrink-0">
+              {days.map((day, idx) => {
+                const isActive = idx === selectedDay;
+                const shortName = day.name.replace(/day\s*\d+:\s*/i, '').split(' ')[0] || `D${day.dayNumber}`;
+                return (
+                  <button
+                    key={day.dayNumber}
+                    type="button"
+                    onClick={() => setSelectedDay(idx)}
+                    className={`flex items-center gap-1.5 shrink-0 rounded-xl px-3 py-1.5 text-xs font-black transition-all ${
+                      isActive
+                        ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-400/20'
+                        : 'bg-zinc-900 border border-zinc-800/90 text-zinc-400 hover:text-white hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className={isActive ? 'text-zinc-950/70 text-[10px]' : 'text-zinc-500 text-[10px]'}>
+                      Day {day.dayNumber}
+                    </span>
+                    <span>{shortName}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Balanced 2-Column Desktop Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left Column (8 cols): Day Exercises List */}
-              <div className="lg:col-span-8 space-y-6">
+              <div className="lg:col-span-8 space-y-4">
                 {/* Horizontal Day Carousel Track */}
                 <div className="overflow-hidden w-full">
                   <div
@@ -549,62 +542,44 @@ export function PlanPage() {
                       const totalWorkSeconds = dayExercises.reduce((sum, ex) => sum + (ex.sets || 3) * 45, 0);
                       const transitionSeconds = dayExercises.length * 90;
                       const warmupSeconds = 300;
-                      const estMinutes = Math.round((totalRestSeconds + totalWorkSeconds + transitionSeconds + warmupSeconds) / 60) || 50;
+                      const estMinutes = Math.round((totalRestSeconds + totalWorkSeconds + transitionSeconds + warmupSeconds) / 60) || 45;
 
                       const targetMuscles = Array.from(
                         new Set(dayExercises.map((ex) => ex.muscleGroup || ex.movementPattern).filter(Boolean)),
                       );
 
                       return (
-                        <div key={day.dayNumber} className="w-full shrink-0 space-y-6 px-0.5">
-                          {/* Hero Workout Banner */}
-                          <section className="relative overflow-hidden rounded-3xl border border-zinc-800/90 bg-zinc-900 p-5 shadow-xl sm:p-6">
-                            <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-lime-400/10 blur-3xl" />
-
-                            <div className="relative z-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="h-2 w-2 rounded-full bg-lime-400 animate-pulse" />
-                                  <p className="font-mono text-[11px] font-black uppercase tracking-widest text-lime-400">
-                                    Day {day.dayNumber} · Focus Target
-                                  </p>
-                                </div>
-
-                                <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-                                  {day.name || day.focus || 'Workout Session'}
-                                </h2>
-
-                                <div className="flex flex-wrap items-center gap-2 pt-1">
-                                  <span className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-xs font-bold text-zinc-300">
-                                    <Timer className="h-3.5 w-3.5 text-lime-400" /> {estMinutes} MIN
-                                  </span>
-
-                                  {targetMuscles.slice(0, 4).map((muscle) => (
-                                    <span
-                                      key={muscle}
-                                      className="rounded-full bg-lime-400 px-3 py-1 text-xs font-black uppercase tracking-wider text-zinc-950"
-                                    >
-                                      {muscle}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </section>
-
-                          {/* List of Exercises */}
-                          <section className="space-y-3">
-                            <div className="flex items-center justify-between pt-1">
-                              <div>
-                                <h3 className="text-lg font-black text-white">List of Exercises</h3>
-                                <p className="text-xs text-zinc-400">
-                                  {totalExercises} Exercises · {totalSets} Total Sets
-                                </p>
-                              </div>
-                              <span className="font-mono text-[11px] font-bold text-zinc-500">Tap to inspect form</span>
+                        <div key={day.dayNumber} className="w-full shrink-0 space-y-3 px-0.5">
+                          {/* Compact Day Summary HUD (Replaces Giant 200px Hero Banner & Duplicate Header) */}
+                          <div className="flex items-center justify-between gap-2 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 px-3.5 py-2 backdrop-blur-md">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="size-2 rounded-full bg-lime-400 shrink-0 animate-pulse" />
+                              <h2 className="text-xs sm:text-sm font-extrabold text-white truncate">
+                                {day.name || day.focus || `Day ${day.dayNumber}`}
+                              </h2>
+                              <span className="text-zinc-600 font-sans hidden sm:inline">•</span>
+                              <span className="text-[11px] font-mono text-zinc-400 hidden sm:inline">
+                                {totalExercises} Exercises · {totalSets} Sets · ~{estMinutes}m
+                              </span>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] font-mono font-bold text-zinc-400 sm:hidden">
+                                {totalExercises} Ex · {totalSets} Sets
+                              </span>
+                              {targetMuscles.slice(0, 3).map((muscle) => (
+                                <span
+                                  key={muscle}
+                                  className="rounded-md bg-lime-400/10 border border-lime-400/30 px-2 py-0.5 text-[9px] font-bold uppercase text-lime-400 hidden sm:inline"
+                                >
+                                  {muscle}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Exercises List starts immediately! */}
+                          <div className="space-y-3">
                               {dayExercises.map((exercise, index) => {
                                 const safetyNotes = resolveExerciseSafetyNotes(exercise.name).tips || [];
                                 const cueKey = `${dayIndex}-${index}`;
@@ -750,7 +725,6 @@ export function PlanPage() {
                                 );
                               })}
                             </div>
-                          </section>
                         </div>
                       );
                     })}
