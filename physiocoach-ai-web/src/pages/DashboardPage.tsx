@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Bell,
   BrainCircuit,
+  Calculator,
   ChevronRight,
   Dumbbell,
   Play,
@@ -516,6 +517,33 @@ export function DashboardPage() {
               {jointResilience.map((joint) => (
                 <JointRing key={joint.area} area={joint.area} recovery={joint.resilience} />
               ))}
+            </div>
+          </section>
+
+          {/* Strength & Barbell Plate Calculator Quick Access */}
+          <section>
+            <SectionHeading title="Athlete Tools" actionLabel="Open" to="/calculator" />
+
+            <div
+              onClick={() => navigate('/calculator')}
+              className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-zinc-800/90 bg-gradient-to-br from-[#121826] via-[#0e1424] to-[#080b13] p-4 sm:p-5 shadow-lg transition-all duration-300 hover:border-lime-400/50 hover:bg-[#141b2b] hover:shadow-[0_0_25px_rgba(16,231,96,0.1)] cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-11 shrink-0 place-items-center rounded-2xl border border-lime-400/30 bg-lime-400/10 text-lime-400 group-hover:scale-105 transition-transform">
+                    <Calculator className="h-5 w-5 stroke-[2.2]" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-black text-white group-hover:text-lime-400 transition-colors">
+                      Strength & Plate Calculator
+                    </h4>
+                    <p className="text-[11px] text-zinc-400 truncate">
+                      1RM formulas, working weights & barbell plate loading
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-zinc-600 transition-transform group-hover:translate-x-1 group-hover:text-lime-400" />
+              </div>
             </div>
           </section>
         </div>

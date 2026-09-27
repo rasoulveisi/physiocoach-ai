@@ -9,6 +9,7 @@ import {
   Globe,
   GitFork,
   Layers,
+  Pencil,
   Play,
   Plus,
   RefreshCw,
@@ -448,14 +449,20 @@ export function PlanPage() {
                   </Button>
                 </Tooltip>
 
-                <Tooltip content="Custom Routine Builder" position="bottom">
+                <Tooltip content="Edit Plan & Exercises" position="bottom">
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => navigate('/plans/builder')}
-                    className="size-8 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() =>
+                      navigate('/plans/builder', {
+                        state: { plan: planView?.plan, planId: planView?.id },
+                      })
+                    }
+                    className="h-8 px-2.5 rounded-xl border border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-200 hover:border-lime-400 hover:text-lime-400"
                   >
-                    <Sliders className="h-3.5 w-3.5" />
+                    <Pencil className="h-3.5 w-3.5 sm:mr-1 text-[#10E760]" />
+                    <span className="hidden sm:inline">Edit Plan</span>
+                    <span className="sm:hidden text-[11px]">Edit</span>
                   </Button>
                 </Tooltip>
 

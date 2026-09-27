@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useTransition } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Activity,
   ArrowDown,
+  ArrowLeft,
+  ArrowLeftRight,
   ArrowUp,
   BarChart3,
   Check,
@@ -118,6 +120,25 @@ const MUSCLE_FILTER_OPTIONS = [
   'Core',
   'Calves',
 ];
+
+const MUSCLE_PARAM_MAP: Record<string, string> = {
+  all: '',
+  chest: 'pectorals',
+  back: 'lats',
+  shoulders: 'deltoids',
+  quads: 'quadriceps',
+  hamstrings: 'hamstrings',
+  glutes: 'glutes',
+  biceps: 'biceps',
+  triceps: 'triceps',
+  core: 'abs',
+  calves: 'calves',
+};
+
+function formatMovementTag(tag?: string): string {
+  if (!tag) return '';
+  return tag.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 function createDefaultSet(setNumber = 1, setType: SetType = 'NORMAL'): PlanBuilderSet {
   return {
@@ -281,13 +302,70 @@ function getInitialDaysForSplit(split: SplitPreset): PlanBuilderDay[] {
 
 export function PlanBuilderPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [, startTransition] = useTransition();
 
-  const [title, setTitle] = useState('Custom Hypertrophy Blueprint');
-  const [description, setDescription] = useState('Personalized high-frequency hypertrophy routine.');
-  const [split, setSplit] = useState<SplitPreset>('ppl');
-  const [days, setDays] = useState<PlanBuilderDay[]>(() => getInitialDaysForSplit('ppl'));
+  const incomingPlan = location.state?.plan;
+
+  // Initialize title, split, and days from incomingPlan if available
+  const initialData = useMemo(() => {
+    if (incomingPlan && Array.isArray(incomingPlan.days) && incomingPlan.days.length > 0) {
+      const parsedDays: PlanBuilderDay[] = incomingPlan.days.map((d: any, dIdx: number) => ({
+        id: d.id || `day_${dIdx + 1}`,
+        dayName: d.name || d.dayName || d.title || `Day ${dIdx + 1}`,
+        exercises: (d.exercises || []).map((ex: any, exIdx: number) => {
+          const rawSets = ex.sets;
+          let parsedSets: PlanBuilderSet[] = [];
+          if (Array.isArray(rawSets) && rawSets.length > 0 && typeof rawSets[0] === 'object') {
+            parsedSets = rawSets.map((s: any, sIdx: number) => ({
+              id: s.id || `set_${dIdx}_${exIdx}_${sIdx}`,
+              setNumber: s.setNumber || sIdx + 1,
+              setType: (s.setType as SetType) || 'NORMAL',
+              targetReps: String(s.targetReps || s.reps || '8-10'),
+              targetRir: Number(s.targetRir ?? s.rir ?? 2),
+              tempo: s.tempo || '3-0-1-0',
+              restSeconds: Number(s.restSeconds || s.rest || 90),
+            }));
+          } else {
+            const count = typeof rawSets === 'number' ? rawSets : 3;
+            parsedSets = Array.from({ length: count }, (_, sIdx) =>
+              createDefaultSet(sIdx + 1, sIdx === 0 ? 'WARMUP' : 'NORMAL')
+            );
+          }
+
+          return {
+            id: ex.id || `builder_ex_${dIdx}_${exIdx}`,
+            exerciseId: ex.masterExerciseId || ex.exerciseId || ex.id || String(exIdx + 1),
+            exerciseName: ex.name || ex.exerciseName || 'Exercise',
+            movementPattern: ex.movementPattern || 'push',
+            muscleGroups: ex.muscleGroup ? [ex.muscleGroup] : ex.muscleGroups || ['chest'],
+            sets: parsedSets,
+          };
+        }),
+      }));
+
+      return {
+        title: incomingPlan.title || incomingPlan.name || 'Custom Hypertrophy Blueprint',
+        description: incomingPlan.description || 'Personalized routine.',
+        split: (incomingPlan.split as SplitPreset) || 'custom',
+        days: parsedDays,
+      };
+    }
+
+    return {
+      title: 'Custom Hypertrophy Blueprint',
+      description: 'Personalized high-frequency hypertrophy routine.',
+      split: 'ppl' as SplitPreset,
+      days: getInitialDaysForSplit('ppl'),
+    };
+  }, [incomingPlan]);
+
+  const [title, setTitle] = useState(initialData.title);
+  const [description, setDescription] = useState(initialData.description);
+  const [split, setSplit] = useState<SplitPreset>(initialData.split);
+  const [days, setDays] = useState<PlanBuilderDay[]>(initialData.days);
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [showPlanDetails, setShowPlanDetails] = useState(false);
 
   // Exercise Picker Drawer State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -300,16 +378,21 @@ export function PlanBuilderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Expanded Exercise Details (Accordion State)
-  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+  // Replace / Swap Exercise State
+  const [replacingExercise, setReplacingExercise] = useState<{
+    dayIdx: number;
+    exIdx: number;
+    exercise: PlanBuilderExercise;
+  } | null>(null);
+
+  // Expanded Exercise Details (Accordion State - Collapsed by default)
   const [expandedExerciseIds, setExpandedExerciseIds] = useState<Record<string, boolean>>({});
 
-  const toggleExerciseExpand = (id: string, exIdx: number) => {
-    setExpandedExerciseIds((prev) => {
-      const isCurrentlyExpanded = prev[id] !== undefined ? prev[id] : exIdx === 0;
-      return { ...prev, [id]: !isCurrentlyExpanded };
-    });
-    setExpandedExerciseId((prev) => (prev === id ? null : id));
+  const toggleExerciseExpand = (id: string) => {
+    setExpandedExerciseIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
   };
 
   // Safety Audit Modal
@@ -451,6 +534,71 @@ export function PlanBuilderPage() {
     setDays(updatedDays);
   };
 
+  // Start Replace Exercise flow
+  const handleStartReplaceExercise = (exIdx: number, exercise: PlanBuilderExercise) => {
+    setReplacingExercise({
+      dayIdx: selectedDayIndex,
+      exIdx,
+      exercise,
+    });
+    const primaryMuscle = exercise.muscleGroups[0];
+    if (primaryMuscle) {
+      const matchedFilter = MUSCLE_FILTER_OPTIONS.find(
+        (m) =>
+          m.toLowerCase() === primaryMuscle.toLowerCase() ||
+          MUSCLE_PARAM_MAP[m.toLowerCase()] === primaryMuscle.toLowerCase(),
+      );
+      setSelectedMuscleFilter(matchedFilter || 'All');
+    } else {
+      setSelectedMuscleFilter('All');
+    }
+    setSearchQuery('');
+    setIsCatalogOpen(true);
+  };
+
+  // Add or Replace Exercise from Catalog
+  const handleSelectCatalogItem = (catalogItem: CatalogExerciseItem) => {
+    if (replacingExercise) {
+      const { dayIdx, exIdx } = replacingExercise;
+      const targetDay = days[dayIdx];
+      if (!targetDay) return;
+
+      const existingEx = targetDay.exercises[exIdx];
+      const updatedEx: PlanBuilderExercise = {
+        id: existingEx?.id || `builder_ex_${Date.now()}`,
+        exerciseId: catalogItem.id || catalogItem.canonicalId,
+        exerciseName: catalogItem.name,
+        movementPattern: catalogItem.movementPattern || existingEx?.movementPattern || 'push',
+        muscleGroups: [catalogItem.primaryMuscle || 'chest'],
+        // Keep existing customized sets
+        sets: existingEx?.sets?.length
+          ? existingEx.sets
+          : [
+              createDefaultSet(1, 'WARMUP'),
+              createDefaultSet(2, 'NORMAL'),
+              createDefaultSet(3, 'NORMAL'),
+            ],
+      };
+
+      const updatedExercises = [...targetDay.exercises];
+      updatedExercises[exIdx] = updatedEx;
+
+      const updatedDays = [...days];
+      updatedDays[dayIdx] = { ...targetDay, exercises: updatedExercises };
+      setDays(updatedDays);
+
+      setToast({
+        message: `Replaced with "${catalogItem.name}"`,
+        type: 'success',
+      });
+      setReplacingExercise(null);
+      setIsCatalogOpen(false);
+    } else {
+      handleAddExerciseFromCatalog(catalogItem);
+      setIsCatalogOpen(false);
+    }
+  };
+
   // Add Exercise from Catalog into active day
   const handleAddExerciseFromCatalog = (catalogItem: CatalogExerciseItem) => {
     const newEx = createDefaultExercise(
@@ -475,6 +623,28 @@ export function PlanBuilderPage() {
   // Quick Add Custom Exercise
   const handleAddCustomExercise = (customName: string) => {
     if (!customName.trim()) return;
+    if (replacingExercise) {
+      const { dayIdx, exIdx } = replacingExercise;
+      const targetDay = days[dayIdx];
+      if (!targetDay) return;
+      const existingEx = targetDay.exercises[exIdx];
+      const updatedEx: PlanBuilderExercise = {
+        ...existingEx,
+        exerciseName: customName.trim(),
+        exerciseId: `custom_${Date.now()}`,
+      };
+      const updatedExercises = [...targetDay.exercises];
+      updatedExercises[exIdx] = updatedEx;
+      const updatedDays = [...days];
+      updatedDays[dayIdx] = { ...targetDay, exercises: updatedExercises };
+      setDays(updatedDays);
+      setToast({ message: `Replaced with "${customName}"`, type: 'success' });
+      setReplacingExercise(null);
+      setIsCatalogOpen(false);
+      setSearchQuery('');
+      return;
+    }
+
     const newEx = createDefaultExercise(customName.trim(), `custom_${Date.now()}`, 'push', 'chest');
     const targetDay = days[selectedDayIndex];
     if (!targetDay) return;
@@ -494,9 +664,15 @@ export function PlanBuilderPage() {
     let active = true;
     if (isCatalogOpen) {
       setCatalogLoading(true);
+      const mappedMuscle =
+        selectedMuscleFilter !== 'All'
+          ? MUSCLE_PARAM_MAP[selectedMuscleFilter.toLowerCase()] ||
+            selectedMuscleFilter.toLowerCase()
+          : undefined;
+
       fetchCatalogExercises({
         q: searchQuery || undefined,
-        primaryMuscle: selectedMuscleFilter !== 'All' ? selectedMuscleFilter.toLowerCase() : undefined,
+        primaryMuscle: mappedMuscle,
         limit: 30,
       })
         .then((res) => {
@@ -669,165 +845,132 @@ export function PlanBuilderPage() {
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-[#090D15] text-zinc-50 select-none selection:bg-[#10E760] selection:text-zinc-950">
-      {/* 1. TOP HEADER & HUD BAR */}
-      <header className="shrink-0 border-b border-zinc-800/80 bg-[#121722]/90 p-4 sm:px-6 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1600px] w-full flex-col gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="grid size-7 place-items-center rounded-lg bg-[#10E760] text-zinc-950 font-black shadow-md shadow-[#10E760]/20">
-                  <Sliders className="h-4 w-4 stroke-[2.5]" />
-                </span>
-                <h1 className="text-lg sm:text-xl font-black uppercase tracking-tight text-white">
-                  Interactive Plan Builder
-                </h1>
-              </div>
-              <p className="text-xs text-zinc-400">
-                Design custom training routines with precision sets, tempo, and RIR targets.
-              </p>
-            </div>
+    <div className="flex flex-col h-full w-full overflow-hidden bg-[#090D15] text-zinc-50 select-none">
+      {/* 1. COMPACT STICKY TOP APP BAR (~52px) */}
+      <header className="shrink-0 z-30 border-b border-zinc-800/80 bg-[#121722]/95 px-3 sm:px-6 py-2.5 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2">
+          {/* Left: Back button to /plan */}
+          <button
+            type="button"
+            onClick={() => navigate('/plan')}
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/80 px-2.5 py-1.5 text-xs font-bold text-zinc-400 hover:border-zinc-700 hover:text-white transition-all shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Back</span>
+          </button>
 
-            {/* Top Action CTA with Tooltips */}
-            <div className="flex items-center gap-2">
-              <Tooltip
-                content="Audit program against clinical hypertrophy guidelines, volume caps, and injury risks"
-                position="bottom"
-              >
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="md"
-                  onClick={() => setIsAuditModalOpen(true)}
-                  className="w-full sm:w-auto text-xs sm:text-sm font-bold border-[#10E760]/30 text-[#10E760] hover:bg-[#10E760]/10"
-                >
-                  <ShieldCheck className="h-4 w-4 mr-1.5" /> Run Safety Audit
-                </Button>
-              </Tooltip>
-
-              <Tooltip
-                content="Save workout blueprint to database and activate as your live training program"
-                position="bottom"
-              >
-                <Button
-                  type="button"
-                  variant="volt"
-                  size="md"
-                  loading={isSubmitting}
-                  onClick={handleSaveAndActivate}
-                  className="w-full sm:w-auto shadow-lg shadow-[#10E760]/20 text-xs sm:text-sm font-black"
-                >
-                  <Save className="h-4 w-4 mr-1.5" /> Save & Activate Plan
-                </Button>
-              </Tooltip>
-            </div>
+          {/* Center: Program Title Input */}
+          <div className="flex-1 max-w-xs sm:max-w-md mx-2">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Routine Title"
+              className="w-full text-center text-xs sm:text-sm font-black text-white bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-[#10E760] outline-none truncate transition-colors"
+            />
           </div>
 
-          {/* Plan Metadata & Split Selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
-            <div className="sm:col-span-7 space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                Program Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. 4-Day Upper / Lower Hypertrophy Split"
-                className="w-full rounded-xl border border-zinc-800 bg-[#090D15] px-3.5 py-2 text-xs font-bold text-white placeholder-zinc-500 outline-none transition-colors focus:border-[#10E760]"
-              />
-            </div>
+          {/* Right Actions: Audit & Save CTA */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Tooltip content="Safety & Volume Audit" position="bottom">
+              <button
+                type="button"
+                onClick={() => setIsAuditModalOpen(true)}
+                className="grid size-8 place-items-center rounded-xl border border-zinc-800 bg-zinc-900 text-[#10E760] hover:bg-[#10E760]/10 transition-colors"
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-            <div className="sm:col-span-5 space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                Split Architecture
-              </label>
-              <div className="flex rounded-xl border border-zinc-800 bg-[#090D15] p-1 gap-1">
-                {(['ppl', 'upper_lower', 'full_body', 'custom'] as SplitPreset[]).map((p) => {
-                  const isActive = split === p;
-                  const labelMap: Record<SplitPreset, string> = {
-                    ppl: 'PPL',
-                    upper_lower: 'Upper/Lower',
-                    full_body: 'Full Body',
-                    custom: 'Custom',
-                  };
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => handleSplitChange(p)}
-                      className={`flex-1 rounded-lg py-1.5 text-[11px] font-bold uppercase transition-all ${
-                        isActive
-                          ? 'bg-[#10E760] text-zinc-950 font-black shadow-sm'
-                          : 'text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      {labelMap[p]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Volume HUD Tracker Strip with Sleek Stat Chips & Lime Badges */}
-          <div className="flex items-center gap-3 overflow-x-auto rounded-2xl border border-zinc-800/80 bg-[#090D15]/80 p-2.5 scrollbar-none">
-            {/* Stat Chip: Weekly Sets */}
-            <div className="flex items-center gap-2 rounded-xl bg-zinc-900/70 border border-zinc-800/80 px-3 py-1.5 shrink-0">
-              <div className="size-6 grid place-items-center rounded-lg bg-[#10E760]/10 text-[#10E760]">
-                <BarChart3 className="h-3.5 w-3.5" />
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Weekly Sets:
-                </span>
-                <span className="text-xs font-mono font-black text-white">
-                  {hudMetrics.totalWeeklySets}
-                </span>
-              </div>
-            </div>
-
-            {/* Stat Chip: Exercises */}
-            <div className="flex items-center gap-2 rounded-xl bg-zinc-900/70 border border-zinc-800/80 px-3 py-1.5 shrink-0">
-              <div className="size-6 grid place-items-center rounded-lg bg-cyan-400/10 text-cyan-400">
-                <Dumbbell className="h-3.5 w-3.5" />
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Exercises:
-                </span>
-                <span className="text-xs font-mono font-black text-white">
-                  {hudMetrics.totalExercises}
-                </span>
-              </div>
-            </div>
-
-            {/* Muscle Volume Breakdown Pills */}
-            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-x-auto scrollbar-none py-0.5">
-              {Object.entries(hudMetrics.muscleVolume).map(([muscle, sets]) => (
-                <Badge
-                  key={muscle}
-                  variant="lime"
-                  pill
-                  className="shrink-0 text-[11px] font-medium px-2.5 py-1"
-                >
-                  <span className="capitalize text-zinc-200">{muscle}</span>
-                  <span className="font-mono font-black text-[#10E760] ml-1">{sets} sets</span>
-                </Badge>
-              ))}
-              {Object.keys(hudMetrics.muscleVolume).length === 0 && (
-                <span className="text-xs text-zinc-500 italic">
-                  Add exercises to view volume distribution
-                </span>
-              )}
-            </div>
+            <Button
+              type="button"
+              variant="volt"
+              size="sm"
+              loading={isSubmitting}
+              onClick={handleSaveAndActivate}
+              className="h-8 px-3 text-xs font-black shadow-md shadow-[#10E760]/20"
+            >
+              <Save className="h-3.5 w-3.5 mr-1" />
+              <span>Save</span>
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* 2. MAIN WORKSPACE WITH DAY TABS & EXERCISE LIST */}
-      <main className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 overscroll-contain">
-        <div className="mx-auto max-w-[1600px] w-full space-y-6 pb-12">
+      {/* 2. MAIN NATURAL-SCROLL WORKSPACE */}
+      <main className="flex-1 overflow-y-auto min-h-0 p-3.5 sm:p-6 pb-32 overscroll-contain">
+        <div className="mx-auto max-w-5xl space-y-4">
+          {/* Collapsible Plan Settings & Volume Stats */}
+          <div className="rounded-2xl border border-zinc-800/80 bg-[#121722]/80 overflow-hidden shadow-sm transition-all">
+            <div
+              onClick={() => setShowPlanDetails((prev) => !prev)}
+              className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 cursor-pointer hover:bg-zinc-800/40 select-none transition-colors"
+            >
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs font-mono text-zinc-400 truncate">
+                <span className="font-bold text-[#10E760] uppercase">{split.replace(/_/g, ' ')} Split</span>
+                <span className="text-zinc-600">•</span>
+                <span>{hudMetrics.totalWeeklySets} Weekly Sets</span>
+                <span className="text-zinc-600">•</span>
+                <span>{hudMetrics.totalExercises} Exercises</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-zinc-400 shrink-0">
+                <span className="hidden sm:inline">{showPlanDetails ? 'Hide Details' : 'Split & Stats'}</span>
+                {showPlanDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
+            </div>
+
+            {/* Expanded Split Selector & Muscle Volume Breakdown */}
+            {showPlanDetails && (
+              <div className="p-3.5 sm:p-4 border-t border-zinc-800/70 space-y-3.5 bg-[#090D15]/50 animate-in fade-in duration-200">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Split Architecture Preset
+                  </label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(['ppl', 'upper_lower', 'full_body', 'custom'] as SplitPreset[]).map((p) => {
+                      const isActive = split === p;
+                      const labelMap: Record<SplitPreset, string> = {
+                        ppl: 'PPL',
+                        upper_lower: 'Upper/Lower',
+                        full_body: 'Full Body',
+                        custom: 'Custom',
+                      };
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => handleSplitChange(p)}
+                          className={`rounded-xl py-1.5 text-[11px] sm:text-xs font-bold transition-all ${
+                            isActive
+                              ? 'bg-[#10E760] text-zinc-950 font-black shadow-sm'
+                              : 'border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {labelMap[p]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Muscle Volume Distribution
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(hudMetrics.muscleVolume).map(([muscle, sets]) => (
+                      <Badge key={muscle} variant="lime" pill className="text-[10px] px-2 py-0.5">
+                        <span className="capitalize text-zinc-200">{muscle}</span>
+                        <span className="font-mono font-black text-[#10E760] ml-1">{sets}s</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Day Navigation Tabs Strip */}
           <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none">
             <div className="flex items-center gap-2">
@@ -838,14 +981,14 @@ export function PlanBuilderPage() {
                     key={day.id}
                     type="button"
                     onClick={() => setSelectedDayIndex(idx)}
-                    className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition-all ${
+                    className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all shrink-0 ${
                       isActive
-                        ? 'bg-[#10E760] text-zinc-950 shadow-lg shadow-[#10E760]/20 font-black scale-[1.02]'
+                        ? 'bg-[#10E760] text-zinc-950 shadow-md shadow-[#10E760]/20 font-black scale-[1.02]'
                         : 'border border-zinc-800/90 bg-[#121722] text-zinc-400 hover:border-zinc-700 hover:text-white'
                     }`}
                   >
                     <span>Day {idx + 1}</span>
-                    <span className="opacity-75 font-normal">({day.exercises.length} ex)</span>
+                    <span className="opacity-75 font-normal text-[10px]">({day.exercises.length})</span>
                   </button>
                 );
               })}
@@ -853,39 +996,38 @@ export function PlanBuilderPage() {
               <button
                 type="button"
                 onClick={handleAddDay}
-                className="flex items-center gap-1.5 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 px-3.5 py-2.5 text-xs font-bold text-zinc-400 hover:border-[#10E760] hover:text-[#10E760] transition-colors"
+                className="flex items-center gap-1 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-bold text-zinc-400 hover:border-[#10E760] hover:text-[#10E760] transition-colors shrink-0"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Add Day
+                <span>Add Day</span>
               </button>
             </div>
 
-            {/* Remove Day Button */}
             {days.length > 1 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleRemoveDay(selectedDayIndex)}
-                className="text-zinc-500 hover:text-red-400 text-xs shrink-0"
+                className="text-zinc-500 hover:text-red-400 text-xs shrink-0 h-8 px-2"
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove Day
               </Button>
             )}
           </div>
 
-          {/* Active Day Card Banner */}
-          <div className="rounded-3xl border border-zinc-800/90 bg-[#121722] p-4 sm:p-5 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex-1 space-y-1">
-                <span className="font-mono text-[11px] font-black uppercase tracking-widest text-[#10E760]">
-                  Day {selectedDayIndex + 1} Configuration
+          {/* Active Day Configuration Bar */}
+          <div className="rounded-2xl border border-zinc-800/90 bg-[#121722] p-3.5 sm:p-4 shadow-md">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <span className="font-mono text-[10px] font-black uppercase tracking-widest text-[#10E760] block">
+                  Day {selectedDayIndex + 1} Focus
                 </span>
                 <input
                   type="text"
                   value={activeDay?.dayName || ''}
                   onChange={(e) => handleRenameDay(selectedDayIndex, e.target.value)}
                   placeholder="e.g. Push Day A - Chest Focus"
-                  className="w-full text-lg sm:text-xl font-black bg-transparent text-white border-b border-transparent focus:border-[#10E760] outline-none"
+                  className="w-full text-base sm:text-lg font-black bg-transparent text-white border-b border-transparent focus:border-[#10E760] outline-none truncate"
                 />
               </div>
 
@@ -894,7 +1036,7 @@ export function PlanBuilderPage() {
                 variant="volt"
                 size="sm"
                 onClick={() => setIsCatalogOpen(true)}
-                className="font-black text-xs shrink-0"
+                className="font-black text-xs shrink-0 shadow-md shadow-[#10E760]/20"
               >
                 <Plus className="h-4 w-4 mr-1" /> Add Exercise
               </Button>
@@ -926,11 +1068,7 @@ export function PlanBuilderPage() {
               </div>
             ) : (
               activeDay?.exercises.map((exercise, exIdx) => {
-                const isExpanded =
-                  expandedExerciseIds[exercise.id] !== undefined
-                    ? expandedExerciseIds[exercise.id]
-                    : exIdx === 0;
-
+                const isExpanded = !!expandedExerciseIds[exercise.id];
                 const setsCount = exercise.sets.length;
                 const firstSet = exercise.sets[0];
                 const repsPreview = firstSet?.targetReps ? `${firstSet.targetReps} Reps` : '8-10 Reps';
@@ -940,113 +1078,55 @@ export function PlanBuilderPage() {
                 return (
                   <div
                     key={exercise.id}
-                    className="overflow-hidden rounded-3xl border border-zinc-800/90 bg-[#121722] p-4 sm:p-5 shadow-lg transition-all"
+                    className="overflow-hidden rounded-2xl border border-zinc-800/90 bg-[#121722] shadow-md transition-all"
                   >
-                    {/* Exercise Card Header (Accordion toggleable) */}
+                    {/* Exercise Card Header */}
                     <div
-                      onClick={() => toggleExerciseExpand(exercise.id, exIdx)}
-                      className="flex items-center justify-between gap-3 pb-3 border-b border-zinc-800/80 cursor-pointer select-none"
+                      onClick={() => toggleExerciseExpand(exercise.id)}
+                      className="p-3 sm:p-4 cursor-pointer select-none transition-colors hover:bg-zinc-800/20"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="size-12 rounded-2xl bg-zinc-900/80 p-1 overflow-hidden shrink-0 border border-zinc-800 flex items-center justify-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <ExerciseVisual
-                            name={exercise.exerciseName}
-                            masterExerciseId={exercise.exerciseId}
-                            movementPattern={exercise.movementPattern}
-                            muscleGroup={exercise.muscleGroups[0]}
-                            compact={true}
-                          />
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-black text-[#10E760]">
-                              #{exIdx + 1}
-                            </span>
-                            <h4 className="text-sm sm:text-base font-extrabold text-white truncate">
-                              {exercise.exerciseName}
-                            </h4>
+                      {/* Top Row: Thumbnail + Full Name + Chevron */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                          {/* Exercise Thumbnail - Bigger White Box Frame */}
+                          <div
+                            className="size-16 sm:size-20 rounded-xl bg-white p-1 shrink-0 border border-zinc-700/60 flex items-center justify-center overflow-hidden shadow-sm mt-0.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExerciseVisual
+                              name={exercise.exerciseName}
+                              masterExerciseId={exercise.exerciseId}
+                              movementPattern={exercise.movementPattern}
+                              muscleGroup={exercise.muscleGroups[0]}
+                              compact={true}
+                            />
                           </div>
 
-                          <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-                            <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-300">
-                              {exercise.movementPattern}
-                            </span>
-                            {exercise.muscleGroups.map((m) => (
-                              <span
-                                key={m}
-                                className="rounded bg-[#10E760]/10 border border-[#10E760]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#10E760]"
-                              >
-                                {m}
+                          {/* Full Title & Set Summary - Compact Typography */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline gap-1.5 flex-wrap">
+                              <span className="font-mono text-xs font-black text-[#10E760]">
+                                #{exIdx + 1}
                               </span>
-                            ))}
-
-                            {/* Summary Badge when collapsed */}
-                            {!isExpanded && (
-                              <Badge
-                                variant="dark"
-                                pill
-                                className="hidden sm:inline-flex items-center border-zinc-700/80 bg-zinc-900 text-zinc-300 font-mono text-[10px] ml-1.5"
-                              >
-                                {summaryBadgeText}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Mobile Summary Badge when collapsed */}
-                          {!isExpanded && (
-                            <div className="sm:hidden pt-1">
-                              <Badge
-                                variant="dark"
-                                pill
-                                className="inline-flex items-center border-zinc-700/80 bg-zinc-900 text-zinc-300 font-mono text-[10px]"
-                              >
-                                {summaryBadgeText}
-                              </Badge>
+                              <h4 className="text-xs sm:text-sm font-extrabold text-white leading-snug break-words">
+                                {exercise.exerciseName}
+                              </h4>
                             </div>
-                          )}
+                            <p className="mt-0.5 font-mono text-[10px] text-zinc-400">
+                              {summaryBadgeText}
+                            </p>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Reorder, Expand/Collapse & Action Controls */}
-                      <div
-                        className="flex items-center gap-1 shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                        {/* Expand / Collapse Chevron Button */}
                         <button
                           type="button"
-                          disabled={exIdx === 0}
-                          onClick={() => handleMoveExercise(selectedDayIndex, exIdx, 'up')}
-                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"
-                          title="Move Up"
-                        >
-                          <ArrowUp className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={exIdx === (activeDay?.exercises.length ?? 0) - 1}
-                          onClick={() => handleMoveExercise(selectedDayIndex, exIdx, 'down')}
-                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"
-                          title="Move Down"
-                        >
-                          <ArrowDown className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveExercise(selectedDayIndex, exIdx)}
-                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-red-400 hover:border-red-500/30 transition-colors ml-1"
-                          title="Remove Exercise"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleExerciseExpand(exercise.id, exIdx)}
-                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors ml-1"
-                          title={isExpanded ? 'Collapse Exercise' : 'Expand Exercise'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExerciseExpand(exercise.id);
+                          }}
+                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors shrink-0"
+                          title={isExpanded ? 'Collapse' : 'Expand'}
                         >
                           {isExpanded ? (
                             <ChevronUp className="h-4 w-4" />
@@ -1055,209 +1135,237 @@ export function PlanBuilderPage() {
                           )}
                         </button>
                       </div>
+
+                      {/* Bottom Row: Muscle/Pattern Badges & Action Toolbar */}
+                      <div
+                        className="mt-2.5 pt-2.5 border-t border-zinc-800/60 flex items-center justify-between gap-2 flex-wrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Muscle & Pattern tags */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="rounded-md bg-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-300">
+                            {formatMovementTag(exercise.movementPattern)}
+                          </span>
+                          {exercise.muscleGroups.map((m) => (
+                            <span
+                              key={m}
+                              className="rounded-md bg-[#10E760]/10 border border-[#10E760]/20 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider text-[#10E760]"
+                            >
+                              {m}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Action Toolbar */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Replace / Swap Button */}
+                          <Tooltip content="Replace exercise with alternative or catalog movement">
+                            <button
+                              type="button"
+                              onClick={() => handleStartReplaceExercise(exIdx, exercise)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-zinc-900 border border-zinc-700/80 text-xs font-bold text-zinc-200 hover:border-[#10E760] hover:text-[#10E760] transition-all shadow-sm"
+                            >
+                              <ArrowLeftRight className="h-3.5 w-3.5 text-[#10E760]" />
+                              <span>Replace</span>
+                            </button>
+                          </Tooltip>
+
+                          {/* Move Up */}
+                          <Tooltip content="Move Up">
+                            <button
+                              type="button"
+                              disabled={exIdx === 0}
+                              onClick={() => handleMoveExercise(selectedDayIndex, exIdx, 'up')}
+                              className="size-7 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white disabled:opacity-20 transition-colors"
+                            >
+                              <ArrowUp className="h-3 w-3" />
+                            </button>
+                          </Tooltip>
+
+                          {/* Move Down */}
+                          <Tooltip content="Move Down">
+                            <button
+                              type="button"
+                              disabled={exIdx === (activeDay?.exercises.length ?? 0) - 1}
+                              onClick={() => handleMoveExercise(selectedDayIndex, exIdx, 'down')}
+                              className="size-7 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white disabled:opacity-20 transition-colors"
+                            >
+                              <ArrowDown className="h-3 w-3" />
+                            </button>
+                          </Tooltip>
+
+                          {/* Delete */}
+                          <Tooltip content="Remove Exercise">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExercise(selectedDayIndex, exIdx)}
+                              className="size-7 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-rose-400 hover:border-rose-500/40 transition-colors"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </Tooltip>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Interactive Set Table (shown when expanded) */}
+                    {/* Interactive Sets Table (Compact, clean single-row per set) */}
                     {isExpanded && (
-                      <div className="mt-4 space-y-3 animate-in fade-in duration-200">
-                        {/* Compact Table Header with Icon Tooltips */}
-                        <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-2 py-1 items-center">
-                          <div className="col-span-1 text-center font-mono">Set</div>
-                          <div className="col-span-3">Type</div>
-                          <div className="col-span-2 flex items-center justify-center">
-                            <Tooltip content="Target Reps">
-                              <span className="inline-flex items-center gap-1 cursor-help hover:text-white transition-colors">
-                                <Target className="h-3 w-3 text-zinc-400" />
-                                <span>Reps</span>
-                              </span>
-                            </Tooltip>
-                          </div>
-                          <div className="col-span-2 flex items-center justify-center">
-                            <Tooltip content="Reps in Reserve (RIR)">
-                              <span className="inline-flex items-center gap-1 cursor-help hover:text-white transition-colors">
-                                <Activity className="h-3 w-3 text-zinc-400" />
-                                <span>RIR</span>
-                              </span>
-                            </Tooltip>
-                          </div>
-                          <div className="col-span-2 flex items-center justify-center">
-                            <Tooltip content="Cadence Tempo (eccentric-pause-concentric)">
-                              <span className="inline-flex items-center gap-1 cursor-help hover:text-white transition-colors">
-                                <Clock className="h-3 w-3 text-zinc-400" />
-                                <span>Tempo</span>
-                              </span>
-                            </Tooltip>
-                          </div>
-                          <div className="col-span-1 flex items-center justify-center">
-                            <Tooltip content="Rest duration in seconds">
-                              <span className="inline-flex items-center gap-1 cursor-help hover:text-white transition-colors">
-                                <Timer className="h-3 w-3 text-zinc-400" />
-                                <span>Rest</span>
-                              </span>
-                            </Tooltip>
-                          </div>
+                      <div className="border-t border-zinc-800/80 bg-[#090D15]/50 p-3 sm:p-4 space-y-2.5 animate-in fade-in duration-200">
+                        {/* Table Header */}
+                        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500 items-center">
+                          <div className="col-span-1 text-center font-mono">#</div>
+                          <div className="col-span-3 sm:col-span-3">Type</div>
+                          <div className="col-span-2 sm:col-span-2 text-center">Reps</div>
+                          <div className="col-span-3 sm:col-span-2 text-center">RIR</div>
+                          <div className="hidden sm:block sm:col-span-2 text-center">Tempo</div>
+                          <div className="col-span-2 sm:col-span-1 text-center">Rest</div>
                           <div className="col-span-1 text-right"></div>
                         </div>
 
-                        {exercise.sets.map((set, setIdx) => {
-                          const typeConfig = SET_TYPE_CONFIG[set.setType] || SET_TYPE_CONFIG.NORMAL;
+                        {/* Sets Rows */}
+                        <div className="space-y-1.5">
+                          {exercise.sets.map((set, setIdx) => {
+                            const typeConfig = SET_TYPE_CONFIG[set.setType] || SET_TYPE_CONFIG.NORMAL;
 
-                          return (
-                            <div
-                              key={set.id}
-                              className="flex flex-col sm:grid sm:grid-cols-12 gap-2.5 sm:gap-2 items-start sm:items-center rounded-2xl border border-zinc-800/80 bg-[#090D15]/80 p-3 sm:p-2"
-                            >
-                              {/* Set # */}
-                              <div className="flex items-center justify-between sm:justify-center w-full sm:w-auto sm:col-span-1">
-                                <span className="font-mono text-xs font-black text-white">
+                            return (
+                              <div
+                                key={set.id}
+                                className="grid grid-cols-12 gap-1.5 sm:gap-2 items-center rounded-xl border border-zinc-800/80 bg-[#121722] px-2 py-1.5 hover:border-zinc-700 transition-colors"
+                              >
+                                {/* Set # */}
+                                <div className="col-span-1 text-center font-mono text-xs font-bold text-zinc-400">
                                   {setIdx + 1}
-                                </span>
-                                <span className="sm:hidden text-[10px] font-bold text-zinc-500 uppercase">
-                                  Set #{setIdx + 1}
-                                </span>
-                              </div>
+                                </div>
 
-                              {/* Set Type Pills Selector */}
-                              <div className="w-full sm:col-span-3 flex gap-1">
-                                {(['NORMAL', 'WARMUP', 'DROP', 'FAILURE'] as SetType[]).map((t) => {
-                                  const isCurrent = set.setType === t;
-                                  const cfg = SET_TYPE_CONFIG[t];
-                                  const compactLabel = t === 'DROP' ? 'Drop' : t === 'FAILURE' ? 'Fail' : cfg.label;
-                                  return (
-                                    <Tooltip key={t} content={cfg.desc} className="flex-1">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleUpdateSet(selectedDayIndex, exIdx, setIdx, 'setType', t)
-                                        }
-                                        className={`w-full rounded-lg py-1 px-1 text-[10px] font-black uppercase transition-all border truncate ${
-                                          isCurrent
-                                            ? `${cfg.bg} ${cfg.text} ${cfg.border} shadow-sm`
-                                            : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'
-                                        }`}
-                                      >
-                                        {compactLabel}
-                                      </button>
-                                    </Tooltip>
-                                  );
-                                })}
-                              </div>
+                                {/* Set Type */}
+                                <div className="col-span-3 sm:col-span-3">
+                                  <select
+                                    value={set.setType}
+                                    onChange={(e) =>
+                                      handleUpdateSet(
+                                        selectedDayIndex,
+                                        exIdx,
+                                        setIdx,
+                                        'setType',
+                                        e.target.value as SetType,
+                                      )
+                                    }
+                                    className={`w-full rounded-lg border px-1 py-1 text-[10px] font-bold outline-none cursor-pointer ${typeConfig.bg} ${typeConfig.text} ${typeConfig.border}`}
+                                  >
+                                    <option value="NORMAL" className="bg-[#121722] text-zinc-200">Normal</option>
+                                    <option value="WARMUP" className="bg-[#121722] text-amber-400">Warmup</option>
+                                    <option value="DROP" className="bg-[#121722] text-cyan-400">Drop</option>
+                                    <option value="FAILURE" className="bg-[#121722] text-rose-400">Fail</option>
+                                  </select>
+                                </div>
 
-                              {/* Target Reps */}
-                              <div className="w-full sm:col-span-2 space-y-1 sm:space-y-0">
-                                <span className="sm:hidden flex items-center gap-1 text-[10px] font-bold text-zinc-400 uppercase">
-                                  <Target className="h-3 w-3" /> Reps:
-                                </span>
-                                <input
-                                  type="text"
-                                  value={set.targetReps}
-                                  onChange={(e) =>
-                                    handleUpdateSet(
-                                      selectedDayIndex,
-                                      exIdx,
-                                      setIdx,
-                                      'targetReps',
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder="8-10"
-                                  className="w-full rounded-xl border border-zinc-800 bg-[#121722] px-2.5 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760]"
-                                />
-                              </div>
+                                {/* Target Reps */}
+                                <div className="col-span-2 sm:col-span-2">
+                                  <input
+                                    type="text"
+                                    value={set.targetReps}
+                                    onChange={(e) =>
+                                      handleUpdateSet(
+                                        selectedDayIndex,
+                                        exIdx,
+                                        setIdx,
+                                        'targetReps',
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="8-10"
+                                    className="w-full rounded-lg border border-zinc-800 bg-[#090D15] px-1 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760]"
+                                  />
+                                </div>
 
-                              {/* Reps in Tank Picker */}
-                              <div className="w-full sm:col-span-2 space-y-1 sm:space-y-0">
-                                <span className="sm:hidden flex items-center gap-1 text-[10px] font-bold text-zinc-400 uppercase">
-                                  <Activity className="h-3 w-3" /> RIR:
-                                </span>
-                                <select
-                                  value={set.targetRir}
-                                  onChange={(e) =>
-                                    handleUpdateSet(
-                                      selectedDayIndex,
-                                      exIdx,
-                                      setIdx,
-                                      'targetRir',
-                                      Number(e.target.value),
-                                    )
-                                  }
-                                  className="w-full rounded-xl border border-zinc-800 bg-[#121722] px-2 py-1 text-xs font-mono font-bold text-white outline-none focus:border-[#10E760]"
-                                >
-                                  <option value={0}>0 in tank (Failure / Max)</option>
-                                  <option value={1}>1 rep left in tank</option>
-                                  <option value={2}>2 reps left in tank</option>
-                                  <option value={3}>3 reps left in tank</option>
-                                  <option value={4}>4 reps left in tank</option>
-                                </select>
-                              </div>
+                                {/* Target RIR */}
+                                <div className="col-span-3 sm:col-span-2">
+                                  <select
+                                    value={set.targetRir}
+                                    onChange={(e) =>
+                                      handleUpdateSet(
+                                        selectedDayIndex,
+                                        exIdx,
+                                        setIdx,
+                                        'targetRir',
+                                        Number(e.target.value),
+                                      )
+                                    }
+                                    className="w-full rounded-lg border border-zinc-800 bg-[#090D15] px-1 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760] cursor-pointer"
+                                  >
+                                    <option value={0}>0 RIR</option>
+                                    <option value={1}>1 RIR</option>
+                                    <option value={2}>2 RIR</option>
+                                    <option value={3}>3 RIR</option>
+                                    <option value={4}>4 RIR</option>
+                                  </select>
+                                </div>
 
-                              {/* Tempo */}
-                              <div className="w-full sm:col-span-2 space-y-1 sm:space-y-0">
-                                <span className="sm:hidden flex items-center gap-1 text-[10px] font-bold text-zinc-400 uppercase">
-                                  <Clock className="h-3 w-3" /> Tempo:
-                                </span>
-                                <input
-                                  type="text"
-                                  value={set.tempo}
-                                  onChange={(e) =>
-                                    handleUpdateSet(
-                                      selectedDayIndex,
-                                      exIdx,
-                                      setIdx,
-                                      'tempo',
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder="3-0-1-0"
-                                  className="w-full rounded-xl border border-zinc-800 bg-[#121722] px-2.5 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760]"
-                                />
-                              </div>
+                                {/* Tempo (visible on sm+) */}
+                                <div className="hidden sm:block sm:col-span-2">
+                                  <input
+                                    type="text"
+                                    value={set.tempo}
+                                    onChange={(e) =>
+                                      handleUpdateSet(
+                                        selectedDayIndex,
+                                        exIdx,
+                                        setIdx,
+                                        'tempo',
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="3-0-1-0"
+                                    className="w-full rounded-lg border border-zinc-800 bg-[#090D15] px-1 py-1 text-xs font-mono font-bold text-zinc-300 text-center outline-none focus:border-[#10E760]"
+                                  />
+                                </div>
 
-                              {/* Rest Seconds */}
-                              <div className="w-full sm:col-span-1 space-y-1 sm:space-y-0">
-                                <span className="sm:hidden flex items-center gap-1 text-[10px] font-bold text-zinc-400 uppercase">
-                                  <Timer className="h-3 w-3" /> Rest (s):
-                                </span>
-                                <input
-                                  type="number"
-                                  value={set.restSeconds}
-                                  onChange={(e) =>
-                                    handleUpdateSet(
-                                      selectedDayIndex,
-                                      exIdx,
-                                      setIdx,
-                                      'restSeconds',
-                                      Number(e.target.value) || 90,
-                                    )
-                                  }
-                                  className="w-full rounded-xl border border-zinc-800 bg-[#121722] px-1.5 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760]"
-                                />
-                              </div>
+                                {/* Rest (s) */}
+                                <div className="col-span-2 sm:col-span-1">
+                                  <input
+                                    type="number"
+                                    value={set.restSeconds}
+                                    onChange={(e) =>
+                                      handleUpdateSet(
+                                        selectedDayIndex,
+                                        exIdx,
+                                        setIdx,
+                                        'restSeconds',
+                                        Number(e.target.value) || 90,
+                                      )
+                                    }
+                                    className="w-full rounded-lg border border-zinc-800 bg-[#090D15] px-1 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760]"
+                                  />
+                                </div>
 
-                              {/* Delete Set */}
-                              <div className="w-full sm:col-span-1 flex justify-end">
-                                <button
-                                  type="button"
-                                  disabled={exercise.sets.length <= 1}
-                                  onClick={() => handleRemoveSet(selectedDayIndex, exIdx, setIdx)}
-                                  className="size-7 grid place-items-center rounded-lg text-zinc-600 hover:text-red-400 hover:bg-zinc-900 disabled:opacity-20"
-                                  title="Remove Set"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
+                                {/* Delete Set */}
+                                <div className="col-span-1 flex justify-end">
+                                  <button
+                                    type="button"
+                                    disabled={exercise.sets.length <= 1}
+                                    onClick={() => handleRemoveSet(selectedDayIndex, exIdx, setIdx)}
+                                    className="size-7 grid place-items-center rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 disabled:opacity-20 transition-colors"
+                                    title="Delete set"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
 
                         {/* Add Set Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleAddSet(selectedDayIndex, exIdx)}
-                          className="w-full py-2 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/40 text-xs font-bold text-zinc-400 hover:border-[#10E760]/50 hover:text-[#10E760] hover:bg-zinc-900 transition-all"
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Add Set #{exercise.sets.length + 1}
-                        </button>
+                        <div className="pt-1 flex justify-start">
+                          <button
+                            type="button"
+                            onClick={() => handleAddSet(selectedDayIndex, exIdx)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-bold text-zinc-400 hover:border-[#10E760]/50 hover:text-[#10E760] transition-all"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>Add Set #{exercise.sets.length + 1}</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1274,18 +1382,28 @@ export function PlanBuilderPage() {
           <div className="flex h-[85vh] flex-col rounded-t-3xl border-t border-zinc-800 bg-[#090D15] p-4 sm:p-6 overflow-hidden">
             {/* Drawer Header */}
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="grid size-7 place-items-center rounded-lg bg-[#10E760] text-zinc-950 font-black">
-                  <Dumbbell className="h-4 w-4" />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="grid size-8 place-items-center rounded-xl bg-[#10E760] text-zinc-950 font-black shrink-0">
+                  {replacingExercise ? <ArrowLeftRight className="h-4 w-4" /> : <Dumbbell className="h-4 w-4" />}
                 </span>
-                <h3 className="text-base font-black uppercase tracking-tight text-white">
-                  Add Exercise to Day {selectedDayIndex + 1}
-                </h3>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-black uppercase tracking-tight text-white truncate">
+                    {replacingExercise ? 'Replace Exercise' : `Add Exercise to Day ${selectedDayIndex + 1}`}
+                  </h3>
+                  {replacingExercise && (
+                    <p className="text-[11px] text-zinc-400 truncate">
+                      Replacing: <span className="font-bold text-[#10E760]">{replacingExercise.exercise.exerciseName}</span>
+                    </p>
+                  )}
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsCatalogOpen(false)}
-                className="grid size-8 place-items-center rounded-full bg-zinc-900 text-zinc-400 hover:text-white"
+                onClick={() => {
+                  setIsCatalogOpen(false);
+                  setReplacingExercise(null);
+                }}
+                className="grid size-8 place-items-center rounded-full bg-zinc-900 text-zinc-400 hover:text-white shrink-0"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1362,19 +1480,29 @@ export function PlanBuilderPage() {
                       onClick={() => handleAddCustomExercise(searchQuery)}
                       className="mt-4 font-black"
                     >
-                      <Plus className="h-4 w-4 mr-1" /> Add &quot;{searchQuery}&quot;
+                      {replacingExercise ? (
+                        <>
+                          <ArrowLeftRight className="h-4 w-4 mr-1" /> Use &quot;{searchQuery}&quot;
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-1" /> Add &quot;{searchQuery}&quot;
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-2.5">
                   {catalogItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-800/90 bg-[#121722] p-3 transition-all hover:border-zinc-700"
+                      onClick={() => handleSelectCatalogItem(item)}
+                      className="flex items-center justify-between gap-3.5 rounded-2xl border border-zinc-800/80 bg-[#121722] p-2.5 sm:p-3 transition-all hover:border-zinc-700 hover:bg-zinc-800/30 cursor-pointer group"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="size-12 rounded-xl bg-zinc-900/80 p-1 overflow-hidden shrink-0 border border-zinc-800 flex items-center justify-center">
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                        {/* Big Clear White Frame Thumbnail */}
+                        <div className="size-16 sm:size-20 rounded-xl bg-white p-1 overflow-hidden shrink-0 border border-zinc-700/60 flex items-center justify-center shadow-sm group-hover:scale-[1.02] transition-transform">
                           <ExerciseVisual
                             name={item.name}
                             masterExerciseId={item.id}
@@ -1384,37 +1512,44 @@ export function PlanBuilderPage() {
                           />
                         </div>
 
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate capitalize">
+                        {/* Compact Clear Text */}
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-xs sm:text-sm font-bold text-white capitalize leading-tight line-clamp-2">
                             {item.name}
                           </h4>
-                          <div className="flex items-center gap-1.5 pt-1">
-                            <Badge
-                              variant="neutral"
-                              pill
-                              className="text-[10px] px-2 py-0.5 font-mono capitalize"
-                            >
+                          <div className="flex items-center gap-1.5 pt-1.5 flex-wrap">
+                            <span className="rounded bg-zinc-800/90 border border-zinc-700/60 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-300">
                               {item.primaryMuscle}
-                            </Badge>
-                            <Badge
-                              variant="lime"
-                              pill
-                              className="text-[10px] px-2 py-0.5 font-mono capitalize"
-                            >
-                              {item.movementPattern}
-                            </Badge>
+                            </span>
+                            {item.movementPattern && (
+                              <span className="rounded bg-[#10E760]/10 border border-[#10E760]/20 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider text-[#10E760]">
+                                {formatMovementTag(item.movementPattern)}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
 
+                      {/* Compact Action Button */}
                       <Button
                         type="button"
-                        variant="secondary"
+                        variant={replacingExercise ? 'volt' : 'secondary'}
                         size="xs"
-                        onClick={() => handleAddExerciseFromCatalog(item)}
-                        className="font-bold text-xs shrink-0 hover:bg-[#10E760] hover:text-zinc-950"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectCatalogItem(item);
+                        }}
+                        className="h-7 px-2.5 text-[10px] font-black rounded-lg shrink-0 shadow-sm"
                       >
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                        {replacingExercise ? (
+                          <>
+                            <ArrowLeftRight className="h-3 w-3 mr-1" /> Replace
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-3 w-3 mr-1" /> Add
+                          </>
+                        )}
                       </Button>
                     </div>
                   ))}

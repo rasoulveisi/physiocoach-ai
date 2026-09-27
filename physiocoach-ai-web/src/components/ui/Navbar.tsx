@@ -1,4 +1,4 @@
-import { Activity, Bell, Calculator, CalendarDays, Compass, Dumbbell, LayoutDashboard, Settings, ShieldAlert, ShieldCheck, UserCheck } from 'lucide-react';
+import { Activity, Bell, CalendarDays, Compass, Dumbbell, LayoutDashboard, Settings, ShieldAlert, ShieldCheck, UserCheck } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import type { User } from '../../context/AuthContext';
@@ -8,7 +8,6 @@ const baseLinks = [
   { to: '/explore', label: 'Explore', icon: Compass },
   { to: '/plan', label: 'Plan', icon: CalendarDays },
   { to: '/session', label: 'Session', icon: Activity },
-  { to: '/calculator', label: 'Calculator', icon: Calculator },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 

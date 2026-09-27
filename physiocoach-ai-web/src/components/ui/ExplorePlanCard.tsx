@@ -66,35 +66,140 @@ export function ExplorePlanCard({ plan, onPreview }: ExplorePlanCardProps) {
     return (4.6 + Math.abs(hash % 4) * 0.1).toFixed(1);
   }, [plan.id, plan.rating]);
 
+  // Multi-day collage exercises
+  const collageExercises = useMemo(() => {
+    if (!plan.days || plan.days.length === 0) {
+      return primaryExName
+        ? [
+            {
+              name: primaryExName,
+              masterExerciseId: primaryExId,
+              movementPattern: primaryExPattern,
+              muscleGroup: primaryExMuscle,
+            },
+          ]
+        : [];
+    }
+
+    const picks: {
+      name: string;
+      masterExerciseId?: string;
+      movementPattern?: string;
+      muscleGroup?: string;
+    }[] = [];
+
+    // Strategy: pick 1 primary compound movement per day across different days
+    for (const day of plan.days) {
+      if (picks.length >= 3) break;
+      const ex = day.exercises?.[0];
+      if (ex && !picks.some((p) => p.name === ex.name)) {
+        picks.push({
+          name: ex.name,
+          masterExerciseId: ex.masterExerciseId || ex.id,
+          movementPattern: ex.movementPattern,
+          muscleGroup: ex.muscleGroup,
+        });
+      }
+    }
+
+    // If still only 1 exercise, add more from the first day to make a collage
+    if (picks.length < 2 && plan.days[0]?.exercises) {
+      for (const ex of plan.days[0].exercises.slice(1)) {
+        if (picks.length >= 3) break;
+        if (!picks.some((p) => p.name === ex.name)) {
+          picks.push({
+            name: ex.name,
+            masterExerciseId: ex.masterExerciseId || ex.id,
+            movementPattern: ex.movementPattern,
+            muscleGroup: ex.muscleGroup,
+          });
+        }
+      }
+    }
+
+    return picks;
+  }, [plan.days, primaryExName, primaryExId, primaryExPattern, primaryExMuscle]);
+
+  const splitAbbreviation = useMemo(() => {
+    if (plan.split === 'push_pull_legs') return 'PPL';
+    if (plan.split === 'upper_lower') return 'U / L';
+    if (plan.split === 'full_body') return 'FULL';
+
+    // Derive concise uppercase acronym from title
+    const clean = plan.title.replace(/[^\w\s]/g, '').trim();
+    const words = clean.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      return words.map((w) => w[0]).join('').slice(0, 4).toUpperCase();
+    }
+    return clean.slice(0, 4).toUpperCase();
+  }, [plan.split, plan.title]);
+
   return (
     <div
       onClick={() => onPreview(plan)}
       className="group relative flex flex-col justify-between overflow-hidden rounded-2xl sm:rounded-3xl border border-zinc-800/80 bg-gradient-to-b from-[#121826] via-[#0d121e] to-[#080b13] p-3 sm:p-3.5 shadow-lg transition-all duration-300 hover:border-lime-400/50 hover:bg-[#141b2b] hover:shadow-[0_0_25px_rgba(16,231,96,0.1)] cursor-pointer"
     >
       <div>
-        {/* 1. Visual Showcase Header with Integrated Telemetry HUD */}
-        <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#162136] via-[#0e1422] to-[#090c14] border border-zinc-800/70 shadow-inner">
+        {/* 1. Visual Showcase Header with Multi-Day Collage + Watermark */}
+        <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full overflow-hidden rounded-xl sm:rounded-2xl border border-zinc-800/70 bg-[#080b13] shadow-inner">
           {/* Subtle Ambient Radial Lighting */}
           <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-lime-400/10 blur-3xl transition-opacity duration-300 group-hover:opacity-100 opacity-60" />
           <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-cyan-400/10 blur-3xl opacity-50" />
 
-          {/* Center Exercise Visual Illustration */}
-          <div className="absolute inset-0 flex items-center justify-center p-3 opacity-75 sm:opacity-85 transition-transform duration-300 group-hover:scale-105">
-            <ExerciseVisual
-              name={primaryExName}
-              masterExerciseId={primaryExId}
-              movementPattern={primaryExPattern}
-              muscleGroup={primaryExMuscle}
-              compact={true}
-              className="!border-none !bg-transparent w-full h-full shadow-none pointer-events-none"
-            />
+          {/* Dynamic Multi-Exercise Collage */}
+          <div className="absolute inset-0">
+            {collageExercises.length >= 2 ? (
+              <div
+                className={`grid h-full w-full ${
+                  collageExercises.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+                } divide-x divide-zinc-800/80 bg-white`}
+              >
+                {collageExercises.map((ex, idx) => (
+                  <div key={idx} className="relative h-full w-full overflow-hidden bg-white">
+                    <ExerciseVisual
+                      name={ex.name}
+                      masterExerciseId={ex.masterExerciseId}
+                      movementPattern={ex.movementPattern}
+                      muscleGroup={ex.muscleGroup}
+                      compact={true}
+                      fit="cover"
+                      className="h-full w-full pointer-events-none"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-white">
+                <ExerciseVisual
+                  name={primaryExName}
+                  masterExerciseId={primaryExId}
+                  movementPattern={primaryExPattern}
+                  muscleGroup={primaryExMuscle}
+                  compact={true}
+                  fit="cover"
+                  className="h-full w-full pointer-events-none"
+                />
+              </div>
+            )}
+
+            {/* Dark Aesthetic Scrim & Vignette so white background blends with dark UI */}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#080b13] via-[#080b13]/40 to-[#080b13]/60 mix-blend-multiply" />
+            <div className="pointer-events-none absolute inset-0 bg-[#080b13]/25" />
+
+            {/* Large Bold Athletic Typographic Watermark */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-10">
+              <span className="font-mono text-4xl sm:text-5xl font-black tracking-tighter text-white/50 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] transition-transform duration-300 group-hover:scale-105 select-none">
+                {splitAbbreviation}
+              </span>
+            </div>
+
+            {/* Vignette Gradients for Top & Bottom Telemetry */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#080b13]/90 via-[#080b13]/40 to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#080b13] via-[#080b13]/70 to-transparent z-10" />
           </div>
 
-          {/* Vignette Bottom Gradient */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#0d121e] via-[#0d121e]/60 to-transparent" />
-
           {/* Top Floating Badges */}
-          <div className="absolute top-2 inset-x-2 flex items-center justify-between z-10 pointer-events-none">
+          <div className="absolute top-2 inset-x-2 flex items-center justify-between z-20 pointer-events-none">
             {/* Split Capsule */}
             <span className="rounded-full bg-zinc-950/85 border border-zinc-800/90 px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold tracking-wider text-zinc-300 backdrop-blur-md shadow-sm">
               {formattedSplit}
@@ -113,7 +218,7 @@ export function ExplorePlanCard({ plan, onPreview }: ExplorePlanCardProps) {
           </div>
 
           {/* Bottom Floating Telemetry Strip */}
-          <div className="absolute bottom-2 inset-x-2 flex items-center justify-between z-10 pointer-events-none">
+          <div className="absolute bottom-2 inset-x-2 flex items-center justify-between z-20 pointer-events-none">
             {/* Frequency & Sets HUD */}
             <div className="rounded-lg bg-zinc-950/85 border border-zinc-800/90 px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold text-zinc-200 backdrop-blur-md flex items-center gap-1.5 shadow-sm">
               <Calendar className="h-2.5 w-2.5 text-lime-400" />
