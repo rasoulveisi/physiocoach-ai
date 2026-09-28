@@ -7,6 +7,7 @@ import {
   assessments,
   aiAuditLogs,
   bodyConsiderations,
+  explorePlans,
   workoutPlanRatings,
   workoutPlans,
 } from '../db/schema';
@@ -14,6 +15,7 @@ import { createApiError, internalServerError, notFound, unauthorized } from '../
 import { runPlanAudit } from '../services/plan-audit';
 import { evaluatePlanPersonas } from '../services/persona-matching';
 import { findExplorePlanById } from '../types/explore';
+import { convertExplorePlanRowToDto } from './explore';
 import {
   buildPlanInputHash,
   buildWorkoutPlanContext,
@@ -1313,8 +1315,22 @@ export function createWorkoutPlanRoutes() {
       const planId = c.req.param('planId');
       const now = new Date().toISOString();
 
-      // Check if planId matches a verified explore template
-      const template = findExplorePlanById(planId);
+      // Check if planId matches an explore plan (DB first, fallback to memory)
+      let template = findExplorePlanById(planId);
+      if (!template && db) {
+        try {
+          const exploreRows = await db
+            .select()
+            .from(explorePlans)
+            .where(eq(explorePlans.id, planId))
+            .limit(1);
+          if (exploreRows[0]) {
+            template = convertExplorePlanRowToDto(exploreRows[0]);
+          }
+        } catch (err) {
+          console.warn('workout_plans.clone.explore_db_fallback', err);
+        }
+      }
       if (template) {
         const clonedId = crypto.randomUUID();
         const assessmentId = crypto.randomUUID();

@@ -113,6 +113,7 @@ export interface ExplorePlanDto {
 
 const SPLIT_OPTIONS = [
   { id: 'all', label: 'All Splits' },
+  { id: '4_day', label: '4-Day Split' },
   { id: 'push_pull_legs', label: 'Push Pull Legs' },
   { id: 'upper_lower', label: 'Upper / Lower' },
   { id: 'full_body', label: 'Full Body' },
@@ -143,6 +144,7 @@ const EXPERIENCE_OPTIONS = [
 
 const QUICK_SPLIT_PILLS = [
   { id: 'all', label: 'All Splits' },
+  { id: '4_day', label: '4-Day Split' },
   { id: 'push_pull_legs', label: 'Push Pull Legs' },
   { id: 'upper_lower', label: 'Upper / Lower' },
   { id: 'full_body', label: 'Full Body' },

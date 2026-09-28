@@ -36,6 +36,13 @@
       "when": 1788003164549,
       "tag": "0004_oval_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790600521842,
+      "tag": "0005_dashing_shatterstar",
+      "breakpoints": true
     }
   ]
 }

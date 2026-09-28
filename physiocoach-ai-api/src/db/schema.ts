@@ -603,4 +603,38 @@ export const workoutPlanRatings = pgTable(
   ],
 );
 
+export const explorePlans = pgTable(
+  'explore_plans',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    split: text('split').notNull(),
+    frequencyDays: integer('frequency_days').notNull(),
+    experienceLevel: text('experience_level').notNull(),
+    equipmentJson: text('equipment_json').notNull(),
+    jointTagsJson: text('joint_tags_json').notNull(),
+    targetPersonasJson: text('target_personas_json').notNull(),
+    totalWeeklySets: integer('total_weekly_sets').notNull(),
+    authorName: text('author_name').notNull().default('PhysioCoach AI'),
+    authorRole: text('author_role').notNull().default('Official Clinical System'),
+    authorVerified: boolean('author_verified').notNull().default(true),
+    cloneCount: integer('clone_count').notNull().default(0),
+    rating: real('rating').notNull().default(5.0),
+    reviewsCount: integer('reviews_count').notNull().default(0),
+    isVerified: boolean('is_verified').notNull().default(true),
+    summary: text('summary'),
+    safetyNotesJson: text('safety_notes_json').notNull(),
+    progressionJson: text('progression_json'),
+    daysJson: text('days_json').notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index('explore_plans_frequency_days_idx').on(table.frequencyDays),
+    index('explore_plans_split_idx').on(table.split),
+    index('explore_plans_is_verified_idx').on(table.isVerified),
+  ],
+);
+
+
 

@@ -44,6 +44,19 @@ describe('E2E: Public Explore Workout Plans Feed & Clone Workflow', () => {
     expect(ids).toContain('template-desk-worker-posture');
     expect(ids).toContain('template-fullbody-minimalist');
     expect(ids).toContain('template-shoulder-safe-hypertrophy');
+    expect(ids).toContain('template-classic-4day-hypertrophy');
+
+    // Verify properties of Classic 4-Day Bodybuilding Split
+    const classic4d = json.data.find((p) => p.id === 'template-classic-4day-hypertrophy');
+    expect(classic4d).toBeDefined();
+    expect(classic4d?.frequencyDays).toBe(4);
+    expect(classic4d?.author.name).toBe('PhysioCoach AI');
+    expect(classic4d?.author.verified).toBe(true);
+    expect(classic4d?.days.length).toBe(4);
+    expect(classic4d?.days?.[0]?.exercises.length).toBe(11);
+    expect(classic4d?.days?.[1]?.exercises.length).toBe(9);
+    expect(classic4d?.days?.[2]?.exercises.length).toBe(8);
+    expect(classic4d?.days?.[3]?.exercises.length).toBe(9);
 
     // Verify properties of PPL Knee-Safe
     const ppl = json.data.find((p) => p.id === 'template-ppl-knee-safe');
@@ -52,7 +65,26 @@ describe('E2E: Public Explore Workout Plans Feed & Clone Workflow', () => {
     expect(ppl?.jointTags).toContain('Knee-Friendly');
     expect(ppl?.targetPersonas).toContain('Athletes with Patellar Tendinopathy');
     expect(ppl?.days.length).toBe(3);
+    expect(ppl?.author.name).toBe('PhysioCoach AI');
     expect(ppl?.author.verified).toBe(true);
+  });
+
+  it('filters explore plans by 4-day category parameter', async () => {
+    const app = createApp();
+
+    const response = await app.fetch(
+      '/api/v1/explore/plans?days=4',
+      {
+        method: 'GET',
+      },
+      mockEnv,
+    );
+
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as { data: Array<{ id: string; frequencyDays: number }> };
+    expect(json.data.length).toBeGreaterThanOrEqual(1);
+    expect(json.data.every((p) => p.frequencyDays === 4)).toBe(true);
+    expect(json.data.some((p) => p.id === 'template-classic-4day-hypertrophy')).toBe(true);
   });
 
   it('filters explore plans by split parameter', async () => {

@@ -1,6 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import { createExpressRouter } from './express-adapter';
-import { workoutPlans } from '../db/schema';
+import { explorePlans, workoutPlans } from '../db/schema';
 import {
   getVerifiedExplorePlans,
   findExplorePlanById,
@@ -16,6 +16,63 @@ import type { MovementPattern } from '../types/workout';
 
 function normalizeFilterString(value: string): string {
   return value.toLowerCase().replace(/[-_\s]/g, '');
+}
+
+function parseJsonSafe<T>(raw: string, fallback: T): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export function convertExplorePlanRowToDto(row: typeof explorePlans.$inferSelect): ExplorePlanDto {
+  const equipment = parseJsonSafe<string[]>(row.equipmentJson, []);
+  const jointTags = parseJsonSafe<string[]>(row.jointTagsJson, []);
+  const targetPersonas = parseJsonSafe<string[]>(row.targetPersonasJson, []);
+  const safetyNotes = parseJsonSafe<string[]>(row.safetyNotesJson, []);
+  const progression = row.progressionJson
+    ? parseJsonSafe<ExplorePlanDto['progression']>(row.progressionJson, undefined)
+    : undefined;
+  const days = parseJsonSafe<ExplorePlanDto['days']>(row.daysJson, []);
+
+  const firstEx = days[0]?.exercises?.[0];
+  const primaryExercise = firstEx
+    ? {
+        name: firstEx.name,
+        masterExerciseId: firstEx.masterExerciseId || firstEx.id,
+        movementPattern: firstEx.movementPattern,
+        muscleGroup: firstEx.muscleGroup,
+      }
+    : undefined;
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    split: row.split as WorkoutSplitType,
+    frequencyDays: row.frequencyDays,
+    experienceLevel: row.experienceLevel as 'beginner' | 'intermediate' | 'advanced',
+    equipment,
+    jointTags,
+    targetPersonas,
+    totalWeeklySets: row.totalWeeklySets,
+    author: {
+      name: row.authorName,
+      role: row.authorRole,
+      verified: row.authorVerified,
+    },
+    cloneCount: row.cloneCount,
+    rating: row.rating,
+    reviewsCount: row.reviewsCount,
+    createdAt: row.createdAt,
+    isVerified: row.isVerified,
+    summary: row.summary ?? undefined,
+    safetyNotes: safetyNotes.length > 0 ? safetyNotes : undefined,
+    progression,
+    primaryExercise,
+    days,
+  };
 }
 
 function convertWorkoutPlanRecordToExploreDto(
@@ -210,12 +267,33 @@ export function createExploreRoutes() {
       const injuryFilterParam = url.searchParams.get('injuryFilter')?.trim();
       const experienceLevelParam = url.searchParams.get('experienceLevel')?.trim();
       const searchParam = url.searchParams.get('search')?.trim();
+      const daysParam = url.searchParams.get('days')?.trim() || url.searchParams.get('frequencyDays')?.trim();
 
-      // Start with curated clinical verified templates
-      let plans = getVerifiedExplorePlans();
-
-      // If database is available, load published/active user plans
       const routeContext = getApiRouteContext(c);
+      let plans: ExplorePlanDto[] = [];
+
+      // Primary: Query database explore_plans table
+      if (hasDbClient(routeContext)) {
+        try {
+          const dbExploreRows = await routeContext.db
+            .select()
+            .from(explorePlans)
+            .orderBy(desc(explorePlans.isVerified), desc(explorePlans.rating));
+
+          if (dbExploreRows.length > 0) {
+            plans = dbExploreRows.map(convertExplorePlanRowToDto);
+          }
+        } catch (dbErr) {
+          console.warn('explore.db_explore_plans_fetch_error', dbErr);
+        }
+      }
+
+      // Fallback: If database returned no explore plans (or offline context without DB), load verified clinical templates
+      if (plans.length === 0) {
+        plans = getVerifiedExplorePlans();
+      }
+
+      // If database is available, load published/active community user plans
       if (hasDbClient(routeContext)) {
         try {
           const dbRows = await routeContext.db
@@ -280,10 +358,22 @@ export function createExploreRoutes() {
         }
       }
 
+      // Filter by Frequency / Days (e.g. 4-day category)
+      if (daysParam && daysParam.toLowerCase() !== 'all') {
+        const parsedDays = Number(daysParam);
+        if (!isNaN(parsedDays) && parsedDays > 0) {
+          plans = plans.filter((p) => p.frequencyDays === parsedDays);
+        }
+      }
+
       // Filter by Split
       if (splitParam && splitParam.toLowerCase() !== 'all') {
-        const normalizedSplit = normalizeFilterString(splitParam);
-        plans = plans.filter((p) => normalizeFilterString(p.split) === normalizedSplit);
+        if (splitParam.toLowerCase() === '4_day' || splitParam.toLowerCase() === '4day') {
+          plans = plans.filter((p) => p.frequencyDays === 4);
+        } else {
+          const normalizedSplit = normalizeFilterString(splitParam);
+          plans = plans.filter((p) => normalizeFilterString(p.split) === normalizedSplit);
+        }
       }
 
       // Filter by Equipment
@@ -341,6 +431,27 @@ export function createExploreRoutes() {
   route.get('/explore/plans/:id', async (c) => {
     try {
       const planId = c.req.param('id');
+      const routeContext = getApiRouteContext(c);
+
+      // 1. Check database explore_plans table first
+      if (hasDbClient(routeContext)) {
+        try {
+          const dbRows = await routeContext.db
+            .select()
+            .from(explorePlans)
+            .where(eq(explorePlans.id, planId))
+            .limit(1);
+
+          if (dbRows[0]) {
+            const planDto = convertExplorePlanRowToDto(dbRows[0]);
+            return c.json({ data: planDto });
+          }
+        } catch (dbErr) {
+          console.warn('explore.db_get_by_id_error', dbErr);
+        }
+      }
+
+      // 2. Fallback to in-memory verified template
       const template = findExplorePlanById(planId);
       if (template) {
         const memRatings = Array.from(inMemoryWorkoutPlanRatings.values()).filter(
@@ -360,7 +471,6 @@ export function createExploreRoutes() {
       }
 
       // Check DB for custom plan
-      const routeContext = getApiRouteContext(c);
       if (hasDbClient(routeContext)) {
         const rows = await routeContext.db
           .select()
