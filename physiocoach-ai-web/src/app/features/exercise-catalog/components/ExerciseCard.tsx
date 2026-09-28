@@ -29,7 +29,7 @@ export function ExerciseCard({ exercise, onSelect }: ExerciseCardProps) {
             muscleGroup={exercise.primaryMuscle}
             compact={true}
             fit="contain"
-            className="h-full w-full pointer-events-none"
+            className="h-full w-full"
           />
 
           {/* Safety Warning (Only displayed for Caution or Avoid to eliminate visual noise on 95%+ of cards) */}

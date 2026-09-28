@@ -637,7 +637,7 @@ export function PlanPage() {
                                           muscleGroup={exercise.muscleGroup}
                                           compact={true}
                                           fit="cover"
-                                          className="w-full h-full pointer-events-none"
+                                          className="w-full h-full"
                                         />
                                         <span className="absolute bottom-1.5 left-1.5 rounded-md bg-zinc-950/85 border border-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-300 shadow-sm">
                                           #{index + 1}

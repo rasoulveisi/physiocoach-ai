@@ -1216,7 +1216,13 @@ export function PlanBuilderPage() {
                           <div className="col-span-1 text-center font-mono">#</div>
                           <div className="col-span-3 sm:col-span-3">Type</div>
                           <div className="col-span-2 sm:col-span-2 text-center">Reps</div>
-                          <div className="col-span-3 sm:col-span-2 text-center">RIR</div>
+                          <div className="col-span-3 sm:col-span-2 text-center">
+                            <Tooltip content="Reps In Reserve (Intensity): How many more reps you could do before muscle failure. E.g. 2 RIR = stop when you have 2 reps left in the tank.">
+                              <span className="cursor-help inline-flex items-center gap-0.5 border-b border-dotted border-zinc-500">
+                                RIR
+                              </span>
+                            </Tooltip>
+                          </div>
                           <div className="hidden sm:block sm:col-span-2 text-center">Tempo</div>
                           <div className="col-span-2 sm:col-span-1 text-center">Rest</div>
                           <div className="col-span-1 text-right"></div>
@@ -1293,11 +1299,11 @@ export function PlanBuilderPage() {
                                     }
                                     className="w-full rounded-lg border border-zinc-800 bg-[#090D15] px-1 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760] cursor-pointer"
                                   >
-                                    <option value={0}>0 RIR</option>
-                                    <option value={1}>1 RIR</option>
-                                    <option value={2}>2 RIR</option>
-                                    <option value={3}>3 RIR</option>
-                                    <option value={4}>4 RIR</option>
+                                    <option value={0}>0 RIR (Failure · 0 left)</option>
+                                    <option value={1}>1 RIR (1 rep in tank)</option>
+                                    <option value={2}>2 RIR (2 reps in tank)</option>
+                                    <option value={3}>3 RIR (3 reps in tank)</option>
+                                    <option value={4}>4 RIR (4+ reps · Easy)</option>
                                   </select>
                                 </div>
 
