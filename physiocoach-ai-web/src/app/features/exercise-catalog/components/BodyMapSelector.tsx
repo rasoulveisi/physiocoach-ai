@@ -18,18 +18,38 @@ export function BodyMapSelector({
   const [view, setView] = useState<'anterior' | 'posterior'>('anterior');
   const [hoveredMuscle, setHoveredMuscle] = useState<string | null>(null);
 
+  const normalizeKey = (k: string) => k.toLowerCase().replace(/[-_ ]/g, '');
+
   const getMuscleCount = (muscleKey: string): number => {
-    const match = musclesList.find(
-      (m) => m.id.toLowerCase() === muscleKey.toLowerCase() || m.name.toLowerCase().includes(muscleKey.toLowerCase())
-    );
+    const normKey = normalizeKey(muscleKey);
+    const match = musclesList.find((m) => {
+      const normId = normalizeKey(m.id);
+      const normName = normalizeKey(m.name);
+      return (
+        normId === normKey ||
+        normName === normKey ||
+        normId.includes(normKey) ||
+        normKey.includes(normId) ||
+        ((normKey === 'chest' || normKey === 'pectorals') && (normId === 'chest' || normId === 'pectorals')) ||
+        ((normKey === 'shoulders' || normKey === 'deltoids') && (normId === 'shoulders' || normId === 'deltoids')) ||
+        ((normKey === 'core' || normKey === 'abs') && (normId === 'core' || normId === 'abs')) ||
+        ((normKey === 'quads' || normKey === 'quadriceps') && (normId === 'quads' || normId === 'quadriceps'))
+      );
+    });
     return match ? match.count : 0;
   };
 
   const isSelected = (muscleKey: string): boolean => {
     if (!selectedMuscle) return false;
-    const normSelected = selectedMuscle.toLowerCase();
-    const normKey = muscleKey.toLowerCase();
-    return normSelected === normKey || normSelected.includes(normKey) || normKey.includes(normSelected);
+    const normSelected = normalizeKey(selectedMuscle);
+    const normKey = normalizeKey(muscleKey);
+    if (normSelected === normKey) return true;
+    if ((normSelected === 'chest' || normSelected === 'pectorals') && (normKey === 'chest' || normKey === 'pectorals')) return true;
+    if ((normSelected === 'shoulders' || normSelected === 'deltoids') && (normKey === 'shoulders' || normKey === 'deltoids')) return true;
+    if ((normSelected === 'abs' || normSelected === 'core') && (normKey === 'abs' || normKey === 'core')) return true;
+    if ((normSelected === 'quads' || normSelected === 'quadriceps') && (normKey === 'quads' || normKey === 'quadriceps')) return true;
+    if (normSelected === 'back' && (normKey === 'lats' || normKey === 'lowerback' || normKey === 'traps')) return true;
+    return normSelected.includes(normKey) || normKey.includes(normSelected);
   };
 
   const handleMuscleClick = (muscleKey: string) => {
@@ -290,10 +310,10 @@ export function BodyMapSelector({
               {/* Lower Back / Lumbar */}
               <path
                 d="M 88 124 L 112 124 L 110 146 L 90 146 Z"
-                className={getPathClass('lower back')}
-                onMouseEnter={() => setHoveredMuscle('lower back')}
+                className={getPathClass('lower_back')}
+                onMouseEnter={() => setHoveredMuscle('lower_back')}
                 onMouseLeave={() => setHoveredMuscle(null)}
-                onClick={() => handleMuscleClick('lower back')}
+                onClick={() => handleMuscleClick('lower_back')}
               >
                 <title>Lower Back (Lumbar)</title>
               </path>

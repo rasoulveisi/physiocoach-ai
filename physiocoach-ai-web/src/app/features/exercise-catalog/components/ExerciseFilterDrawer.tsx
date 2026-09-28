@@ -180,6 +180,8 @@ export function ExerciseFilterDrawer({
               { id: 'lunge', name: 'Lunge', count: 0 },
               { id: 'carry', name: 'Carry', count: 0 },
               { id: 'isolation', name: 'Isolation', count: 0 },
+              { id: 'core', name: 'Core', count: 0 },
+              { id: 'mobility', name: 'Mobility', count: 0 },
             ]).map((pattern) => {
               const active = queryParams.movementPattern?.toLowerCase() === pattern.id.toLowerCase();
               return (

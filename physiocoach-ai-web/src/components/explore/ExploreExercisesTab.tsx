@@ -44,6 +44,20 @@ const QUICK_SAFETY_OPTIONS = [
   { id: 'shoulder_safe', label: 'Shoulder-Safe' },
 ];
 
+function isMuscleOptionActive(optionId: string, currentSelected?: string): boolean {
+  if (!currentSelected || currentSelected === 'all') return optionId === 'all';
+  if (optionId === 'all') return false;
+  const o = optionId.toLowerCase().replace(/[-_ ]/g, '');
+  const s = currentSelected.toLowerCase().replace(/[-_ ]/g, '');
+  if (o === s) return true;
+  if ((o === 'chest' || o === 'pectorals' || o === 'pecs') && (s === 'chest' || s === 'pectorals' || s === 'pecs')) return true;
+  if ((o === 'shoulders' || o === 'deltoids' || o === 'delts') && (s === 'shoulders' || s === 'deltoids' || s === 'delts')) return true;
+  if ((o === 'abs' || o === 'core' || o === 'waist') && (s === 'abs' || s === 'core' || s === 'waist')) return true;
+  if ((o === 'quads' || o === 'quadriceps') && (s === 'quads' || s === 'quadriceps')) return true;
+  if (o === 'back' && (s === 'back' || s === 'lats' || s === 'lowerback' || s === 'traps')) return true;
+  return false;
+}
+
 export function ExploreExercisesTab() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [, startTransition] = useTransition();
@@ -301,12 +315,17 @@ export function ExploreExercisesTab() {
           {/* Muscle Anatomy Quick Selector Strip */}
           <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none max-w-2xl mx-auto w-full">
             {QUICK_MUSCLE_OPTIONS.map((m) => {
-              const active = selectedMuscle === m.id;
+              const active = isMuscleOptionActive(m.id, selectedMuscle);
               return (
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => updateParams({ primaryMuscle: m.id === 'all' ? undefined : m.id, offset: 0 })}
+                  onClick={() =>
+                    updateParams({
+                      primaryMuscle: m.id === 'all' ? undefined : (active ? undefined : m.id),
+                      offset: 0,
+                    })
+                  }
                   className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold transition-all duration-150 ${
                     active
                       ? 'bg-lime-400 text-zinc-950 shadow-sm shadow-lime-400/20'

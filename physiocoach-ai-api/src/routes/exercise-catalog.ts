@@ -30,6 +30,97 @@ const exerciseCatalogMediaBatchSchema = z.object({
     .max(60),
 });
 
+interface MuscleResolution {
+  primaryMuscles: string[];
+  bodyParts: string[];
+}
+
+function normalizeCatalogTerm(val: string): string {
+  return val.toLowerCase().trim().replace(/[\s-]+/g, '_');
+}
+
+const MUSCLE_SYNONYM_MAP: Record<string, MuscleResolution> = {
+  // Chest
+  chest: { primaryMuscles: ['pectorals'], bodyParts: ['chest'] },
+  pecs: { primaryMuscles: ['pectorals'], bodyParts: ['chest'] },
+  pec: { primaryMuscles: ['pectorals'], bodyParts: ['chest'] },
+  pectorals: { primaryMuscles: ['pectorals'], bodyParts: ['chest'] },
+  pectoral: { primaryMuscles: ['pectorals'], bodyParts: ['chest'] },
+  pectoralis: { primaryMuscles: ['pectorals'], bodyParts: ['chest'] },
+  pectoralis_major: { primaryMuscles: ['pectorals'], bodyParts: ['chest'] },
+
+  // Shoulders
+  shoulders: { primaryMuscles: ['deltoids'], bodyParts: ['shoulders'] },
+  shoulder: { primaryMuscles: ['deltoids'], bodyParts: ['shoulders'] },
+  delts: { primaryMuscles: ['deltoids'], bodyParts: ['shoulders'] },
+  delt: { primaryMuscles: ['deltoids'], bodyParts: ['shoulders'] },
+  deltoids: { primaryMuscles: ['deltoids'], bodyParts: ['shoulders'] },
+  deltoid: { primaryMuscles: ['deltoids'], bodyParts: ['shoulders'] },
+
+  // Back (entire back region)
+  back: { primaryMuscles: ['lats', 'lower_back', 'traps'], bodyParts: ['back'] },
+  lats: { primaryMuscles: ['lats'], bodyParts: ['back'] },
+  lat: { primaryMuscles: ['lats'], bodyParts: ['back'] },
+  latissimus: { primaryMuscles: ['lats'], bodyParts: ['back'] },
+  latissimus_dorsi: { primaryMuscles: ['lats'], bodyParts: ['back'] },
+
+  // Lower Back
+  lower_back: { primaryMuscles: ['lower_back'], bodyParts: ['back'] },
+  lowerback: { primaryMuscles: ['lower_back'], bodyParts: ['back'] },
+  lumbar: { primaryMuscles: ['lower_back'], bodyParts: ['back'] },
+
+  // Traps / Upper Back
+  traps: { primaryMuscles: ['traps'], bodyParts: ['back', 'neck'] },
+  trap: { primaryMuscles: ['traps'], bodyParts: ['back', 'neck'] },
+  trapezius: { primaryMuscles: ['traps'], bodyParts: ['back', 'neck'] },
+  upper_back: { primaryMuscles: ['traps', 'lats'], bodyParts: ['back'] },
+
+  // Legs / Quads / Hamstrings / Glutes / Calves
+  legs: { primaryMuscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], bodyParts: ['upper_legs', 'lower_legs'] },
+  upper_legs: { primaryMuscles: ['quadriceps', 'hamstrings', 'glutes'], bodyParts: ['upper_legs'] },
+  lower_legs: { primaryMuscles: ['calves'], bodyParts: ['lower_legs'] },
+  quads: { primaryMuscles: ['quadriceps'], bodyParts: ['upper_legs'] },
+  quad: { primaryMuscles: ['quadriceps'], bodyParts: ['upper_legs'] },
+  quadriceps: { primaryMuscles: ['quadriceps'], bodyParts: ['upper_legs'] },
+  thighs: { primaryMuscles: ['quadriceps', 'hamstrings'], bodyParts: ['upper_legs'] },
+
+  hamstrings: { primaryMuscles: ['hamstrings'], bodyParts: ['upper_legs'] },
+  hamstring: { primaryMuscles: ['hamstrings'], bodyParts: ['upper_legs'] },
+  hams: { primaryMuscles: ['hamstrings'], bodyParts: ['upper_legs'] },
+
+  glutes: { primaryMuscles: ['glutes'], bodyParts: ['upper_legs'] },
+  glute: { primaryMuscles: ['glutes'], bodyParts: ['upper_legs'] },
+  gluteus: { primaryMuscles: ['glutes'], bodyParts: ['upper_legs'] },
+  butt: { primaryMuscles: ['glutes'], bodyParts: ['upper_legs'] },
+  hips: { primaryMuscles: ['glutes'], bodyParts: ['upper_legs'] },
+
+  calves: { primaryMuscles: ['calves'], bodyParts: ['lower_legs'] },
+  calf: { primaryMuscles: ['calves'], bodyParts: ['lower_legs'] },
+  gastrocnemius: { primaryMuscles: ['calves'], bodyParts: ['lower_legs'] },
+
+  // Arms / Biceps / Triceps
+  arms: { primaryMuscles: ['biceps', 'triceps'], bodyParts: ['upper_arms', 'lower_arms'] },
+  upper_arms: { primaryMuscles: ['biceps', 'triceps'], bodyParts: ['upper_arms'] },
+  lower_arms: { primaryMuscles: ['biceps'], bodyParts: ['lower_arms'] },
+  biceps: { primaryMuscles: ['biceps'], bodyParts: ['upper_arms', 'lower_arms'] },
+  bicep: { primaryMuscles: ['biceps'], bodyParts: ['upper_arms', 'lower_arms'] },
+  triceps: { primaryMuscles: ['triceps'], bodyParts: ['upper_arms'] },
+  tricep: { primaryMuscles: ['triceps'], bodyParts: ['upper_arms'] },
+  forearms: { primaryMuscles: ['biceps'], bodyParts: ['lower_arms'] },
+
+  // Core / Abs
+  abs: { primaryMuscles: ['abs'], bodyParts: ['waist'] },
+  core: { primaryMuscles: ['abs'], bodyParts: ['waist'] },
+  abdominals: { primaryMuscles: ['abs'], bodyParts: ['waist'] },
+  abdominal: { primaryMuscles: ['abs'], bodyParts: ['waist'] },
+  waist: { primaryMuscles: ['abs'], bodyParts: ['waist'] },
+  obliques: { primaryMuscles: ['abs'], bodyParts: ['waist'] },
+
+  // Other
+  cardio: { primaryMuscles: [], bodyParts: ['cardio'] },
+  neck: { primaryMuscles: ['traps'], bodyParts: ['neck'] },
+};
+
 export function createExerciseCatalogRoutes() {
   const route = createExpressRouter();
 
@@ -232,40 +323,83 @@ export function createExerciseCatalogRoutes() {
       const conditions = [];
 
       if (q) {
-        conditions.push(
-          or(
-            like(sql`lower(${masterExercises.name})`, `%${q}%`),
-            like(sql`lower(${masterExercises.movementPattern})`, `%${q}%`),
-            like(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, `%${q}%`),
-            like(sql`lower(coalesce(${masterExercises.bodyPart}, ''))`, `%${q}%`),
-            like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${q}%`),
-          ),
-        );
+        const normQ = normalizeCatalogTerm(q);
+        const resolvedQ = MUSCLE_SYNONYM_MAP[normQ] || MUSCLE_SYNONYM_MAP[q];
+        const qConditions = [
+          like(sql`lower(${masterExercises.name})`, `%${q}%`),
+          like(sql`lower(${masterExercises.movementPattern})`, `%${q}%`),
+          like(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, `%${q}%`),
+          like(sql`lower(coalesce(${masterExercises.bodyPart}, ''))`, `%${q}%`),
+          like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${q}%`),
+        ];
+        if (resolvedQ) {
+          resolvedQ.primaryMuscles.forEach((m) => {
+            qConditions.push(eq(sql`lower(${masterExercises.primaryMuscle})`, m));
+            qConditions.push(like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${m}%`));
+          });
+          resolvedQ.bodyParts.forEach((bp) => {
+            qConditions.push(eq(sql`lower(${masterExercises.bodyPart})`, bp));
+          });
+        }
+        conditions.push(or(...qConditions));
       }
 
       if (bodyPart && bodyPart !== 'all') {
-        conditions.push(
-          or(
-            eq(sql`lower(${masterExercises.bodyPart})`, bodyPart.toLowerCase()),
-            like(sql`lower(${masterExercises.bodyPart})`, `%${bodyPart.toLowerCase()}%`),
-          ),
-        );
+        const norm = normalizeCatalogTerm(bodyPart);
+        const resolved = MUSCLE_SYNONYM_MAP[norm] || MUSCLE_SYNONYM_MAP[bodyPart.toLowerCase()];
+        const bpConditions = [
+          eq(sql`lower(${masterExercises.bodyPart})`, norm),
+          like(sql`lower(${masterExercises.bodyPart})`, `%${norm}%`),
+          eq(sql`lower(${masterExercises.bodyPart})`, bodyPart.toLowerCase()),
+          like(sql`lower(${masterExercises.bodyPart})`, `%${bodyPart.toLowerCase()}%`),
+        ];
+
+        if (resolved) {
+          resolved.bodyParts.forEach((bp) => {
+            bpConditions.push(eq(sql`lower(${masterExercises.bodyPart})`, bp));
+            bpConditions.push(like(sql`lower(${masterExercises.bodyPart})`, `%${bp}%`));
+          });
+          resolved.primaryMuscles.forEach((m) => {
+            bpConditions.push(eq(sql`lower(${masterExercises.primaryMuscle})`, m));
+          });
+        }
+
+        conditions.push(or(...bpConditions));
       }
 
       if (primaryMuscle && primaryMuscle !== 'all') {
-        conditions.push(
-          or(
-            eq(sql`lower(${masterExercises.primaryMuscle})`, primaryMuscle.toLowerCase()),
-            like(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
-            like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
-            like(sql`lower(coalesce(${masterExercises.secondaryMusclesJson}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
-          ),
-        );
+        const norm = normalizeCatalogTerm(primaryMuscle);
+        const resolved = MUSCLE_SYNONYM_MAP[norm] || MUSCLE_SYNONYM_MAP[primaryMuscle.toLowerCase()];
+        const muscleConditions = [
+          eq(sql`lower(${masterExercises.primaryMuscle})`, norm),
+          like(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, `%${norm}%`),
+          eq(sql`lower(${masterExercises.primaryMuscle})`, primaryMuscle.toLowerCase()),
+          like(sql`lower(coalesce(${masterExercises.primaryMuscle}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
+          like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${norm}%`),
+          like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
+          like(sql`lower(coalesce(${masterExercises.secondaryMusclesJson}, ''))`, `%${norm}%`),
+          like(sql`lower(coalesce(${masterExercises.secondaryMusclesJson}, ''))`, `%${primaryMuscle.toLowerCase()}%`),
+        ];
+
+        if (resolved) {
+          resolved.primaryMuscles.forEach((m) => {
+            muscleConditions.push(eq(sql`lower(${masterExercises.primaryMuscle})`, m));
+            muscleConditions.push(like(sql`lower(coalesce(${masterExercises.target}, ''))`, `%${m}%`));
+          });
+          resolved.bodyParts.forEach((bp) => {
+            muscleConditions.push(eq(sql`lower(${masterExercises.bodyPart})`, bp));
+          });
+        }
+
+        conditions.push(or(...muscleConditions));
       }
 
       if (movementPattern && movementPattern !== 'all') {
+        const norm = normalizeCatalogTerm(movementPattern);
         conditions.push(
           or(
+            eq(sql`lower(${masterExercises.movementPattern})`, norm),
+            like(sql`lower(${masterExercises.movementPattern})`, `%${norm}%`),
             eq(sql`lower(${masterExercises.movementPattern})`, movementPattern.toLowerCase()),
             like(sql`lower(${masterExercises.movementPattern})`, `%${movementPattern.toLowerCase()}%`),
           ),
@@ -277,13 +411,23 @@ export function createExerciseCatalogRoutes() {
       }
 
       if (equipmentParam && equipmentParam !== 'all') {
-        const eqList = equipmentParam.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+        const eqList = equipmentParam
+          .split(',')
+          .map((e) => normalizeCatalogTerm(e))
+          .filter(Boolean);
         if (eqList.length > 0) {
           const eqConditions = eqList.map((eqItem) =>
             or(
               like(sql`lower(coalesce(${masterExercises.attributesJson}, ''))`, `%"${eqItem}"%`),
+              like(sql`lower(coalesce(${masterExercises.attributesJson}, ''))`, `%${eqItem}%`),
               like(sql`lower(coalesce(${masterExercises.instructions}, ''))`, `%${eqItem}%`),
               like(sql`lower(${masterExercises.name})`, `%${eqItem}%`),
+              sql`EXISTS (
+                SELECT 1 FROM exercise_equipment ee 
+                JOIN master_equipment meq ON meq.id = ee.equipment_id 
+                WHERE ee.exercise_id = ${masterExercises.id} 
+                AND (lower(meq.name) LIKE ${`%${eqItem}%`} OR lower(meq.source_id) LIKE ${`%${eqItem}%`})
+              )`,
             ),
           );
           conditions.push(or(...eqConditions));

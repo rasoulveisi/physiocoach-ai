@@ -72,6 +72,50 @@ describe('Behavior-Driven E2E: Exercise Catalog Explore API', () => {
     expect(json.data).toBeDefined();
   });
 
+  it('GET /api/v1/exercise-catalog/exercises resolves anatomical synonyms (chest, shoulders, back, lower back)', async () => {
+    const app = createApp();
+
+    // Chest query (synonym for pectorals / body_part chest)
+    const chestRes = await app.fetch(
+      '/api/v1/exercise-catalog/exercises?primaryMuscle=chest&limit=5',
+      { method: 'GET' },
+      mockEnv,
+    );
+    expect(chestRes.status).toBe(200);
+    const chestJson = (await chestRes.json()) as { data?: unknown[]; pagination?: { total: number } };
+    expect(chestJson.data).toBeDefined();
+
+    // Shoulders query (synonym for deltoids / body_part shoulders)
+    const shoulderRes = await app.fetch(
+      '/api/v1/exercise-catalog/exercises?primaryMuscle=shoulders&limit=5',
+      { method: 'GET' },
+      mockEnv,
+    );
+    expect(shoulderRes.status).toBe(200);
+    const shoulderJson = (await shoulderRes.json()) as { data?: unknown[]; pagination?: { total: number } };
+    expect(shoulderJson.data).toBeDefined();
+
+    // Back query (synonym for lats, lower_back, traps / body_part back)
+    const backRes = await app.fetch(
+      '/api/v1/exercise-catalog/exercises?primaryMuscle=back&limit=5',
+      { method: 'GET' },
+      mockEnv,
+    );
+    expect(backRes.status).toBe(200);
+    const backJson = (await backRes.json()) as { data?: unknown[]; pagination?: { total: number } };
+    expect(backJson.data).toBeDefined();
+
+    // Lower back query with space/normalization
+    const lowerBackRes = await app.fetch(
+      '/api/v1/exercise-catalog/exercises?primaryMuscle=lower+back&limit=5',
+      { method: 'GET' },
+      mockEnv,
+    );
+    expect(lowerBackRes.status).toBe(200);
+    const lowerBackJson = (await lowerBackRes.json()) as { data?: unknown[]; pagination?: { total: number } };
+    expect(lowerBackJson.data).toBeDefined();
+  });
+
   it('GET /api/v1/exercise-catalog/alternatives/:slug returns 3 safer alternatives with biomechanical analysis & SEO metadata', async () => {
     const app = createApp();
 
