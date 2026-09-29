@@ -30,6 +30,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { ExercisePreviewModal, type ExercisePreviewItem } from '../components/ui/ExercisePreviewModal';
+import { RegeneratePlanModal } from '../components/ui/RegeneratePlanModal';
 import type { DirectAlternativeItem } from '../app/features/exercise-catalog/services/exercise-catalog-api';
 import { PlanSkeleton } from '../components/ui/Skeleton';
 import { Tooltip } from '../components/ui/Tooltip';
@@ -125,6 +126,7 @@ export function PlanPage() {
   const [expandedFormCues, setExpandedFormCues] = useState<Record<string, boolean>>({});
   const [previewExercise, setPreviewExercise] = useState<ExercisePreviewItem | null>(null);
   const [isSwapping, setIsSwapping] = useState(false);
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
 
   // Star Rating & Review State
   const [ratingVal, setRatingVal] = useState<number>(5);
@@ -352,12 +354,22 @@ export function PlanPage() {
   const generateNewPlan = async () => {
     setGenerating(true);
     setError('');
+    setToast({ message: 'Synthesizing personalized workout plan with AI...', type: 'info' });
     try {
       const assessmentRes = await apiClient.get<any>('assessments/latest');
       const assessment = assessmentRes?.data || null;
 
       const profileRes = await apiClient.get<any>('profile');
       const profile = profileRes?.data || null;
+
+      const allowedEquipment = ['full_gym', 'home_gym', 'dumbbells_only', 'resistance_bands'] as const;
+      const rawEquipment = assessment?.equipment || profile?.availableEquipment || ['full_gym'];
+      const validEquipment = Array.isArray(rawEquipment)
+        ? rawEquipment.filter((e: string): e is (typeof allowedEquipment)[number] =>
+            allowedEquipment.includes(e as any),
+          )
+        : [];
+      const finalEquipment = validEquipment.length > 0 ? validEquipment : ['full_gym' as const];
 
       const res = await apiClient.post<any>('workout-plans/generate', {
         profile: {
@@ -372,12 +384,7 @@ export function PlanPage() {
           archetype: assessment?.archetype || 'powerbuilding_hypertrophy',
           frequencyDays: assessment?.frequencyDays || 4,
           sessionMinutes: assessment?.sessionMinutes || 60,
-          availableEquipment: assessment?.availableEquipment || profile?.availableEquipment || [
-            'barbell',
-            'dumbbells',
-            'bench',
-            'cable_machine',
-          ],
+          equipment: finalEquipment,
           limitations: assessment?.limitations || [],
           postureFlags: assessment?.postureFlags || [],
           goals: assessment?.goals || ['muscle_gain', 'strength', 'posture_improvement'],
@@ -395,6 +402,16 @@ export function PlanPage() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleSelectAssessment = () => {
+    setShowRegenerateModal(false);
+    navigate('/assessment');
+  };
+
+  const handleSelectCurrentProfile = () => {
+    setShowRegenerateModal(false);
+    generateNewPlan();
   };
 
   const deletePlan = async () => {
@@ -548,8 +565,9 @@ export function PlanPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={generateNewPlan}
+                    onClick={() => setShowRegenerateModal(true)}
                     loading={generating}
+                    disabled={generating}
                     className="size-8 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
@@ -1050,7 +1068,7 @@ export function PlanPage() {
                 <p className="mt-2 text-sm text-zinc-400">
                   Generate an intelligent, posture-aware training plan tailored to your profile.
                 </p>
-                <Button onClick={generateNewPlan} loading={generating} variant="volt" size="md" className="mt-6">
+                <Button onClick={() => setShowRegenerateModal(true)} loading={generating} variant="volt" size="md" className="mt-6">
                   <BrainCircuit className="h-4 w-4" /> Generate Plan Now
                 </Button>
               </CardContent>
@@ -1066,6 +1084,15 @@ export function PlanPage() {
         onClose={() => setPreviewExercise(null)}
         onSwapExercise={handleSwapExercise}
         isSwapping={isSwapping}
+      />
+
+      {/* AI Plan Regeneration Action Bottom / Modal */}
+      <RegeneratePlanModal
+        open={showRegenerateModal}
+        onClose={() => setShowRegenerateModal(false)}
+        onSelectAssessment={handleSelectAssessment}
+        onSelectCurrentProfile={handleSelectCurrentProfile}
+        loading={generating}
       />
 
       {/* 4. MY PLANS LIBRARY SWITCHER MODAL */}

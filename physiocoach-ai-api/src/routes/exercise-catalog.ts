@@ -880,12 +880,12 @@ export function createExerciseCatalogRoutes() {
           const containsDumbbell =
             equipmentList.some((e) => e.toLowerCase().includes('dumbbell')) ||
             candNameLower.includes('dumbbell');
-          const containsMachineOrCable =
-            equipmentList.some(
-              (e) => e.toLowerCase().includes('machine') || e.toLowerCase().includes('cable'),
-            ) ||
-            candNameLower.includes('machine') ||
+          const containsCable =
+            equipmentList.some((e) => e.toLowerCase().includes('cable')) ||
             candNameLower.includes('cable');
+          const containsMachine =
+            equipmentList.some((e) => e.toLowerCase().includes('machine')) ||
+            candNameLower.includes('machine');
           const isBodyweight =
             equipmentList.some(
               (e) =>
@@ -898,9 +898,9 @@ export function createExerciseCatalogRoutes() {
             reasonText = 'Lowers anterior joint shear';
           } else if (candNameLower.includes('dumbbell')) {
             reasonText = 'Independent joint motion path';
-          } else if (candNameLower.includes('cable')) {
+          } else if (containsCable) {
             reasonText = 'Constant smooth resistance';
-          } else if (candNameLower.includes('machine')) {
+          } else if (containsMachine) {
             reasonText = 'Guided, stable movement path';
           } else if (isBodyweight) {
             reasonText = 'Closed-chain joint stability';

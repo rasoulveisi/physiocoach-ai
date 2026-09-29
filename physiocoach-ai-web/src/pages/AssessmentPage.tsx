@@ -202,6 +202,20 @@ export function AssessmentPage() {
         if (typeof a.frequencyDays === 'number') setFrequencyDays(a.frequencyDays);
         if (typeof a.sessionMinutes === 'number') setSessionMinutes(a.sessionMinutes);
         if (Array.isArray(a.equipment) && a.equipment.length > 0) setSelectedEquipment(a.equipment);
+        if (Array.isArray(a.considerations) && a.considerations.length > 0) {
+          const preloadedPains: Record<string, { severity: 'mild' | 'moderate' | 'severe'; side: any }> = {};
+          a.considerations.forEach((c: any) => {
+            if (c?.code) {
+              preloadedPains[c.code] = {
+                severity: c.severity || 'mild',
+                side: c.side || 'unspecified',
+              };
+            }
+          });
+          if (Object.keys(preloadedPains).length > 0) {
+            setActivePains(preloadedPains);
+          }
+        }
       }
     });
   }, []);
