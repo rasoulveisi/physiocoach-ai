@@ -28,7 +28,7 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+export const DEFAULT_WORKOUT_MODEL = 'google/gemma-4-31b-it';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
 export const DEFAULT_WORKOUT_TIMEOUT_MS = 90_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
