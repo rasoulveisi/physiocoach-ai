@@ -9,6 +9,7 @@ export const profileInputSchema = z
     bodyFatEstimate: z.number().min(3).max(70).optional(),
     lifestyle: z.enum(['desk_job', 'standing_job', 'active']),
     experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']),
+    availableEquipment: z.array(z.string()).optional(),
   })
   .strict();
 

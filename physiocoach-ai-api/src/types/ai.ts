@@ -1,11 +1,13 @@
 import type { ZodType } from 'zod';
 
 export type ConsiderationSeverity = 'mild' | 'moderate' | 'severe';
+export type ConsiderationSide = 'left' | 'right' | 'bilateral' | 'unspecified';
 
 /** The active, severity-specific consideration selected for the current generation. */
 export interface WorkoutPlanConsideration {
   code: string;
   severity: ConsiderationSeverity;
+  side?: ConsiderationSide;
 }
 
 export interface GenerateWorkoutPlanRequest {
@@ -89,6 +91,7 @@ export interface SafetyContext {
 export interface WorkoutPlanGenerationContext extends SafetyContext {
   goal: string;
   goals?: readonly string[];
+  archetype?: string;
   frequencyDays: number;
   sessionMinutes?: number;
   equipment: readonly string[];
@@ -104,6 +107,7 @@ export interface WorkoutPlanGenerationContext extends SafetyContext {
 export interface WorkoutPlanPromptInputs {
   userGoal: string;
   goals?: readonly string[];
+  archetype?: string;
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
   frequencyDays: number;
   age?: number;

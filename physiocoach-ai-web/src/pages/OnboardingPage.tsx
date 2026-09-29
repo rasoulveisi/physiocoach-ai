@@ -187,11 +187,7 @@ export function OnboardingPage() {
       const normalizedHeight = Math.min(250, Math.max(100, Math.round(heightCm || 178)));
       const normalizedWeight = Math.min(300, Math.max(30, Math.round(weightKg || 75)));
 
-      const allowedEquipment = ['full_gym', 'home_gym', 'dumbbells_only', 'resistance_bands'] as const;
-      const validEquipment = selectedEquipment.filter((e): e is (typeof allowedEquipment)[number] =>
-        allowedEquipment.includes(e as any),
-      );
-      const finalEquipment = validEquipment.length > 0 ? validEquipment : ['full_gym' as const];
+      const finalEquipment = selectedEquipment.length > 0 ? selectedEquipment : ['full_gym'];
 
       const considerationsPayload = Object.entries(activePains).map(([code, config]) => ({
         code,

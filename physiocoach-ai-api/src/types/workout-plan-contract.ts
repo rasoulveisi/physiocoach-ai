@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import type { WorkoutPlanPromptInputs, WorkoutPlanPromptContract } from './ai';
+import { calculateWorkoutDayDurationMinutes } from '../services/workout-duration';
 export type { WorkoutPlanPromptInputs, WorkoutPlanPromptContract };
 
 export const WORKOUT_PLAN_PROMPT_VERSION = '2026-06-05-v3';
@@ -23,6 +24,7 @@ export const WORKOUT_PLAN_MOVEMENT_PATTERNS = [
   'carry',
   'core',
   'mobility',
+  'isolation',
 ] as const;
 
 export const CANONICAL_PROGRESSION_RULE =
@@ -75,6 +77,7 @@ export const workoutPlanExerciseSchema = z.object({
   reps: z.string().min(1),
   rpe: z.number().min(1).max(10).optional(),
   restSeconds: z.number().int().min(1).default(60),
+  slot: z.number().int().min(1).max(12).optional(),
   notes: z.string().min(1).optional(),
   customSets: z.array(z.any()).optional(),
 });
@@ -87,6 +90,7 @@ export const workoutPlanDaySchema = z.object({
   dayNumber: z.number().int().min(1),
   name: z.string().min(1),
   focus: z.string().min(1),
+  estimatedDurationMinutes: z.number().int().min(5).max(240).optional(),
   exercises: z.array(workoutPlanExerciseSchema).min(1),
 });
 
@@ -490,6 +494,26 @@ function sanitizeAndRepairRawPlan(plan: unknown): unknown {
 
           return ex;
         });
+      }
+
+      if (typeof day.estimatedDurationMinutes === 'string') {
+        const parsed = parseInt(day.estimatedDurationMinutes.replace(/\D/g, ''), 10);
+        day.estimatedDurationMinutes = isNaN(parsed) || parsed <= 0 ? undefined : parsed;
+        isRepaired = true;
+      } else if (
+        typeof day.estimatedDurationMinutes === 'number' &&
+        (day.estimatedDurationMinutes < 5 || day.estimatedDurationMinutes > 240)
+      ) {
+        delete day.estimatedDurationMinutes;
+        isRepaired = true;
+      }
+
+      if (
+        day.estimatedDurationMinutes === undefined &&
+        Array.isArray(day.exercises) &&
+        day.exercises.length > 0
+      ) {
+        day.estimatedDurationMinutes = calculateWorkoutDayDurationMinutes(day);
       }
 
       return day;

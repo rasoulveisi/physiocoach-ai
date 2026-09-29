@@ -48,6 +48,9 @@ export function buildWorkoutPlanContext(input: GeneratePlanInput): WorkoutPlanCo
   return {
     goal: input.assessment.goals[0] ?? 'posture_improvement',
     goals: input.assessment.goals,
+    ...(typeof input.assessment.archetype === 'string'
+      ? { archetype: input.assessment.archetype }
+      : {}),
     frequencyDays: input.assessment.frequencyDays,
     ...(typeof input.assessment.sessionMinutes === 'number'
       ? { sessionMinutes: input.assessment.sessionMinutes }
@@ -56,7 +59,7 @@ export function buildWorkoutPlanContext(input: GeneratePlanInput): WorkoutPlanCo
     experienceLevel: input.profile.experienceLevel,
     limitations: legacySafety.limitations ?? [],
     postureFlags: mapPostureFlags(legacySafety.postureFlags ?? [], legacySafety.limitations ?? []),
-    considerations: considerations.map(({ code, severity }) => ({ code, severity })),
+    considerations: considerations.map(({ code, severity, side }) => ({ code, severity, side })),
     ...(typeof input.profile.age === 'number' ? { age: input.profile.age } : {}),
     ...(typeof input.profile.sex === 'string' ? { sex: input.profile.sex } : {}),
     ...(typeof input.profile.heightCm === 'number' ? { heightCm: input.profile.heightCm } : {}),

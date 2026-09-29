@@ -405,8 +405,26 @@ export function createWorkoutPlanRoutes() {
 
         if (assessmentRows[0]) {
           const row = assessmentRows[0];
-          const goals =
-            typeof row.goalsJson === 'string' ? JSON.parse(row.goalsJson) : row.goalsJson;
+          let rawGoals: unknown;
+          try {
+            rawGoals = typeof row.goalsJson === 'string' ? JSON.parse(row.goalsJson) : row.goalsJson;
+          } catch {
+            rawGoals = ['strength'];
+          }
+          const goals = Array.isArray(rawGoals)
+            ? rawGoals
+            : rawGoals && typeof rawGoals === 'object' && 'goals' in rawGoals && Array.isArray((rawGoals as { goals: unknown }).goals)
+              ? (rawGoals as { goals: string[] }).goals
+              : ['strength'];
+          const parsedSessionMinutes =
+            rawGoals && typeof rawGoals === 'object' && 'sessionMinutes' in rawGoals && typeof (rawGoals as { sessionMinutes?: unknown }).sessionMinutes === 'number'
+              ? (rawGoals as { sessionMinutes: number }).sessionMinutes
+              : undefined;
+          const parsedArchetype =
+            rawGoals && typeof rawGoals === 'object' && 'archetype' in rawGoals && typeof (rawGoals as { archetype?: unknown }).archetype === 'string'
+              ? (rawGoals as { archetype: string }).archetype
+              : undefined;
+
           const equipment =
             typeof row.equipmentJson === 'string' ? JSON.parse(row.equipmentJson) : row.equipmentJson;
           const limitations =
@@ -421,6 +439,8 @@ export function createWorkoutPlanRoutes() {
           resolvedAssessment = {
             goals: Array.isArray(goals) && goals.length > 0 ? goals : ['strength'],
             frequencyDays: row.frequencyDays || 3,
+            ...(parsedSessionMinutes ? { sessionMinutes: parsedSessionMinutes } : {}),
+            ...(parsedArchetype ? { archetype: parsedArchetype } : {}),
             equipment: Array.isArray(equipment) && equipment.length > 0 ? equipment : ['home_gym'],
             considerations: loadedConsiderations,
             limitations: Array.isArray(limitations) ? limitations : [],
@@ -1909,7 +1929,8 @@ export function createWorkoutPlanRoutes() {
             dbPostureFlags = [];
           }
           try {
-            dbGoals = JSON.parse(assessmentRow.goalsJson);
+            const rawDbGoals = JSON.parse(assessmentRow.goalsJson);
+            dbGoals = Array.isArray(rawDbGoals) ? rawDbGoals : rawDbGoals?.goals ?? ['strength'];
           } catch {
             dbGoals = [];
           }
@@ -1977,10 +1998,20 @@ export async function persistAssessmentAndPlan(
     .set({ status: 'archived' })
     .where(and(eq(workoutPlans.userId, userId), eq(workoutPlans.status, 'active')));
 
+  const goalsPayload = {
+    goals: input.assessment.goals,
+    ...(typeof input.assessment.sessionMinutes === 'number'
+      ? { sessionMinutes: input.assessment.sessionMinutes }
+      : {}),
+    ...(typeof input.assessment.archetype === 'string'
+      ? { archetype: input.assessment.archetype }
+      : {}),
+  };
+
   await db.insert(assessments).values({
     id: assessmentId,
     userId,
-    goalsJson: JSON.stringify(input.assessment.goals),
+    goalsJson: JSON.stringify(goalsPayload),
     frequencyDays: input.assessment.frequencyDays,
     equipmentJson: JSON.stringify(input.assessment.equipment),
     limitationsJson: JSON.stringify(legacySafety.limitations),

@@ -58,4 +58,36 @@ describe('Behavior-Driven E2E: Assessment Form & User Profile Workflow', () => {
     const assessmentJson = (await assessmentResponse.json()) as { data?: unknown };
     expect(assessmentJson.data).toBeDefined();
   });
+
+  it('persists assessment intake with sessionMinutes and archetype', async () => {
+    const app = createApp();
+
+    const assessmentResponse = await app.fetch(
+      '/api/v1/assessments',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          goals: ['strength'],
+          sessionMinutes: 45,
+          archetype: 'strength_builder',
+          frequencyDays: 3,
+          equipment: ['dumbbells_only'],
+          limitations: [],
+          postureFlags: [],
+        }),
+      },
+      mockEnv,
+    );
+
+    expect([200, 201]).toContain(assessmentResponse.status);
+    const assessmentJson = (await assessmentResponse.json()) as {
+      data?: { sessionMinutes?: number; archetype?: string };
+    };
+    expect(assessmentJson.data).toBeDefined();
+    expect(assessmentJson.data?.sessionMinutes).toBe(45);
+    expect(assessmentJson.data?.archetype).toBe('strength_builder');
+  });
 });

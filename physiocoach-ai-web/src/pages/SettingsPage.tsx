@@ -26,6 +26,7 @@ import {
   Sliders,
   Layers,
   UploadCloud,
+  Clock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
@@ -182,6 +183,8 @@ export function SettingsPage() {
     setUnitSystem,
     defaultRestSeconds,
     setDefaultRestSeconds,
+    defaultSessionMinutes,
+    setDefaultSessionMinutes,
     soundEnabled,
     setSoundEnabled,
     autoStartRestTimer,
@@ -670,6 +673,32 @@ export function SettingsPage() {
                       }`}
                     >
                       {secs}s
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preferred Session Duration Row */}
+              <div className="p-4 space-y-2.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-zinc-950 border border-zinc-800 text-lime-400">
+                    <Clock className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-white">Preferred Session Duration</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 pt-0.5">
+                  {[30, 45, 60, 75].map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setDefaultSessionMinutes(mins)}
+                      className={`rounded-2xl border p-2.5 font-mono text-xs sm:text-sm font-black transition-all ${
+                        defaultSessionMinutes === mins
+                          ? 'border-lime-400 bg-lime-400 text-zinc-950 shadow-md scale-[1.02]'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {mins}m
                     </button>
                   ))}
                 </div>

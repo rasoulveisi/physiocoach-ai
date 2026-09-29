@@ -120,9 +120,8 @@ export const assessmentInputSchema = z
       .min(1),
     frequencyDays: z.number().int().min(2).max(5),
     sessionMinutes: z.number().int().min(15).max(180).optional(),
-    equipment: z
-      .array(z.enum(['full_gym', 'dumbbells_only', 'home_gym', 'resistance_bands']))
-      .min(1),
+    archetype: z.string().optional(),
+    equipment: z.array(z.string().trim().min(1).max(100)).min(1),
     considerations: z.array(assessmentConsiderationSchema).default([]),
     limitations: z
       .array(z.enum(['shoulder_pain', 'knee_pain', 'lower_back_pain', 'neck_pain']))
@@ -155,6 +154,7 @@ export const latestAssessmentOutputSchema = z.object({
   goals: z.array(z.string()),
   frequencyDays: z.number().int().min(2).max(5),
   sessionMinutes: z.number().int().min(15).max(180).optional(),
+  archetype: z.string().optional(),
   equipment: z.array(z.string()),
   limitations: z.array(z.string()),
   postureFlags: z.array(z.string()),

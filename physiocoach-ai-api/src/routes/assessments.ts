@@ -79,7 +79,23 @@ export function createAssessmentRoutes() {
     const row = rows[0];
     if (!row) return c.json({ data: null });
 
-    const parsedGoals = safeJsonParse(row.goalsJson, ['strength']);
+    const rawGoals = safeJsonParse<unknown>(row.goalsJson, ['strength']);
+    const parsedGoals = Array.isArray(rawGoals)
+      ? rawGoals
+      : rawGoals && typeof rawGoals === 'object' && 'goals' in rawGoals && Array.isArray((rawGoals as { goals: unknown }).goals)
+        ? (rawGoals as { goals: string[] }).goals
+        : ['strength'];
+
+    const parsedSessionMinutes =
+      rawGoals && typeof rawGoals === 'object' && 'sessionMinutes' in rawGoals && typeof (rawGoals as { sessionMinutes?: unknown }).sessionMinutes === 'number'
+        ? (rawGoals as { sessionMinutes: number }).sessionMinutes
+        : undefined;
+
+    const parsedArchetype =
+      rawGoals && typeof rawGoals === 'object' && 'archetype' in rawGoals && typeof (rawGoals as { archetype?: unknown }).archetype === 'string'
+        ? (rawGoals as { archetype: string }).archetype
+        : undefined;
+
     const parsedLimitations = safeJsonParse(row.limitationsJson, []);
     const parsedPostureFlags = safeJsonParse(row.postureFlagsJson, []);
     const parsedEquipment = safeJsonParse(row.equipmentJson, ['home_gym']);
@@ -100,6 +116,8 @@ export function createAssessmentRoutes() {
     const candidate = {
       goals: Array.isArray(parsedGoals) && parsedGoals.length > 0 ? parsedGoals : ['strength'],
       frequencyDays: typeof row.frequencyDays === 'number' && row.frequencyDays >= 2 ? row.frequencyDays : 3,
+      ...(typeof parsedSessionMinutes === 'number' ? { sessionMinutes: parsedSessionMinutes } : {}),
+      ...(typeof parsedArchetype === 'string' ? { archetype: parsedArchetype } : {}),
       equipment: Array.isArray(parsedEquipment) && parsedEquipment.length > 0 ? parsedEquipment : ['home_gym'],
       limitations: Array.isArray(parsedLimitations) ? parsedLimitations : [],
       postureFlags: Array.isArray(parsedPostureFlags) ? parsedPostureFlags : [],
@@ -146,10 +164,16 @@ export function createAssessmentRoutes() {
           );
         }
 
+        const goalsPayload = {
+          goals: input.goals,
+          ...(typeof input.sessionMinutes === 'number' ? { sessionMinutes: input.sessionMinutes } : {}),
+          ...(typeof input.archetype === 'string' ? { archetype: input.archetype } : {}),
+        };
+
         await context.db.insert(assessments).values({
           id: assessmentId,
           userId: context.user.id,
-          goalsJson: JSON.stringify(input.goals),
+          goalsJson: JSON.stringify(goalsPayload),
           frequencyDays: input.frequencyDays,
           equipmentJson: JSON.stringify(input.equipment),
           limitationsJson: JSON.stringify(legacySafety.limitations),
