@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "PhysioCoach AI — Complete End-to-End Backend Sequence",
+    "viewBox": [1080, 740],
+    "column_fit": "spread",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "onboarding-and-profile",
+        "label": "1. Intake & Considerations",
+        "focus": ["client", "api_gw", "intake_svc", "neon_db"],
+        "note": "Follow assessment intake, considerations resolution, and SHA-256 prompt hashing."
+      },
+      {
+        "id": "ai-synthesis-and-safety",
+        "label": "2. AI Synthesis & Safety Gate",
+        "focus": ["client", "api_gw", "plan_svc", "safety_svc", "neon_db"],
+        "note": "Follow plan generation, OpenRouter synthesis, contraindication evaluation, and zero-fallback audit."
+      },
+      {
+        "id": "workout-execution-and-swaps",
+        "label": "3. Workout Session & Swaps",
+        "focus": ["client", "api_gw", "session_svc", "neon_db"],
+        "note": "Follow session start, set performance logging with RPE, and biomechanical low-shear movement swaps."
+      },
+      {
+        "id": "pain-escalation-and-completion",
+        "label": "4. Pain Escalation & PT Triage",
+        "focus": ["session_svc", "coach_svc", "neon_db", "client"],
+        "note": "Observe how acute pain (painScore > 4) triggers clinical triage alerts and coach review."
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "React PWA",
+      "sublabel": "user device"
+    },
+    {
+      "id": "api_gw",
+      "type": "backend",
+      "label": "Express API",
+      "sublabel": "routes & auth"
+    },
+    {
+      "id": "intake_svc",
+      "type": "backend",
+      "label": "IntakeSvc",
+      "sublabel": "assessments"
+    },
+    {
+      "id": "plan_svc",
+      "type": "backend",
+      "label": "PlanEngine",
+      "sublabel": "OpenRouter"
+    },
+    {
+      "id": "safety_svc",
+      "type": "security",
+      "label": "SafetyGate",
+      "sublabel": "safety-rules"
+    },
+    {
+      "id": "session_svc",
+      "type": "backend",
+      "label": "SessionSvc",
+      "sublabel": "sets & logs"
+    },
+    {
+      "id": "coach_svc",
+      "type": "security",
+      "label": "CoachPT",
+      "sublabel": "pain triage"
+    },
+    {
+      "id": "neon_db",
+      "type": "database",
+      "label": "Neon Postgres",
+      "sublabel": "Hyperdrive"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 256,
+      "label": "1. Onboarding & Clinical Intake"
+    },
+    {
+      "from": 262,
+      "to": 398,
+      "label": "2. AI Plan Synthesis & Medical Safety Gate"
+    },
+    {
+      "from": 404,
+      "to": 512,
+      "label": "3. Active Workout, Swaps & Set Logs"
+    },
+    {
+      "from": 518,
+      "to": 570,
+      "label": "4. Acute Pain Escalation & PT Triage"
+    },
+    {
+      "from": 576,
+      "to": 656,
+      "label": "5. Session Completion & Telemetry"
+    }
+  ],
+  "messages": [
+    {
+      "id": "req-intake",
+      "from": "client",
+      "to": "api_gw",
+      "y": 160,
+      "label": "POST /assessments",
+      "variant": "emphasis"
+    },
+    {
+      "id": "norm-intake",
+      "from": "api_gw",
+      "to": "intake_svc",
+      "y": 188,
+      "label": "resolveAssessmentConsiderations()",
+      "variant": "default"
+    },
+    {
+      "id": "save-intake",
+      "from": "intake_svc",
+      "to": "neon_db",
+      "y": 216,
+      "label": "INSERT assessments (inputHash)",
+      "variant": "default"
+    },
+    {
+      "id": "res-intake",
+      "from": "intake_svc",
+      "to": "client",
+      "y": 244,
+      "label": "201 Created { assessmentId }",
+      "variant": "return"
+    },
+    {
+      "id": "req-plan",
+      "from": "client",
+      "to": "api_gw",
+      "y": 274,
+      "label": "POST /workout-plans/generate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "hash-check",
+      "from": "api_gw",
+      "to": "plan_svc",
+      "y": 302,
+      "label": "buildPlanInputHash(biometrics)",
+      "variant": "default"
+    },
+    {
+      "id": "safety-check",
+      "from": "plan_svc",
+      "to": "safety_svc",
+      "y": 330,
+      "label": "evaluateContraindications()",
+      "variant": "security"
+    },
+    {
+      "id": "save-plan",
+      "from": "plan_svc",
+      "to": "neon_db",
+      "y": 358,
+      "label": "INSERT workoutPlans & aiAuditLogs",
+      "variant": "emphasis"
+    },
+    {
+      "id": "res-plan",
+      "from": "plan_svc",
+      "to": "client",
+      "y": 386,
+      "label": "200 OK { workoutPlan, traceId }",
+      "variant": "return"
+    },
+    {
+      "id": "start-session",
+      "from": "client",
+      "to": "api_gw",
+      "y": 416,
+      "label": "POST /workout-sessions/start",
+      "variant": "default"
+    },
+    {
+      "id": "init-session",
+      "from": "api_gw",
+      "to": "session_svc",
+      "y": 444,
+      "label": "startWorkoutSession(planId)",
+      "variant": "default"
+    },
+    {
+      "id": "swap-alt",
+      "from": "session_svc",
+      "to": "neon_db",
+      "y": 472,
+      "label": "resolveAlternativeMovements(low shear)",
+      "variant": "default"
+    },
+    {
+      "id": "log-set",
+      "from": "client",
+      "to": "session_svc",
+      "y": 500,
+      "label": "patchExerciseLog(reps, weight, RPE)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pain-alert",
+      "from": "session_svc",
+      "to": "coach_svc",
+      "y": 530,
+      "label": "triggerPainAlert(painScore > 4)",
+      "variant": "security"
+    },
+    {
+      "id": "save-alert",
+      "from": "coach_svc",
+      "to": "neon_db",
+      "y": 558,
+      "label": "INSERT coachPainAlerts (triage)",
+      "variant": "security"
+    },
+    {
+      "id": "complete-session",
+      "from": "client",
+      "to": "session_svc",
+      "y": 588,
+      "label": "completeWorkoutSession(duration, sRPE)",
+      "variant": "default"
+    },
+    {
+      "id": "save-session",
+      "from": "session_svc",
+      "to": "neon_db",
+      "y": 616,
+      "label": "UPDATE workoutSessions (status=done)",
+      "variant": "default"
+    },
+    {
+      "id": "res-session",
+      "from": "session_svc",
+      "to": "client",
+      "y": 644,
+      "label": "200 OK { summary, adherence }",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "client",
+      "from": 160,
+      "to": 654,
+      "type": "frontend"
+    },
+    {
+      "participant": "api_gw",
+      "from": 160,
+      "to": 198,
+      "type": "backend"
+    },
+    {
+      "participant": "intake_svc",
+      "from": 188,
+      "to": 254,
+      "type": "backend"
+    },
+    {
+      "participant": "api_gw",
+      "from": 274,
+      "to": 312,
+      "type": "backend"
+    },
+    {
+      "participant": "plan_svc",
+      "from": 302,
+      "to": 396,
+      "type": "backend"
+    },
+    {
+      "participant": "safety_svc",
+      "from": 330,
+      "to": 368,
+      "type": "security"
+    },
+    {
+      "participant": "api_gw",
+      "from": 416,
+      "to": 454,
+      "type": "backend"
+    },
+    {
+      "participant": "session_svc",
+      "from": 444,
+      "to": 510,
+      "type": "backend"
+    },
+    {
+      "participant": "coach_svc",
+      "from": 530,
+      "to": 568,
+      "type": "security"
+    },
+    {
+      "participant": "session_svc",
+      "from": 588,
+      "to": 654,
+      "type": "backend"
+    },
+    {
+      "participant": "neon_db",
+      "from": 216,
+      "to": 244,
+      "type": "database"
+    },
+    {
+      "participant": "neon_db",
+      "from": 358,
+      "to": 386,
+      "type": "database"
+    },
+    {
+      "participant": "neon_db",
+      "from": 472,
+      "to": 500,
+      "type": "database"
+    },
+    {
+      "participant": "neon_db",
+      "from": 558,
+      "to": 586,
+      "type": "database"
+    },
+    {
+      "participant": "neon_db",
+      "from": 616,
+      "to": 644,
+      "type": "database"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Clinical PT Safety Standards",
+      "items": [
+        "evaluateContraindications() enforces strict zero-fallback policy on all AI workout plans",
+        "Acute pain ratings (painScore > 4) during set logging immediately trigger PT triage in coachPainAlerts",
+        "All queries and state updates execute directly through Neon PostgreSQL via Hyperdrive connection pooling"
+      ]
+    }
+  ]
+}

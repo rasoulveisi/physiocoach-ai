@@ -13,6 +13,10 @@ import {
 } from '../db/schema';
 import { createApiError, internalServerError, notFound, unauthorized } from '../shared/errors/api';
 import { runPlanAudit } from '../services/plan-audit';
+import {
+  evaluateCustomPlanSafety,
+  type UserSafetyProfileContext,
+} from '../services/custom-plan-evaluator';
 import { evaluatePlanPersonas } from '../services/persona-matching';
 import { findExplorePlanById } from '../types/explore';
 import { convertExplorePlanRowToDto } from './explore';
@@ -91,6 +95,38 @@ export const customPlanPayloadSchema = z.object({
   split: z.enum(['ppl', 'upper_lower', 'full_body', 'custom']),
   frequencyDays: z.number().int().min(1).max(7),
   days: z.array(customPlanDaySchema).min(1),
+});
+
+export const evaluateSafetyPayloadSchema = z.object({
+  days: z
+    .array(
+      z.object({
+        dayName: z.string(),
+        exercises: z.array(
+          z.object({
+            exerciseId: z.string().optional(),
+            exerciseName: z.string(),
+            movementPattern: z.string().optional(),
+            muscleGroups: z.array(z.string()).optional(),
+            sets: z.union([z.number(), z.array(z.unknown())]).optional(),
+          }),
+        ),
+      }),
+    )
+    .min(1),
+  split: z.string().optional(),
+  userContext: z
+    .object({
+      age: z.number().optional().nullable(),
+      sex: z.string().optional().nullable(),
+      experienceLevel: z.string().optional().nullable(),
+      lifestyle: z.string().optional().nullable(),
+      limitations: z.array(z.string()).optional().nullable(),
+      postureFlags: z.array(z.string()).optional().nullable(),
+      goals: z.array(z.string()).optional().nullable(),
+      equipment: z.array(z.string()).optional().nullable(),
+    })
+    .optional(),
 });
 
 export type CustomPlanPayload = z.infer<typeof customPlanPayloadSchema>;
@@ -1800,6 +1836,122 @@ export function createWorkoutPlanRoutes() {
       console.error('workout_plans.audit.error', error);
       return createApiError(c, 'internal_server_error', 'Safety audit failed.', {
         details: { traceId, auditLogId },
+      });
+    }
+  });
+
+  // ─── POST /workout-plans/evaluate-safety ─────────────────────────────────
+  // Evaluates a custom plan against user health profile in real-time.
+  // Returns AI safety score (0-100), status, plain-English summary, and 1-click issues.
+  route.post('/workout-plans/evaluate-safety', async (c) => {
+    const traceId = crypto.randomUUID();
+    const body = await c.req.json().catch(() => undefined);
+
+    if (!body || typeof body !== 'object') {
+      return createApiError(
+        c,
+        'invalid_request',
+        'Evaluate safety requires a valid JSON body with days.',
+        {
+          status: 409,
+          details: { traceId },
+        },
+      );
+    }
+
+    const parseResult = evaluateSafetyPayloadSchema.safeParse(body);
+    if (!parseResult.success) {
+      return createApiError(c, 'invalid_request', 'Malformed evaluate safety payload.', {
+        status: 409,
+        details: {
+          traceId,
+          issues: parseResult.error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+          })),
+        },
+      });
+    }
+
+    const { days, split, userContext: overrideContext } = parseResult.data;
+    const { user, db, env } = getApiRouteContext(c);
+
+    let resolvedProfile: UserSafetyProfileContext = overrideContext ?? {};
+
+    // Pull from DB if available and not completely provided in override
+    if (db && user?.id) {
+      try {
+        const [profileRow, assessmentRows] = await Promise.all([
+          getLatestProfileForUser(db, user.id),
+          db
+            .select()
+            .from(assessments)
+            .where(eq(assessments.userId, user.id))
+            .orderBy(desc(assessments.completedAt))
+            .limit(1),
+        ]);
+
+        const assessmentRow = assessmentRows[0];
+        let dbLimitations: string[] = [];
+        let dbPostureFlags: string[] = [];
+        let dbGoals: string[] = [];
+        let dbEquipment: string[] = [];
+
+        if (assessmentRow) {
+          try {
+            dbLimitations = JSON.parse(assessmentRow.limitationsJson);
+          } catch {
+            dbLimitations = [];
+          }
+          try {
+            dbPostureFlags = JSON.parse(assessmentRow.postureFlagsJson);
+          } catch {
+            dbPostureFlags = [];
+          }
+          try {
+            dbGoals = JSON.parse(assessmentRow.goalsJson);
+          } catch {
+            dbGoals = [];
+          }
+          try {
+            dbEquipment = JSON.parse(assessmentRow.equipmentJson);
+          } catch {
+            dbEquipment = [];
+          }
+        }
+
+        resolvedProfile = {
+          age: overrideContext?.age ?? profileRow?.age ?? 30,
+          sex: overrideContext?.sex ?? profileRow?.sex ?? 'unspecified',
+          experienceLevel:
+            overrideContext?.experienceLevel ?? profileRow?.experienceLevel ?? 'intermediate',
+          lifestyle: overrideContext?.lifestyle ?? profileRow?.lifestyle ?? 'moderate',
+          limitations: overrideContext?.limitations ?? dbLimitations,
+          postureFlags: overrideContext?.postureFlags ?? dbPostureFlags,
+          goals: overrideContext?.goals ?? dbGoals,
+          equipment: overrideContext?.equipment ?? dbEquipment,
+        };
+      } catch (err) {
+        console.warn('workout_plans.evaluate_safety.profile_fetch_warn', err);
+      }
+    }
+
+    try {
+      const provider = env ? createWorkoutPlanProvider(env) : null;
+      const result = await evaluateCustomPlanSafety({
+        userContext: resolvedProfile,
+        plan: { days, split },
+        provider,
+        db,
+        userId: user?.id ?? null,
+        traceId,
+      });
+
+      return c.json(result, 200);
+    } catch (error) {
+      console.error('workout_plans.evaluate_safety.error', error);
+      return createApiError(c, 'internal_server_error', 'Plan safety evaluation failed.', {
+        details: { traceId },
       });
     }
   });

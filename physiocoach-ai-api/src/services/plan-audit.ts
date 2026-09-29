@@ -53,8 +53,7 @@ interface PlanJson {
 
 const SPINAL_LOAD_PATTERNS = new Set(['hinge', 'squat', 'horizontal_push']);
 
-const HIGH_SHEAR_KEYWORDS = [
-  'leg press',
+const CRITICAL_SHEAR_KEYWORDS = [
   'hack squat',
   'upright row',
   'behind neck',
@@ -63,6 +62,10 @@ const HIGH_SHEAR_KEYWORDS = [
   'smith machine squat',
   'sissy squat',
 ];
+
+const PRECAUTION_SHEAR_KEYWORDS = ['leg press'];
+
+const HIGH_SHEAR_KEYWORDS = [...CRITICAL_SHEAR_KEYWORDS, ...PRECAUTION_SHEAR_KEYWORDS];
 
 const MAJOR_COMPOUND_MUSCLES = new Set(['chest', 'back', 'quads', 'hamstrings']);
 
@@ -82,7 +85,9 @@ function normPattern(p: string | undefined): string {
 }
 
 function normMuscle(m: string | undefined): string {
-  return (m || '').toLowerCase().replace(/[_\s]+/g, '_').trim();
+  const norm = (m || '').toLowerCase().replace(/[_\s]+/g, '_').trim();
+  if (norm === 'quadriceps') return 'quads';
+  return norm;
 }
 
 function normName(n: string | undefined): string {
@@ -289,11 +294,14 @@ function checkJointShearRisk(days: PlanDay[]): AuditCheck {
     return `"${name}" — high joint shear risk; consult physiotherapist before performing.`;
   });
 
+  const hasCritical = flaggedExercises.some((f) => CRITICAL_SHEAR_KEYWORDS.includes(f.keyword));
+  const severity: AuditSeverity = hasCritical ? 'critical' : 'warning';
+
   return {
     id: 'joint_shear_risk',
     name: 'Joint Shear Risk Assessment',
     passed: false,
-    severity: 'critical',
+    severity,
     message: `${flaggedExercises.length} high-shear risk exercise(s) detected: ${names.join(', ')}.`,
     fixSuggestion: guidance.join(' '),
   };

@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  AlertTriangle,
   Dumbbell,
   Flame,
   Info,
@@ -20,6 +21,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  ShieldAlert,
   ShieldCheck,
   Sliders,
   Sparkles,
@@ -36,6 +38,10 @@ import { Badge } from '../components/ui/Badge';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { SafetyAuditModal } from '../components/ui/SafetyAuditModal';
 import { apiClient } from '../services/api-client';
+import {
+  usePlanSafetyEvaluator,
+  type SafetyIssue,
+} from '../hooks/usePlanSafetyEvaluator';
 import {
   fetchCatalogExercises,
   type CatalogExerciseItem,
@@ -398,6 +404,76 @@ export function PlanBuilderPage() {
   // Safety Audit Modal
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
+  // Real-Time Dynamic AI Safety Evaluation
+  const {
+    safetyScore,
+    status: safetyStatus,
+    summary: safetySummary,
+    issues: safetyIssues,
+    isEvaluating: isEvaluatingSafety,
+    getIssuesForExercise,
+  } = usePlanSafetyEvaluator(days, split);
+
+  // Advisory Non-blocking Confirmation Modal State
+  const [showAdvisoryConfirmModal, setShowAdvisoryConfirmModal] = useState(false);
+
+  // 1-Click Apply Swap from AI Safety Warning
+  const handleApplySwap = (dayIdx: number, exIdx: number, issue: SafetyIssue) => {
+    if (!issue.suggestedExerciseName) return;
+    const targetDay = days[dayIdx];
+    if (!targetDay) return;
+    const targetEx = targetDay.exercises[exIdx];
+    if (!targetEx) return;
+
+    const updatedEx: PlanBuilderExercise = {
+      ...targetEx,
+      exerciseName: issue.suggestedExerciseName,
+      exerciseId:
+        issue.suggestedExerciseId ||
+        issue.suggestedExerciseName.toLowerCase().replace(/\s+/g, '-'),
+    };
+
+    const updatedExercises = [...targetDay.exercises];
+    updatedExercises[exIdx] = updatedEx;
+
+    const updatedDays = [...days];
+    updatedDays[dayIdx] = { ...targetDay, exercises: updatedExercises };
+    setDays(updatedDays);
+
+    setToast({
+      message: `Switched to ${issue.suggestedExerciseName}!`,
+      type: 'success',
+    });
+  };
+
+  // 1-Click Apply Set Reduction from AI Safety Warning
+  const handleApplyReduceSets = (dayIdx: number, exIdx: number, suggestedSets = 3) => {
+    const targetDay = days[dayIdx];
+    if (!targetDay) return;
+    const targetEx = targetDay.exercises[exIdx];
+    if (!targetEx) return;
+
+    if (targetEx.sets.length <= suggestedSets) return;
+
+    const updatedSets = targetEx.sets.slice(0, suggestedSets);
+    const updatedEx: PlanBuilderExercise = {
+      ...targetEx,
+      sets: updatedSets,
+    };
+
+    const updatedExercises = [...targetDay.exercises];
+    updatedExercises[exIdx] = updatedEx;
+
+    const updatedDays = [...days];
+    updatedDays[dayIdx] = { ...targetDay, exercises: updatedExercises };
+    setDays(updatedDays);
+
+    setToast({
+      message: `Reduced ${targetEx.exerciseName} to ${suggestedSets} sets!`,
+      type: 'success',
+    });
+  };
+
   // Switch Split Preset
   const handleSplitChange = (newSplit: SplitPreset) => {
     setSplit(newSplit);
@@ -716,8 +792,8 @@ export function PlanBuilderPage() {
     };
   }, [days]);
 
-  // Submit Plan to Backend
-  const handleSaveAndActivate = async () => {
+  // Submit Plan to Backend (Actual Persistence)
+  const executeSavePlan = async () => {
     if (!title.trim() || title.trim().length < 3) {
       setToast({ message: 'Please enter a plan title (at least 3 characters).', type: 'error' });
       return;
@@ -778,6 +854,16 @@ export function PlanBuilderPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Advisory Non-Blocking Save Trigger
+  const handleSaveAndActivate = async () => {
+    // If plan has safety recommendations, show friendly advisory prompt
+    if (safetyIssues.length > 0) {
+      setShowAdvisoryConfirmModal(true);
+      return;
+    }
+    await executeSavePlan();
   };
 
   // Publish Plan to Explore Hub
@@ -900,6 +986,75 @@ export function PlanBuilderPage() {
       {/* 2. MAIN NATURAL-SCROLL WORKSPACE */}
       <main className="flex-1 overflow-y-auto min-h-0 p-3.5 sm:p-6 pb-32 overscroll-contain">
         <div className="mx-auto max-w-5xl space-y-4">
+          {/* REAL-TIME AI SAFETY SCORE HUD BAR */}
+          <div className="rounded-2xl border border-zinc-800/80 bg-[#121722]/90 p-3.5 sm:p-4 shadow-sm backdrop-blur-sm transition-all">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {/* Score Number / Ring */}
+                <div
+                  className={`flex items-center justify-center size-11 sm:size-12 rounded-xl font-mono font-black text-base sm:text-lg border shrink-0 transition-colors ${
+                    safetyStatus === 'safe'
+                      ? 'bg-[#10E760]/10 border-[#10E760]/40 text-[#10E760]'
+                      : safetyStatus === 'caution'
+                        ? 'bg-[#F59E0B]/10 border-[#F59E0B]/40 text-[#F59E0B]'
+                        : 'bg-rose-500/10 border-rose-500/40 text-rose-400'
+                  }`}
+                >
+                  {safetyScore}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-zinc-400">
+                      AI Safety Evaluation
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        safetyStatus === 'safe'
+                          ? 'bg-[#10E760]/15 text-[#10E760]'
+                          : safetyStatus === 'caution'
+                            ? 'bg-[#F59E0B]/15 text-[#F59E0B]'
+                            : 'bg-rose-500/15 text-rose-400'
+                      }`}
+                    >
+                      {safetyStatus === 'safe' ? (
+                        <ShieldCheck className="h-3 w-3" />
+                      ) : safetyStatus === 'caution' ? (
+                        <AlertTriangle className="h-3 w-3" />
+                      ) : (
+                        <ShieldAlert className="h-3 w-3" />
+                      )}
+                      {safetyStatus === 'safe'
+                        ? 'Safe for Your Body'
+                        : safetyStatus === 'caution'
+                          ? 'Needs a Few Tweaks'
+                          : 'High Strain Risk'}
+                    </span>
+                    {isEvaluatingSafety && (
+                      <span className="text-[10px] font-mono text-zinc-500 animate-pulse">
+                        • Checking updates...
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-zinc-300 font-medium">
+                    {safetySummary}
+                  </p>
+                </div>
+              </div>
+
+              {safetyIssues.length > 0 && (
+                <div className="shrink-0 self-start sm:self-center">
+                  <span className="text-[11px] font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg inline-flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>
+                      {safetyIssues.length} recommendation{safetyIssues.length > 1 ? 's' : ''} below
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Collapsible Plan Settings & Volume Stats */}
           <div className="rounded-2xl border border-zinc-800/80 bg-[#121722]/80 overflow-hidden shadow-sm transition-all">
             <div
@@ -1135,6 +1290,51 @@ export function PlanBuilderPage() {
                           )}
                         </button>
                       </div>
+
+                      {/* Inline AI Safety Warning Badges with 1-Click Fix */}
+                      {getIssuesForExercise(selectedDayIndex, exIdx).map((issue, issueIdx) => (
+                        <div
+                          key={`safety_issue_${selectedDayIndex}_${exIdx}_${issueIdx}`}
+                          className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left animate-in fade-in duration-200"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="text-[11px] font-bold text-amber-300">
+                                Safety Note:
+                              </span>{' '}
+                              <span className="text-[11px] text-zinc-200">
+                                {issue.problemText}
+                              </span>
+                            </div>
+                          </div>
+
+                          {issue.actionType === 'SWAP' && issue.suggestedExerciseName && (
+                            <button
+                              type="button"
+                              onClick={() => handleApplySwap(selectedDayIndex, exIdx, issue)}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#10E760] text-zinc-950 font-bold text-[11px] hover:bg-[#10E760]/90 transition-all shrink-0 self-start sm:self-auto shadow-sm"
+                            >
+                              <ArrowLeftRight className="h-3 w-3" />
+                              <span>Switch to {issue.suggestedExerciseName}</span>
+                            </button>
+                          )}
+
+                          {issue.actionType === 'REDUCE_SETS' && issue.suggestedSets !== undefined && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleApplyReduceSets(selectedDayIndex, exIdx, issue.suggestedSets)
+                              }
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-400 text-zinc-950 font-bold text-[11px] hover:bg-amber-300 transition-all shrink-0 self-start sm:self-auto shadow-sm"
+                            >
+                              <Sliders className="h-3 w-3" />
+                              <span>Lower to {issue.suggestedSets} sets</span>
+                            </button>
+                          )}
+                        </div>
+                      ))}
 
                       {/* Bottom Row: Muscle/Pattern Badges & Action Toolbar */}
                       <div
@@ -1570,6 +1770,68 @@ export function PlanBuilderPage() {
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
           <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        </div>
+      )}
+
+      {/* Advisory Non-Blocking Save Confirmation Modal */}
+      {showAdvisoryConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-[#121722] p-5 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Routine Safety Check</h3>
+                <p className="text-xs text-zinc-400">
+                  {safetyIssues.length} recommendation{safetyIssues.length > 1 ? 's' : ''} for your
+                  joints
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed">{safetySummary}</p>
+
+            <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+              {safetyIssues.map((issue, idx) => (
+                <div
+                  key={`modal_issue_${idx}`}
+                  className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-2.5 text-xs space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-400">{issue.exerciseName}</span>
+                    <span className="text-[10px] font-mono uppercase text-zinc-500">
+                      Day {issue.dayIndex + 1}
+                    </span>
+                  </div>
+                  <p className="text-zinc-300">{issue.problemText}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowAdvisoryConfirmModal(false)}
+              >
+                Review Fixes
+              </Button>
+              <Button
+                type="button"
+                variant="volt"
+                size="sm"
+                loading={isSubmitting}
+                onClick={async () => {
+                  setShowAdvisoryConfirmModal(false);
+                  await executeSavePlan();
+                }}
+              >
+                Keep My Choices & Save
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
