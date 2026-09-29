@@ -7,6 +7,8 @@ export interface PreferencesState {
   setUnitSystem: (unit: UnitSystem) => void;
   defaultRestSeconds: number;
   setDefaultRestSeconds: (seconds: number) => void;
+  defaultSessionMinutes: number;
+  setDefaultSessionMinutes: (minutes: number) => void;
   soundEnabled: boolean;
   setSoundEnabled: (enabled: boolean) => void;
   voiceCuesEnabled: boolean;
@@ -22,6 +24,7 @@ export interface PreferencesState {
 const STORAGE_KEYS = {
   UNIT_SYSTEM: 'pc_unit_system',
   REST_SECONDS: 'pc_rest_timer_seconds',
+  SESSION_MINUTES: 'pc_session_minutes',
   SOUND_ENABLED: 'pc_sound_enabled',
   VOICE_CUES_ENABLED: 'pc_voice_cues_enabled',
   HAPTICS_ENABLED: 'pc_haptics_enabled',
@@ -38,6 +41,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [defaultRestSeconds, setDefaultRestSecondsState] = useState<number>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.REST_SECONDS);
     return saved ? Number(saved) : 90;
+  });
+
+  const [defaultSessionMinutes, setDefaultSessionMinutesState] = useState<number>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SESSION_MINUTES);
+    return saved ? Number(saved) : 45;
   });
 
   const [soundEnabled, setSoundEnabledState] = useState<boolean>(() => {
@@ -68,6 +76,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const setDefaultRestSeconds = (seconds: number) => {
     setDefaultRestSecondsState(seconds);
     localStorage.setItem(STORAGE_KEYS.REST_SECONDS, String(seconds));
+  };
+
+  const setDefaultSessionMinutes = (minutes: number) => {
+    setDefaultSessionMinutesState(minutes);
+    localStorage.setItem(STORAGE_KEYS.SESSION_MINUTES, String(minutes));
   };
 
   const setSoundEnabled = (enabled: boolean) => {
@@ -113,6 +126,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         setUnitSystem,
         defaultRestSeconds,
         setDefaultRestSeconds,
+        defaultSessionMinutes,
+        setDefaultSessionMinutes,
         soundEnabled,
         setSoundEnabled,
         voiceCuesEnabled,

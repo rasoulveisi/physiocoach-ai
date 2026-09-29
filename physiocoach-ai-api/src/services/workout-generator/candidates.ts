@@ -71,6 +71,7 @@ function normalizeDbMovementPattern(raw: string | null | undefined): string | un
   const p = raw.trim().toLowerCase();
   if (p === 'horizontal_push' || p === 'vertical_push') return 'push';
   if (p === 'horizontal_pull' || p === 'vertical_pull') return 'pull';
+  if (p === 'isolation') return 'isolation';
   return p;
 }
 
@@ -88,6 +89,7 @@ const BALANCED_CANDIDATE_QUOTAS: Record<WorkoutPlanMovementPattern, number> = {
   carry: 15,
   core: 15,
   mobility: 15,
+  isolation: 20,
 };
 
 export const BODYWEIGHT_EQUIPMENT_IDS = new Set([
@@ -127,7 +129,20 @@ export const CATALOG_EQUIPMENT_TOKENS_BY_ASSESSMENT_VALUE: Record<string, readon
     'gym_mat',
     'mat',
   ],
-  resistance_bands: ['resistance_band', 'resistance_bands', 'band', 'bands'],
+  resistance_bands: ['resistance_band', 'resistance_bands', 'band', 'bands', 'loop_band'],
+  resistance_band: ['resistance_band', 'resistance_bands', 'band', 'bands', 'loop_band'],
+  barbell: ['barbell', 'olympic_barbell', 'squat_rack'],
+  dumbbells: ['dumbbell', 'dumbbells'],
+  dumbbell: ['dumbbell', 'dumbbells'],
+  bench: ['bench', 'flat_bench', 'incline_bench'],
+  cable_machine: ['cable', 'cables', 'cable_machine', 'pulley'],
+  cable: ['cable', 'cables', 'cable_machine', 'pulley'],
+  kettlebells: ['kettlebell', 'kettlebells'],
+  kettlebell: ['kettlebell', 'kettlebells'],
+  pull_up_bar: ['pull_up_bar', 'chin_up_bar', 'bodyweight', 'bar'],
+  squat_rack: ['squat_rack', 'power_rack', 'rack', 'barbell'],
+  leg_press_machine: ['leg_press', 'leg_press_machine', 'machine', 'sled'],
+  machine: ['machine', 'cable_machine', 'leg_press_machine'],
 };
 
 export function normalizeText(value: string | undefined | null): string {
@@ -283,6 +298,7 @@ const DEFAULT_MOVEMENT_PATTERN_NEEDS: readonly WorkoutPlanMovementPattern[] = [
   'lunge',
   'core',
   'mobility',
+  'isolation',
 ];
 
 export function deriveMovementPatternNeeds(): WorkoutPlanMovementPattern[] {

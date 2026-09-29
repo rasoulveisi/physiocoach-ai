@@ -174,7 +174,7 @@ export function createProfileRoutes() {
           context.db.insert(assessments).values({
             id: `assessment_${crypto.randomUUID()}`,
             userId: context.user.id,
-            goalsJson: JSON.stringify(['strength']),
+            goalsJson: JSON.stringify({ goals: ['strength'] }),
             frequencyDays: 3,
             equipmentJson: JSON.stringify(raw.availableEquipment),
             limitationsJson: JSON.stringify([]),

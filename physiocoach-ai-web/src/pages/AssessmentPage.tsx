@@ -16,6 +16,7 @@ import { Toast } from '../components/ui/Toast';
 import { Badge } from '../components/ui/Badge';
 import { Tooltip } from '../components/ui/Tooltip';
 import { apiClient } from '../services/api-client';
+import { usePreferences } from '../context/PreferencesContext';
 
 // Quick Start Clinical Archetypes
 const ARCHETYPES = [
@@ -160,12 +161,13 @@ const GOAL_OPTIONS = [
 ];
 
 export function AssessmentPage() {
+  const { defaultSessionMinutes } = usePreferences();
   const [currentSlide, setCurrentSlide] = useState<number>(1);
   const totalSlides = 6;
 
   const [selectedArchetype, setSelectedArchetype] = useState<string>('posture_desk');
   const [frequencyDays, setFrequencyDays] = useState<number>(3);
-  const [sessionMinutes, setSessionMinutes] = useState<number>(45);
+  const [sessionMinutes, setSessionMinutes] = useState<number>(defaultSessionMinutes || 45);
   const [selectedGoals, setSelectedGoals] = useState<string[]>(['posture_improvement', 'strength']);
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>(['full_gym']);
 
@@ -198,9 +200,14 @@ export function AssessmentPage() {
 
       const a = assessRes?.data || assessRes;
       if (a) {
+        if (typeof a.archetype === 'string') setSelectedArchetype(a.archetype);
         if (Array.isArray(a.goals) && a.goals.length > 0) setSelectedGoals(a.goals);
         if (typeof a.frequencyDays === 'number') setFrequencyDays(a.frequencyDays);
-        if (typeof a.sessionMinutes === 'number') setSessionMinutes(a.sessionMinutes);
+        if (typeof a.sessionMinutes === 'number') {
+          setSessionMinutes(a.sessionMinutes);
+        } else if (defaultSessionMinutes) {
+          setSessionMinutes(defaultSessionMinutes);
+        }
         if (Array.isArray(a.equipment) && a.equipment.length > 0) setSelectedEquipment(a.equipment);
         if (Array.isArray(a.considerations) && a.considerations.length > 0) {
           const preloadedPains: Record<string, { severity: 'mild' | 'moderate' | 'severe'; side: any }> = {};
@@ -216,9 +223,11 @@ export function AssessmentPage() {
             setActivePains(preloadedPains);
           }
         }
+      } else if (defaultSessionMinutes) {
+        setSessionMinutes(defaultSessionMinutes);
       }
     });
-  }, []);
+  }, [defaultSessionMinutes]);
 
   const handleNext = () => {
     if (currentSlide < totalSlides) {
@@ -338,13 +347,10 @@ export function AssessmentPage() {
           postureCodes.has(code),
         );
 
-      const allowedEquipment = ['full_gym', 'home_gym', 'dumbbells_only', 'resistance_bands'] as const;
-      const validEquipment = selectedEquipment.filter((e): e is (typeof allowedEquipment)[number] =>
-        allowedEquipment.includes(e as any),
-      );
-      const finalEquipment = validEquipment.length > 0 ? validEquipment : ['full_gym' as const];
+      const finalEquipment = selectedEquipment.length > 0 ? selectedEquipment : ['full_gym'];
 
       const assessmentPayload = {
+        archetype: selectedArchetype,
         goals: selectedGoals.length > 0 ? selectedGoals : ['strength'],
         frequencyDays: Math.min(5, Math.max(2, frequencyDays)),
         sessionMinutes,
@@ -368,6 +374,7 @@ export function AssessmentPage() {
           experienceLevel: profileData.experienceLevel || 'intermediate',
         },
         assessment: assessmentPayload,
+        archetype: selectedArchetype,
       });
 
       navigate('/plan');

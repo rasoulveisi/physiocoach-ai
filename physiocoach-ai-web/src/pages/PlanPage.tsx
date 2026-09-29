@@ -40,6 +40,7 @@ import { resolveExerciseSafetyNotes } from '../services/exercise-safety-notes';
 import { apiClient } from '../services/api-client';
 import { usePreferences } from '../context/PreferencesContext';
 import { calculateProgressiveOverload } from '../services/progressive-overload';
+import { calculateWorkoutDayDurationMinutes } from '../services/workout-duration';
 
 export interface WorkoutExerciseView {
   id?: string;
@@ -59,6 +60,7 @@ export interface WorkoutDayView {
   dayNumber: number;
   name: string;
   focus: string;
+  estimatedDurationMinutes?: number;
   exercises: WorkoutExerciseView[];
 }
 
@@ -362,14 +364,11 @@ export function PlanPage() {
       const profileRes = await apiClient.get<any>('profile');
       const profile = profileRes?.data || null;
 
-      const allowedEquipment = ['full_gym', 'home_gym', 'dumbbells_only', 'resistance_bands'] as const;
-      const rawEquipment = assessment?.equipment || profile?.availableEquipment || ['full_gym'];
-      const validEquipment = Array.isArray(rawEquipment)
-        ? rawEquipment.filter((e: string): e is (typeof allowedEquipment)[number] =>
-            allowedEquipment.includes(e as any),
-          )
-        : [];
-      const finalEquipment = validEquipment.length > 0 ? validEquipment : ['full_gym' as const];
+      const rawEquipment = (assessment?.equipment && assessment.equipment.length > 0)
+        ? assessment.equipment
+        : (profile?.availableEquipment && profile.availableEquipment.length > 0)
+        ? profile.availableEquipment
+        : ['full_gym'];
 
       const res = await apiClient.post<any>('workout-plans/generate', {
         profile: {
@@ -384,7 +383,7 @@ export function PlanPage() {
           archetype: assessment?.archetype || 'powerbuilding_hypertrophy',
           frequencyDays: assessment?.frequencyDays || 4,
           sessionMinutes: assessment?.sessionMinutes || 60,
-          equipment: finalEquipment,
+          equipment: rawEquipment,
           limitations: assessment?.limitations || [],
           postureFlags: assessment?.postureFlags || [],
           goals: assessment?.goals || ['muscle_gain', 'strength', 'posture_improvement'],
@@ -626,12 +625,8 @@ export function PlanPage() {
                       const dayExercises = day.exercises || [];
                       const totalExercises = dayExercises.length;
                       const totalSets = dayExercises.reduce((sum, ex) => sum + (ex.sets || 0), 0);
-
-                      const totalRestSeconds = dayExercises.reduce((sum, ex) => sum + (ex.sets || 3) * (ex.restSeconds || 60), 0);
-                      const totalWorkSeconds = dayExercises.reduce((sum, ex) => sum + (ex.sets || 3) * 45, 0);
-                      const transitionSeconds = dayExercises.length * 90;
-                      const warmupSeconds = 300;
-                      const estMinutes = Math.round((totalRestSeconds + totalWorkSeconds + transitionSeconds + warmupSeconds) / 60) || 45;
+                      const estMinutes =
+                        day.estimatedDurationMinutes || calculateWorkoutDayDurationMinutes(day) || 45;
 
                       const targetMuscles = Array.from(
                         new Set(dayExercises.map((ex) => ex.muscleGroup || ex.movementPattern).filter(Boolean)),

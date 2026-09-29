@@ -39,6 +39,8 @@ import {
 } from './workout-generator/candidates';
 import {
   buildWorkoutPlanPrompt,
+  getDaySlotBlueprint,
+  getDayTrainingType,
   getPromptCandidateTargets,
 } from './workout-generator/prompt-builder';
 import {
@@ -46,6 +48,7 @@ import {
   leanAiWorkoutPlanSchema,
   uniqueUserVisibleWarnings,
   validateAiGenerationQuality,
+  validateBlueprintSlotFeasibility,
 } from './workout-generator/plan-hydration';
 import { WorkoutPlanGenerationError } from './workout-generator/errors';
 
@@ -53,7 +56,7 @@ export { type AssessmentInput, type ProfileInput, generatePlanInputSchema, type 
 export { buildPlanInputHash, buildWorkoutPlanContext, mapPostureFlags };
 export { buildWorkoutPlanModelConfig, createWorkoutPlanProvider };
 export { buildWorkoutPlanRecord, parseWorkoutPlanRecord, parseWorkoutPlanRecordOrError };
-export { loadCatalogCandidatesFromDb, buildCandidateExerciseSet, hydratePlanFromCatalog };
+export { loadCatalogCandidatesFromDb, buildCandidateExerciseSet, hydratePlanFromCatalog, validateBlueprintSlotFeasibility };
 export { WorkoutPlanGenerationError };
 export type { CatalogCandidate };
 export { z };
@@ -215,12 +218,34 @@ export async function generateWorkoutPlanWithSafety(
     );
   }
 
-  const candidateTargets = getPromptCandidateTargets(context.frequencyDays);
+  const candidateTargets = getPromptCandidateTargets(
+    context.frequencyDays,
+    context.sessionMinutes,
+  );
   if (candidateBuild.candidates.length < candidateTargets.minimumPromptCandidateCount) {
     console.warn('workout_plan.catalog_candidate_pool.below_target', {
       compatibleCandidates: candidateBuild.candidates.length,
       minimumPromptCandidateCount: candidateTargets.minimumPromptCandidateCount,
     });
+  }
+
+  const blueprints = Array.from({ length: context.frequencyDays }, (_, dayIndex) => {
+    const dayNumber = dayIndex + 1;
+    const dayType = getDayTrainingType(dayNumber, context.frequencyDays);
+    return getDaySlotBlueprint(dayType, dayNumber, context.sessionMinutes);
+  });
+
+  const feasibility = validateBlueprintSlotFeasibility(blueprints, candidateBuild.candidates);
+  if (!feasibility.ok) {
+    throw new WorkoutPlanGenerationError(
+      'Candidate pool cannot satisfy all required workout day slots.',
+      {
+        reason: 'insufficient_safe_candidates',
+        issues: feasibility.missingSlots.map(
+          (s) => `Day ${s.dayIndex} Slot ${s.slot} (${s.label}) has no eligible safe candidates.`,
+        ),
+      },
+    );
   }
 
   let lastError: unknown;
@@ -268,6 +293,7 @@ export async function generateWorkoutPlanWithSafety(
       const catalogValidation = hydratePlanFromCatalog(
         response.payload,
         promptValidationCandidates,
+        context,
       );
       if (!catalogValidation.ok) {
         throw new WorkoutPlanGenerationError(
