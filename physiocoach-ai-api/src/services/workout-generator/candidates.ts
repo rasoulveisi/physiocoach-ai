@@ -61,6 +61,20 @@ const WORKOUT_PLAN_EXPERIENCE_ORDER: Record<ExperienceLevel, number> = {
 const VALID_MOVEMENT_PATTERNS = new Set(WORKOUT_PLAN_MOVEMENT_PATTERNS);
 
 /**
+ * The exercise catalog DB stores directional push/pull variants
+ * ('horizontal_push', 'vertical_push', 'horizontal_pull', 'vertical_pull')
+ * but the AI workout plan contract only uses the consolidated 'push' / 'pull'
+ * values. Collapse them here so they aren't silently dropped.
+ */
+function normalizeDbMovementPattern(raw: string | null | undefined): string | undefined {
+  if (!raw) return undefined;
+  const p = raw.trim().toLowerCase();
+  if (p === 'horizontal_push' || p === 'vertical_push') return 'push';
+  if (p === 'horizontal_pull' || p === 'vertical_pull') return 'pull';
+  return p;
+}
+
+/**
  * Per-pattern candidate caps for balanced multi-pattern sampling so push/pull
  * stay strongly represented alongside squat/hinge instead of being crowded out
  * by a single dominant pattern in the catalog.
@@ -505,7 +519,7 @@ export async function loadCatalogCandidatesFromDb(
       continue;
     }
 
-    const movementPattern = row.movementPattern;
+    const movementPattern = normalizeDbMovementPattern(row.movementPattern);
     if (
       !movementPattern ||
       !VALID_MOVEMENT_PATTERNS.has(movementPattern as WorkoutPlanMovementPattern)

@@ -30,50 +30,51 @@ interface OpenRouterChatCompletionResponse {
 
 export const DEFAULT_WORKOUT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
-export const DEFAULT_WORKOUT_TIMEOUT_MS = 15_000;
+export const DEFAULT_WORKOUT_TIMEOUT_MS = 90_000;
 export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
 export const ALLOWED_WORKOUT_MODELS = [
+  // Free primary — confirmed working (~28s response, cost=0)
   'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'inclusionai/ling-3.0-flash-sante:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
+  // Gemini API (low-cost/free gemma) — confirmed working via GEMINI_API_KEY
+  'google/gemma-4-26b-a4b-it',
+  'google/gemma-4-31b-it',
+  // Paid — confirmed working
+  'meta-llama/llama-3.3-70b-instruct',
+  'meta-llama/llama-3.1-8b-instruct',
+  'google/gemini-2.5-flash',
+  'deepseek/deepseek-chat',
+  'qwen/qwen-2.5-72b-instruct',
+  // Free — confirmed or likely working
   'nvidia/nemotron-3.5-lightning:free',
-  'google/gemma-4-31b-it:free',
   'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-4-31b-it:free',
   'qwen/qwen3.8-27b:free',
   'openrouter/free',
   'liquid/lfm-2.5-2.6b:free',
-  'z-ai/glm-5.2:free',
-  'minimax/minimax-m3:free',
-  'minimax/minimax-m3',
+  'poolside/laguna-s-2.1:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free',
+  // Free — variants used in dev/testing
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemma-2-9b-it:free',
+  'google/gemini-2.0-flash-exp:free',
+  // Gemini direct (Google AI provider)
   'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
   'gemini-3.5-flash',
   'gemini-3.1-flash-lite',
   'gemini-3.1-pro',
-  'google/gemini-2.0-flash-001',
-  'google/gemini-2.5-flash',
   'google/gemini-flash-1.5',
-  'google/gemini-2.0-flash-exp:free',
-  'google/gemma-2-9b-it:free',
-  'meta-llama/llama-3.1-8b-instruct',
-  'meta-llama/llama-3.1-8b-instruct:free',
-  'meta-llama/llama-3.3-70b-instruct',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'nvidia/nemotron-3-nano-30b-a3b:free',
-  'poolside/laguna-s-2.1:free',
-  'deepseek/deepseek-chat',
-  'qwen/qwen-2.5-72b-instruct',
 ] as const;
 export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
-  'inclusionai/ling-3.0-flash-sante:free',
+  'google/gemma-4-26b-a4b-it',   // Gemini API — confirmed working, fast
+  'google/gemma-4-31b-it',        // Gemini API — confirmed working
+  'meta-llama/llama-3.3-70b-instruct',
+  'google/gemini-2.5-flash',
+  'deepseek/deepseek-chat',
   'nvidia/nemotron-3.5-lightning:free',
-  'google/gemma-4-31b-it:free',
   'openrouter/free',
-  'google/gemma-4-26b-a4b-it:free',
-  'qwen/qwen3.8-27b:free',
-  'minimax/minimax-m3:free',
-  'liquid/lfm-2.5-2.6b:free',
 ] as const;
 export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([...ALLOWED_WORKOUT_MODELS]);
 export const WORKOUT_MODEL_ALLOWLIST = new Set<string>(ALLOWED_WORKOUT_MODELS);
@@ -199,7 +200,9 @@ export function createWorkoutPlanProvider(env: Partial<WorkoutPlanProviderConfig
   });
 
   const isGoogleNativeModel = (model: string) =>
-    model.startsWith('gemini-') || (model.startsWith('gemma-') && !model.includes('/'));
+    model.startsWith('gemini-') ||
+    model.startsWith('gemma-') ||
+    model.startsWith('google/gemma-');
 
   async function generateStructured<T>(
     request: GenerateStructuredRequest<T>,
@@ -565,12 +568,15 @@ function createGoogleAIStudioProvider(config: {
       });
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
+      const isGemmaModel = model.startsWith('gemma-') || model.startsWith('google/gemma-');
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: request.prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' },
+          system_instruction: { parts: [{ text: WORKOUT_PLAN_SYSTEM_PROMPT }] },
+          contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
+          // gemma-4 does not support responseMimeType — omit it for gemma models
+          ...(!isGemmaModel ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
         }),
         ...(controller ? { signal: controller.signal } : {}),
       });
@@ -588,7 +594,7 @@ function createGoogleAIStudioProvider(config: {
       const data = (await response.json()) as {
         candidates?: Array<{
           content?: {
-            parts?: Array<{ text?: string }>;
+            parts?: Array<{ text?: string; thought?: boolean }>;
           };
         }>;
         usageMetadata?: {
@@ -598,7 +604,10 @@ function createGoogleAIStudioProvider(config: {
         };
       };
 
-      const contentText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      // Gemma returns thinking parts (thought:true) before the answer — skip them
+      const parts = data.candidates?.[0]?.content?.parts ?? [];
+      const contentText =
+        parts.find((p) => !p.thought && p.text)?.text ?? parts[0]?.text;
       if (!contentText) {
         throw new Error('Google AI Studio response contained no text content.');
       }
