@@ -567,8 +567,10 @@ function createGoogleAIStudioProvider(config: {
         timeoutMs,
       });
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
       const isGemmaModel = model.startsWith('gemma-') || model.startsWith('google/gemma-');
+      // Strip 'google/' prefix — the API path only accepts the bare model name
+      const apiModelName = model.startsWith('google/') ? model.slice('google/'.length) : model;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${apiModelName}:generateContent?key=${config.apiKey}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
