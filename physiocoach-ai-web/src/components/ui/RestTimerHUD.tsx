@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, FastForward, Volume2, VolumeX, Mic, MicOff } from 'lucide-react';
+import { Play, Pause, FastForward, Volume2, VolumeX, Mic, MicOff, Timer, Check } from 'lucide-react';
 import { Button } from './Button';
 import { soundCueService } from '../../services/sound-cue-service';
 import { usePreferences } from '../../context/PreferencesContext';
@@ -131,7 +131,7 @@ export function RestTimerHUD({
       {/* Top Row: Timer Display + Sound & Voice Toggles */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3.5 sm:gap-4">
-          <div className="relative size-16 sm:size-20 shrink-0">
+          <div className="relative size-14 sm:size-16 shrink-0">
             <svg className="size-full -rotate-90" viewBox="0 0 100 100">
               <circle
                 cx="50"
@@ -156,25 +156,26 @@ export function RestTimerHUD({
               />
             </svg>
 
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-mono text-xs sm:text-sm font-black text-white tabular-nums">
-                {timeDisplay}
-              </span>
-              <span className="text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider text-zinc-400">
-                {isFinished ? 'Done' : isRunning ? 'Rest' : 'Paused'}
-              </span>
+            <div className="absolute inset-0 flex items-center justify-center">
+              {isFinished ? (
+                <Check className="h-6 w-6 text-lime-400 stroke-[3]" />
+              ) : isRunning ? (
+                <Timer className="h-6 w-6 text-lime-400 animate-pulse" />
+              ) : (
+                <Pause className="h-6 w-6 text-amber-400" />
+              )}
             </div>
           </div>
 
-          <div>
-            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-lime-400">
-              Rest Interval
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-lime-400">
+              {isFinished ? 'Complete' : isRunning ? 'Rest' : 'Paused'}
             </span>
-            <h4 className="font-mono text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
+            <h4 className="font-mono text-2xl sm:text-3xl font-black tracking-tight text-white tabular-nums my-0.5 leading-none">
               {timeDisplay}
             </h4>
-            <p className="text-[11px] sm:text-xs text-zinc-400">
-              {nextExerciseName ? `Up next: ${nextExerciseName}` : 'Recovery before next set'}
+            <p className="text-[11px] sm:text-xs text-zinc-400 capitalize truncate max-w-[190px] sm:max-w-xs">
+              {nextExerciseName ? `Next: ${nextExerciseName}` : 'Rest between sets'}
             </p>
           </div>
         </div>

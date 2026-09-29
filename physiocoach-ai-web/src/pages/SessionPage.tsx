@@ -465,11 +465,11 @@ export function SessionPage() {
             <div className="flex items-center gap-2">
               <WifiOff className="h-4 w-4 text-amber-400 shrink-0" />
               <span className="font-bold">
-                ⚡ Offline Gym Mode {!isOnline ? '(Will sync when connected)' : '(Connected)'}
+                ⚡ Offline {!isOnline ? '(Sync when connected)' : '(Connected)'}
               </span>
               {pendingSyncCount > 0 && (
                 <span className="rounded-full bg-amber-400/20 px-2 py-0.5 font-mono text-[10px] font-black text-amber-300 border border-amber-400/40">
-                  {pendingSyncCount} {pendingSyncCount === 1 ? 'item' : 'items'} queued
+                  {pendingSyncCount} queued
                 </span>
               )}
             </div>
@@ -483,7 +483,7 @@ export function SessionPage() {
                 loading={isSyncing}
                 className="h-7 border-amber-400/40 bg-amber-950/40 text-[11px] font-black text-amber-200 hover:border-amber-400"
               >
-                <RefreshCw className="h-3 w-3 mr-1" /> Sync Now
+                <RefreshCw className="h-3 w-3 mr-1" /> Sync
               </Button>
             )}
           </div>
@@ -574,7 +574,7 @@ export function SessionPage() {
           <div className="space-y-1.5 pt-1">
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="text-zinc-400 font-bold">
-                {completedSets} of {totalSets} Sets Complete
+                {completedSets}/{totalSets} Sets
               </span>
               <span className="text-[#10E760] font-black">{progressPercent}%</span>
             </div>
@@ -608,17 +608,17 @@ export function SessionPage() {
                 </div>
                 <div>
                   <h3 className="text-xs sm:text-sm font-extrabold text-white">
-                    Pre-Workout Warm-up & Joint Safeguards
+                    Warm-up & Mobility
                   </h3>
                   <p className="text-[10px] font-mono text-zinc-400">
-                    Clinical mobility drills tailored to your injury history (Optional)
+                    Optional drills (3 min)
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0 text-zinc-400">
                 <span className="text-[11px] font-bold hidden sm:inline">
-                  {isPrehabOpen ? 'Hide Drills' : 'View Drills'}
+                  {isPrehabOpen ? 'Hide' : 'View'}
                 </span>
                 {isPrehabOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
               </div>
@@ -803,23 +803,20 @@ export function SessionPage() {
                   <div className="border-t border-zinc-800/80 bg-[#090D15]/60 p-3 sm:p-4 space-y-3 animate-in fade-in duration-150">
                     {/* Progressive Overload Recommendation Chip */}
                     {overloadRec.isApplicable && (
-                      <div className="flex items-center justify-between gap-2 rounded-xl border border-zinc-800/90 bg-[#121722] p-2 sm:p-2.5">
-                        <div className="min-w-0 flex-1">
-                          <span
-                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg ${
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-zinc-800/90 bg-[#121722] px-3 py-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Zap
+                            className={`h-3.5 w-3.5 shrink-0 ${
                               overloadRec.badgeVariant === 'amber'
-                                ? 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
+                                ? 'text-amber-400'
                                 : overloadRec.badgeVariant === 'lime'
-                                ? 'bg-[#10E760]/15 text-[#10E760] border border-[#10E760]/30'
-                                : 'bg-cyan-400/15 text-cyan-300 border border-cyan-400/30'
+                                ? 'text-[#10E760]'
+                                : 'text-cyan-400'
                             }`}
-                          >
-                            <Zap className="h-3 w-3" />
+                          />
+                          <span className="font-mono text-xs font-bold text-zinc-200 truncate">
                             {overloadRec.chipLabel}
                           </span>
-                          <p className="mt-0.5 text-[10px] font-mono text-zinc-400 truncate">
-                            {overloadRec.reason}
-                          </p>
                         </div>
 
                         <Button
@@ -827,9 +824,9 @@ export function SessionPage() {
                           size="xs"
                           variant={overloadRec.type === 'deload' ? 'outline' : 'volt'}
                           onClick={() => handleApplyOverload(exIdx, overloadRec)}
-                          className="font-bold text-[10px] h-7 px-2.5 shrink-0"
+                          className="font-bold text-xs h-7 px-3 shrink-0"
                         >
-                          {overloadRec.buttonLabel}
+                          Apply
                         </Button>
                       </div>
                     )}
@@ -840,7 +837,7 @@ export function SessionPage() {
                       <div className="grid grid-cols-12 gap-1.5 sm:gap-2 px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 items-center">
                         <div className="col-span-1 text-center">#</div>
                         <div className="col-span-3 sm:col-span-2">Type</div>
-                        <div className="col-span-3 sm:col-span-3 text-center sm:text-left">Previous</div>
+                        <div className="col-span-3 sm:col-span-3 text-center sm:text-left">Prev</div>
                         <div className="col-span-2 sm:col-span-2 text-center">
                           {unitSystem === 'metric' ? 'Kg' : 'Lb'}
                         </div>
@@ -975,8 +972,9 @@ export function SessionPage() {
                             setActiveExIdx(exIdx + 1);
                           }}
                           className="text-xs font-bold"
+                          title={`Next: ${exercises[exIdx + 1]?.name}`}
                         >
-                          <span>Next: {exercises[exIdx + 1]?.name}</span>
+                          <span>Next Lift</span>
                           <ArrowRight className="h-3.5 w-3.5 ml-1" />
                         </Button>
                       )}
@@ -998,7 +996,7 @@ export function SessionPage() {
             disabled={!completedSets}
             className="w-full py-4 sm:py-5 text-sm sm:text-base font-black shadow-lg shadow-[#10E760]/20"
           >
-            <PartyPopper className="h-5 w-5 mr-1.5" /> Finish Workout ({completedSets}/{totalSets} Sets)
+            <PartyPopper className="h-5 w-5 mr-1.5" /> Finish Workout
           </Button>
         </div>
 
@@ -1138,12 +1136,12 @@ export function SessionPage() {
                 <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 space-y-2.5 mt-2 animate-fade-in">
                   <div className="flex items-center gap-1.5 text-red-400 font-extrabold text-xs">
                     <ShieldAlert className="size-4 shrink-0" />
-                    <span>⚠️ High-Priority Pain Spike Detected</span>
+                    <span>⚠️ Pain Spike Alert</span>
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
-                      Specify Joint Region
+                      Joint Region
                     </label>
                     <div className="flex flex-wrap gap-1">
                       {[
@@ -1174,7 +1172,7 @@ export function SessionPage() {
                   <div>
                     <input
                       type="text"
-                      placeholder="Optional brief note for coach (e.g. sharp pinch during bottom eccentric)..."
+                      placeholder="Optional brief note..."
                       value={painNotes}
                       onChange={(e) => setPainNotes(e.target.value)}
                       className="w-full rounded-xl border border-zinc-800 bg-[#090D15] px-3 py-1.5 text-xs font-medium text-white placeholder:text-zinc-600 focus:border-red-400 focus:outline-none"

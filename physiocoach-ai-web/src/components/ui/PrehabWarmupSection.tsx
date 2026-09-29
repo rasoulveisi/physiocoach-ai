@@ -192,19 +192,19 @@ export function PrehabWarmupSection({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-sm font-black uppercase tracking-wider text-white">
-                Smart Warm-up & Prehab
+                Warm-up & Prehab
               </h2>
               {isAllCompleted && (
                 <Badge variant="volt" pill className="animate-pulse shadow-sm font-extrabold text-[10px]">
                   <Sparkles className="mr-1 h-3 w-3" />
-                  JOINTS PRIMED
+                  PRIMED
                 </Badge>
               )}
             </div>
             <p className="text-xs text-zinc-400">
               {routine
-                ? `${completedCount}/${totalCount} Prehab Drills Completed (${totalMinutes} Min Routine)`
-                : 'Dynamic mobility & joint activation matched to your session lifts.'}
+                ? `${completedCount}/${totalCount} completed (${totalMinutes} min)`
+                : 'Mobility matched to your lifts.'}
             </p>
           </div>
         </div>
@@ -238,10 +238,10 @@ export function PrehabWarmupSection({
             </div>
 
             <h3 className="text-base font-extrabold text-white">
-              Prime Target Joints & Muscles
+              Prime Your Joints
             </h3>
             <p className="mt-1 max-w-md text-xs text-zinc-400">
-              Generate a 3-minute mobility routine matched to your session lifts.
+              Quick 3-min mobility prep before lifting.
             </p>
 
             <div className="mt-4">
@@ -253,7 +253,7 @@ export function PrehabWarmupSection({
                 onClick={handleGenerateRoutine}
                 className="font-black px-5 shadow-lg shadow-lime-400/20"
               >
-                <Zap className="mr-1.5 h-4 w-4 fill-current" /> Generate 3-Min Mobility Routine
+                <Zap className="mr-1.5 h-4 w-4 fill-current" /> Start Warm-up (3 min)
               </Button>
             </div>
           </div>
@@ -266,7 +266,7 @@ export function PrehabWarmupSection({
             {targetJoints.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 pb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 mr-1">
-                  Target Capsules:
+                  Targets:
                 </span>
                 {targetJoints.map((joint) => (
                   <Badge key={joint} variant="cyan" pill className="text-[10px]">
@@ -417,10 +417,10 @@ export function PrehabWarmupSection({
                   <ShieldCheck className="h-5 w-5 stroke-[2.5]" />
                   <div>
                     <strong className="block text-xs font-black uppercase tracking-wider text-lime-300">
-                      Mobility & Joint Prep Finished!
+                      Warm-up Complete
                     </strong>
                     <span className="text-[11px] text-zinc-300">
-                      Joint capsules lubricated, neural motor units primed for heavy working sets.
+                      Joints primed and ready to lift.
                     </span>
                   </div>
                 </div>
@@ -444,7 +444,7 @@ export function PrehabWarmupSection({
                 disabled={loading}
                 className="text-zinc-400 hover:text-zinc-200 transition-colors font-semibold"
               >
-                ↻ Regenerate Routine
+                ↻ Regenerate
               </button>
 
               <button
@@ -462,7 +462,7 @@ export function PrehabWarmupSection({
                 }}
                 className="font-bold text-lime-400 hover:text-lime-300 transition-colors"
               >
-                {isAllCompleted ? 'Reset All' : 'Mark All Completed'}
+                {isAllCompleted ? 'Reset All' : 'Mark All Done'}
               </button>
             </div>
           </div>

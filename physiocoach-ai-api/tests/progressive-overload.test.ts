@@ -26,7 +26,7 @@ describe('Progressive Overload & Deload Engine', () => {
     expect(result.type).toBe('overload');
     expect(result.recommendedWeightKg).toBe(82.5);
     expect(result.deltaWeightKg).toBe(2.5);
-    expect(result.chipLabel).toContain('+2.5 kg overload');
+    expect(result.chipLabel).toContain('+2.5 kg');
     expect(result.badgeVariant).toBe('lime');
     expect(result.isApplicable).toBe(true);
   });
@@ -49,7 +49,7 @@ describe('Progressive Overload & Deload Engine', () => {
     const result = calculateProgressiveOverload(input);
 
     expect(result.type).toBe('overload');
-    expect(result.chipLabel).toContain('+5 lbs overload');
+    expect(result.chipLabel).toContain('+5 lbs');
     expect(result.badgeVariant).toBe('lime');
     expect(result.isApplicable).toBe(true);
   });
@@ -74,9 +74,9 @@ describe('Progressive Overload & Deload Engine', () => {
     expect(result.type).toBe('deload');
     expect(result.recommendedWeightKg).toBe(90); // 100 * 0.9 = 90
     expect(result.deltaWeightKg).toBe(-10);
-    expect(result.chipLabel).toContain('Deload Target: -10% load for joint recovery');
+    expect(result.chipLabel).toContain('Deload: 90 kg (-10%)');
     expect(result.badgeVariant).toBe('amber');
-    expect(result.buttonLabel).toBe('Apply Deload');
+    expect(result.buttonLabel).toBe('Apply');
     expect(result.isApplicable).toBe(true);
   });
 
@@ -99,7 +99,7 @@ describe('Progressive Overload & Deload Engine', () => {
 
     expect(result.type).toBe('maintain');
     expect(result.recommendedWeightKg).toBe(50);
-    expect(result.chipLabel).toContain('Consolidate Volume');
+    expect(result.chipLabel).toContain('Target: 50 kg');
     expect(result.badgeVariant).toBe('cyan');
   });
 
@@ -123,7 +123,7 @@ describe('Progressive Overload & Deload Engine', () => {
     expect(result.type).toBe('overload');
     expect(result.recommendedReps).toBe(9);
     expect(result.deltaReps).toBe(1);
-    expect(result.chipLabel).toContain('+1 rep overload');
+    expect(result.chipLabel).toContain('Target: 9 reps (+1)');
     expect(result.badgeVariant).toBe('lime');
   });
 });
