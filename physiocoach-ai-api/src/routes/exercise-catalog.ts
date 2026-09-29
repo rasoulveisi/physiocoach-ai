@@ -895,16 +895,19 @@ export function createExerciseCatalogRoutes() {
             candNameLower.includes('bodyweight');
 
           if (containsDumbbell && baseIsBarbell) {
-            reasonText =
-              'Dumbbell variation allowing independent joint trajectory and lower anterior shear.';
-          } else if (containsMachineOrCable) {
-            reasonText =
-              'Guided path with constant tension curve and reduced spinal axial load.';
+            reasonText = 'Lowers anterior joint shear';
+          } else if (candNameLower.includes('dumbbell')) {
+            reasonText = 'Independent joint motion path';
+          } else if (candNameLower.includes('cable')) {
+            reasonText = 'Constant smooth resistance';
+          } else if (candNameLower.includes('machine')) {
+            reasonText = 'Guided, stable movement path';
           } else if (isBodyweight) {
-            reasonText =
-              'Closed-kinetic-chain movement optimizing joint proprioception.';
+            reasonText = 'Closed-chain joint stability';
+          } else if (candNameLower.includes('band')) {
+            reasonText = 'Smooth variable resistance';
           } else {
-            reasonText = `Direct biomechanical substitute targeting ${baseExercise.primaryMuscle || 'target muscles'} under identical ${baseExercise.movementPattern} mechanics.`;
+            reasonText = 'Direct prime-mover substitute';
           }
         }
 

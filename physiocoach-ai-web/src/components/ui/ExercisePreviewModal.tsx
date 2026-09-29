@@ -230,13 +230,16 @@ export function ExercisePreviewModal({
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 rounded-xl border border-zinc-800/80 bg-[#121722] p-3 transition-colors hover:border-zinc-700"
                 >
                   <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
-                    {/* Left thumbnail */}
-                    <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-950 p-1">
+                    {/* Left thumbnail (enlarged) */}
+                    <div className="size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950 p-1 flex items-center justify-center shadow-inner">
                       <ExerciseVisual
                         name={alt.name}
                         masterExerciseId={alt.canonicalId || alt.id}
                         movementPattern={alt.movementPattern}
+                        muscleGroup={alt.primaryMuscle}
                         compact={true}
+                        fit="contain"
+                        className="w-full h-full"
                       />
                     </div>
 
@@ -268,15 +271,17 @@ export function ExercisePreviewModal({
                       </div>
 
                       {alt.reason && (
-                        <p className="flex items-start gap-1.5 text-xs text-zinc-300 leading-snug">
-                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-lime-400 mt-0.5" />
-                          <span>{alt.reason}</span>
+                        <p className="flex items-center gap-1.5 text-xs text-zinc-300">
+                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-lime-400" />
+                          <span className="font-medium">
+                            {alt.reason.trim().split(/\s+/).slice(0, 5).join(' ')}
+                          </span>
                         </p>
                       )}
                     </div>
                   </div>
 
-                  {/* Right swap button */}
+                  {/* Right swap button (Icon only) */}
                   {onSwapExercise && (
                     <div className="shrink-0 self-end sm:self-center">
                       <Button
@@ -285,9 +290,11 @@ export function ExercisePreviewModal({
                         onClick={() => onSwapExercise(alt)}
                         disabled={isSwapping}
                         data-testid="swap-action-btn"
-                        className="font-bold text-xs"
+                        aria-label={`Swap with ${alt.name}`}
+                        title={`Swap with ${alt.name}`}
+                        className="size-9 sm:size-10 p-0 rounded-xl flex items-center justify-center shadow-md active:scale-95"
                       >
-                        <ArrowLeftRight className="mr-1 h-3.5 w-3.5" /> Swap into Plan
+                        <ArrowLeftRight className="h-4 w-4" />
                       </Button>
                     </div>
                   )}
