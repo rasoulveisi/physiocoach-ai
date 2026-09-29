@@ -1,4 +1,4 @@
-const CACHE_NAME = 'physiocoach-v1';
+const CACHE_NAME = 'physiocoach-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
