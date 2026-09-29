@@ -43,6 +43,13 @@
       "when": 1790600521842,
       "tag": "0005_dashing_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790675907904,
+      "tag": "0006_hard_kree",
+      "breakpoints": true
     }
   ]
 }

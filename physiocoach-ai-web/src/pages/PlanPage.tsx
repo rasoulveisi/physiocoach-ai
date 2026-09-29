@@ -30,6 +30,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { ExercisePreviewModal, type ExercisePreviewItem } from '../components/ui/ExercisePreviewModal';
+import type { DirectAlternativeItem } from '../app/features/exercise-catalog/services/exercise-catalog-api';
 import { PlanSkeleton } from '../components/ui/Skeleton';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Badge } from '../components/ui/Badge';
@@ -123,6 +124,7 @@ export function PlanPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [expandedFormCues, setExpandedFormCues] = useState<Record<string, boolean>>({});
   const [previewExercise, setPreviewExercise] = useState<ExercisePreviewItem | null>(null);
+  const [isSwapping, setIsSwapping] = useState(false);
 
   // Star Rating & Review State
   const [ratingVal, setRatingVal] = useState<number>(5);
@@ -278,6 +280,68 @@ export function PlanPage() {
         message: err instanceof Error ? err.message : 'Could not delete plan.',
         type: 'error',
       });
+    }
+  };
+
+  const handleSwapExercise = async (alt: DirectAlternativeItem) => {
+    if (!planView || !previewExercise) return;
+
+    setIsSwapping(true);
+    const targetEx = previewExercise;
+    const previousPlanView = planView;
+
+    try {
+      const updatedDays = planView.plan.days.map((day, dIdx) => {
+        if (dIdx !== selectedDay) return day;
+        return {
+          ...day,
+          exercises: day.exercises.map((ex) => {
+            const isMatch =
+              (Boolean(targetEx.masterExerciseId) && ex.masterExerciseId === targetEx.masterExerciseId) ||
+              (Boolean(targetEx.id) && (ex.id === targetEx.id || ex.masterExerciseId === targetEx.id)) ||
+              (Boolean(ex.name) && ex.name.trim().toLowerCase() === targetEx.name.trim().toLowerCase());
+
+            if (!isMatch) return ex;
+
+            return {
+              ...ex,
+              name: alt.name,
+              masterExerciseId: alt.canonicalId || alt.id,
+              movementPattern: alt.movementPattern,
+              muscleGroup: alt.primaryMuscle,
+            };
+          }),
+        };
+      });
+
+      const updatedPlan = {
+        ...planView.plan,
+        days: updatedDays,
+      };
+
+      const updatedPlanView: WorkoutPlanView = {
+        ...planView,
+        plan: updatedPlan,
+      };
+
+      setPlanView(updatedPlanView);
+      setPreviewExercise(null);
+
+      await apiClient.put(`workout-plans/${planView.id}`, { plan: updatedPlan });
+
+      setToast({
+        message: `Swapped ${targetEx.name} for ${alt.name}!`,
+        type: 'success',
+      });
+    } catch (err) {
+      console.error('Failed to swap exercise:', err);
+      setPlanView(previousPlanView);
+      setToast({
+        message: err instanceof Error ? err.message : 'Could not swap exercise in routine.',
+        type: 'error',
+      });
+    } finally {
+      setIsSwapping(false);
     }
   };
 
@@ -608,6 +672,7 @@ export function PlanPage() {
                                 return (
                                   <div
                                     key={exercise.id || `${exercise.name}-${index}`}
+                                    data-exercise-card="true"
                                     className="group relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-900/95 transition-all hover:border-lime-400/50 hover:bg-zinc-900 active:scale-[0.99]"
                                   >
                                     {/* Main Row: Half Image (~44% width) + Truncated Name & Repeats on Right */}
@@ -999,6 +1064,8 @@ export function PlanPage() {
         open={!!previewExercise}
         exercise={previewExercise}
         onClose={() => setPreviewExercise(null)}
+        onSwapExercise={handleSwapExercise}
+        isSwapping={isSwapping}
       />
 
       {/* 4. MY PLANS LIBRARY SWITCHER MODAL */}

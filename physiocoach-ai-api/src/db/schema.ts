@@ -262,26 +262,33 @@ export const exerciseCatalogVersions = pgTable('exercise_catalog_versions', {
   activatedAt: text('activated_at'),
 });
 
-export const masterExercises = pgTable('master_exercises', {
-  id: text('id').primaryKey(),
-  canonicalId: text('canonical_id').notNull(),
-  name: text('name').notNull(),
-  nameLocalized: text('name_localized'),
-  movementPattern: text('movement_pattern').notNull(),
-  recommendedLevel: text('recommended_level'),
-  goalTagsJson: text('goal_tags_json'),
-  excludedLimitationsJson: text('excluded_limitations_json'),
-  instructions: text('instructions'),
-  catalogVersionId: text('catalog_version_id').references(() => exerciseCatalogVersions.id),
-  bodyPart: text('body_part'),
-  target: text('target'),
-  primaryMuscle: text('primary_muscle'),
-  secondaryMusclesJson: text('secondary_muscles_json'),
-  instructionsJson: text('instructions_json'),
-  attributesJson: text('attributes_json'),
-  ...sourceMetadataColumns,
-  ...timestamps,
-});
+export const masterExercises = pgTable(
+  'master_exercises',
+  {
+    id: text('id').primaryKey(),
+    canonicalId: text('canonical_id').notNull(),
+    name: text('name').notNull(),
+    nameLocalized: text('name_localized'),
+    movementPattern: text('movement_pattern').notNull(),
+    recommendedLevel: text('recommended_level'),
+    goalTagsJson: text('goal_tags_json'),
+    excludedLimitationsJson: text('excluded_limitations_json'),
+    instructions: text('instructions'),
+    catalogVersionId: text('catalog_version_id').references(() => exerciseCatalogVersions.id),
+    bodyPart: text('body_part'),
+    target: text('target'),
+    primaryMuscle: text('primary_muscle'),
+    secondaryMusclesJson: text('secondary_muscles_json'),
+    instructionsJson: text('instructions_json'),
+    attributesJson: text('attributes_json'),
+    ...sourceMetadataColumns,
+    ...timestamps,
+  },
+  (table) => [
+    index('master_exercises_pattern_muscle_idx').on(table.movementPattern, table.primaryMuscle),
+    index('master_exercises_canonical_id_idx').on(table.canonicalId),
+  ],
+);
 
 export const exerciseMuscles = pgTable(
   'exercise_muscles',
@@ -329,6 +336,32 @@ export const exerciseMedia = pgTable('exercise_media', {
   ...sourceMetadataColumns,
   ...timestamps,
 });
+
+export const exerciseAlternatives = pgTable(
+  'exercise_alternatives',
+  {
+    id: text('id').primaryKey(),
+    exerciseId: text('exercise_id')
+      .notNull()
+      .references(() => masterExercises.id, { onDelete: 'cascade' }),
+    alternativeExerciseId: text('alternative_exercise_id')
+      .notNull()
+      .references(() => masterExercises.id, { onDelete: 'cascade' }),
+    relationshipType: text('relationship_type').notNull(), // 'direct_substitute' | 'equipment_swap' | 'regression' | 'progression'
+    reason: text('reason'),
+    rank: integer('rank').notNull().default(1),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('exercise_alternatives_pair_unique').on(
+      table.exerciseId,
+      table.alternativeExerciseId,
+    ),
+    index('exercise_alternatives_exercise_id_idx').on(table.exerciseId),
+    index('exercise_alternatives_alt_id_idx').on(table.alternativeExerciseId),
+  ],
+);
 
 export const bodyConsiderations = pgTable(
   'body_considerations',

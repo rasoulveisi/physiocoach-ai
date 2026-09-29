@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import {
   bodyConsiderations,
+  exerciseAlternatives,
   exerciseConsiderationRatings,
   exerciseEquipment,
   exerciseMedia,
@@ -37,6 +38,38 @@ interface MuscleResolution {
 
 function normalizeCatalogTerm(val: string): string {
   return val.toLowerCase().trim().replace(/[\s-]+/g, '_');
+}
+
+function parseExerciseEquipment(attributesJson: string | null | undefined): string[] {
+  if (attributesJson) {
+    try {
+      const attrs = JSON.parse(attributesJson);
+      if (Array.isArray(attrs.equipmentRequired) && attrs.equipmentRequired.length > 0) {
+        return attrs.equipmentRequired.map((e: unknown) => String(e));
+      }
+    } catch {
+      // Fallback to bodyweight on JSON parse failure
+    }
+  }
+  return ['bodyweight'];
+}
+
+function exerciseHasExcludedLimitations(
+  excludedLimitationsJson: string | null | undefined,
+  limitations: string[],
+): boolean {
+  if (!limitations.length || !excludedLimitationsJson) return false;
+  try {
+    const parsed = JSON.parse(excludedLimitationsJson);
+    if (Array.isArray(parsed)) {
+      const lower = parsed.map((item) => String(item).toLowerCase().trim());
+      return limitations.some((lim) => lower.includes(lim));
+    }
+  } catch {
+    const lowerStr = excludedLimitationsJson.toLowerCase();
+    return limitations.some((lim) => lowerStr.includes(lim));
+  }
+  return false;
 }
 
 const MUSCLE_SYNONYM_MAP: Record<string, MuscleResolution> = {
@@ -571,7 +604,334 @@ export function createExerciseCatalogRoutes() {
     }
   });
 
-  // 3. GET /exercise-catalog/exercises/:id
+  // 3. GET /exercise-catalog/exercises/:id/alternatives
+  const handleDirectExerciseAlternatives = async (c: ExpressRouteContext) => {
+    try {
+      const { db } = getApiRouteContext(c);
+      if (!db) return notFound(c, 'Exercise not found.');
+
+      const id = c.req.param('id')?.trim();
+      if (!id) return notFound(c, 'Exercise ID is required.');
+
+      const rows = await db
+        .select()
+        .from(masterExercises)
+        .where(
+          or(
+            eq(masterExercises.id, id),
+            eq(masterExercises.canonicalId, id),
+            sql`lower(${masterExercises.name}) = lower(${id})`,
+          ),
+        )
+        .limit(1);
+
+      let baseExercise = rows[0];
+
+      if (!baseExercise) {
+        // Try fuzzy name match
+        const fuzzyRows = await db
+          .select()
+          .from(masterExercises)
+          .where(like(sql`lower(${masterExercises.name})`, `%${id.toLowerCase()}%`))
+          .limit(1);
+        baseExercise = fuzzyRows[0];
+      }
+
+      const queryPattern = c.req.query('movementPattern')?.trim()?.toLowerCase();
+      const queryMuscle = c.req.query('primaryMuscle')?.trim()?.toLowerCase();
+
+      if (!baseExercise && (queryPattern || queryMuscle)) {
+        const resolvedMuscle = queryMuscle
+          ? (MUSCLE_SYNONYM_MAP[queryMuscle]?.primaryMuscles[0] || queryMuscle)
+          : 'pectorals';
+        let resolvedPattern = queryPattern || 'horizontal_push';
+        if (resolvedPattern === 'push') resolvedPattern = 'horizontal_push';
+        if (resolvedPattern === 'pull') resolvedPattern = 'horizontal_pull';
+
+        baseExercise = {
+          id,
+          canonicalId: id,
+          name: id,
+          movementPattern: resolvedPattern,
+          primaryMuscle: resolvedMuscle,
+          bodyPart: 'chest',
+          attributesJson: null,
+          excludedLimitationsJson: null,
+          catalogVersionId: null,
+          instructions: null,
+          instructionsJson: null,
+          nameLocalized: null,
+          recommendedLevel: null,
+          goalTagsJson: null,
+          target: null,
+          secondaryMusclesJson: null,
+          source: 'custom',
+          sourceId: id,
+          licenseName: null,
+          licenseUrl: null,
+          licenseAuthor: null,
+          attributionText: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      if (!baseExercise) {
+        return notFound(c, `Exercise not found for id: ${id}`);
+      }
+
+      const limitationsParam = c.req.query('limitations')?.trim();
+      const limitations = limitationsParam
+        ? limitationsParam
+            .split(',')
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean)
+        : [];
+
+      // a) Query predefined alternatives from exerciseAlternatives
+      const predefinedRows = await db
+        .select({
+          id: masterExercises.id,
+          canonicalId: masterExercises.canonicalId,
+          name: masterExercises.name,
+          movementPattern: masterExercises.movementPattern,
+          primaryMuscle: masterExercises.primaryMuscle,
+          bodyPart: masterExercises.bodyPart,
+          attributesJson: masterExercises.attributesJson,
+          excludedLimitationsJson: masterExercises.excludedLimitationsJson,
+          relationshipType: exerciseAlternatives.relationshipType,
+          reason: exerciseAlternatives.reason,
+          rank: exerciseAlternatives.rank,
+          mediaStorageUrl: exerciseMedia.storageUrl,
+        })
+        .from(exerciseAlternatives)
+        .innerJoin(
+          masterExercises,
+          eq(masterExercises.id, exerciseAlternatives.alternativeExerciseId),
+        )
+        .leftJoin(
+          exerciseMedia,
+          and(
+            eq(exerciseMedia.exerciseId, masterExercises.id),
+            eq(exerciseMedia.reviewStatus, 'approved'),
+          ),
+        )
+        .where(eq(exerciseAlternatives.exerciseId, baseExercise.id))
+        .orderBy(exerciseAlternatives.rank);
+
+      const seenIds = new Set<string>();
+      seenIds.add(baseExercise.id);
+      if (baseExercise.canonicalId) {
+        seenIds.add(baseExercise.canonicalId);
+      }
+
+      interface CandidateItem {
+        id: string;
+        canonicalId: string;
+        name: string;
+        movementPattern: string;
+        primaryMuscle: string | null;
+        bodyPart: string | null;
+        attributesJson: string | null;
+        mediaStorageUrl: string | null;
+        reason?: string | null;
+        fromPredefined: boolean;
+      }
+
+      const candidates: CandidateItem[] = [];
+
+      for (const row of predefinedRows) {
+        if (seenIds.has(row.id)) continue;
+        if (
+          limitations.length > 0 &&
+          exerciseHasExcludedLimitations(row.excludedLimitationsJson, limitations)
+        ) {
+          continue;
+        }
+        seenIds.add(row.id);
+        candidates.push({
+          id: row.id,
+          canonicalId: row.canonicalId,
+          name: row.name,
+          movementPattern: row.movementPattern,
+          primaryMuscle: row.primaryMuscle,
+          bodyPart: row.bodyPart,
+          attributesJson: row.attributesJson,
+          mediaStorageUrl: row.mediaStorageUrl,
+          reason: row.reason,
+          fromPredefined: true,
+        });
+      }
+
+      // b) If fewer than 3 alternatives exist in exerciseAlternatives, dynamically query masterExercises
+      if (candidates.length < 3) {
+        let patternCondition = eq(masterExercises.movementPattern, baseExercise.movementPattern);
+        if (baseExercise.movementPattern === 'push') {
+          patternCondition = or(
+            eq(masterExercises.movementPattern, 'horizontal_push'),
+            eq(masterExercises.movementPattern, 'vertical_push'),
+            eq(masterExercises.movementPattern, 'push'),
+          )!;
+        } else if (baseExercise.movementPattern === 'pull') {
+          patternCondition = or(
+            eq(masterExercises.movementPattern, 'horizontal_pull'),
+            eq(masterExercises.movementPattern, 'vertical_pull'),
+            eq(masterExercises.movementPattern, 'pull'),
+          )!;
+        }
+
+        const dynamicConditions = [
+          patternCondition,
+          not(eq(masterExercises.id, baseExercise.id)),
+        ];
+
+        const effectiveMuscle =
+          (baseExercise.primaryMuscle &&
+            MUSCLE_SYNONYM_MAP[baseExercise.primaryMuscle.toLowerCase()]?.primaryMuscles[0]) ||
+          baseExercise.primaryMuscle;
+
+        if (effectiveMuscle) {
+          const muscleConditions = [eq(masterExercises.primaryMuscle, effectiveMuscle)];
+          if (baseExercise.primaryMuscle && baseExercise.primaryMuscle !== effectiveMuscle) {
+            muscleConditions.push(eq(masterExercises.primaryMuscle, baseExercise.primaryMuscle));
+          }
+          dynamicConditions.push(or(...muscleConditions)!);
+        }
+
+        const existingIds = Array.from(seenIds);
+        if (existingIds.length > 0) {
+          dynamicConditions.push(not(inArray(masterExercises.id, existingIds)));
+        }
+
+        for (const limitation of limitations) {
+          dynamicConditions.push(
+            not(
+              like(
+                sql`lower(coalesce(${masterExercises.excludedLimitationsJson}, ''))`,
+                `%${limitation}%`,
+              ),
+            ),
+          );
+        }
+
+        const dynamicRows = await db
+          .select({
+            id: masterExercises.id,
+            canonicalId: masterExercises.canonicalId,
+            name: masterExercises.name,
+            movementPattern: masterExercises.movementPattern,
+            primaryMuscle: masterExercises.primaryMuscle,
+            bodyPart: masterExercises.bodyPart,
+            attributesJson: masterExercises.attributesJson,
+            excludedLimitationsJson: masterExercises.excludedLimitationsJson,
+            mediaStorageUrl: exerciseMedia.storageUrl,
+          })
+          .from(masterExercises)
+          .leftJoin(
+            exerciseMedia,
+            and(
+              eq(exerciseMedia.exerciseId, masterExercises.id),
+              eq(exerciseMedia.reviewStatus, 'approved'),
+            ),
+          )
+          .where(and(...dynamicConditions))
+          .limit(6);
+
+        for (const row of dynamicRows) {
+          if (seenIds.has(row.id)) continue;
+          if (
+            limitations.length > 0 &&
+            exerciseHasExcludedLimitations(row.excludedLimitationsJson, limitations)
+          ) {
+            continue;
+          }
+          seenIds.add(row.id);
+          candidates.push({
+            id: row.id,
+            canonicalId: row.canonicalId,
+            name: row.name,
+            movementPattern: row.movementPattern,
+            primaryMuscle: row.primaryMuscle,
+            bodyPart: row.bodyPart,
+            attributesJson: row.attributesJson,
+            mediaStorageUrl: row.mediaStorageUrl,
+            reason: null,
+            fromPredefined: false,
+          });
+          if (candidates.length >= 6) {
+            break;
+          }
+        }
+      }
+
+      const baseEquipment = parseExerciseEquipment(baseExercise.attributesJson);
+      const baseNameLower = (baseExercise.name ?? '').toLowerCase();
+      const baseIsBarbell =
+        baseEquipment.some((e) => e.toLowerCase().includes('barbell')) ||
+        baseNameLower.includes('barbell');
+
+      const alternatives = candidates.map((item) => {
+        const equipmentList = parseExerciseEquipment(item.attributesJson);
+        let reasonText =
+          item.fromPredefined && item.reason?.trim() ? item.reason.trim() : null;
+
+        if (!reasonText) {
+          const candNameLower = (item.name ?? '').toLowerCase();
+          const containsDumbbell =
+            equipmentList.some((e) => e.toLowerCase().includes('dumbbell')) ||
+            candNameLower.includes('dumbbell');
+          const containsMachineOrCable =
+            equipmentList.some(
+              (e) => e.toLowerCase().includes('machine') || e.toLowerCase().includes('cable'),
+            ) ||
+            candNameLower.includes('machine') ||
+            candNameLower.includes('cable');
+          const isBodyweight =
+            equipmentList.some(
+              (e) =>
+                e.toLowerCase().includes('bodyweight') ||
+                e.toLowerCase().includes('body_weight'),
+            ) ||
+            candNameLower.includes('bodyweight');
+
+          if (containsDumbbell && baseIsBarbell) {
+            reasonText =
+              'Dumbbell variation allowing independent joint trajectory and lower anterior shear.';
+          } else if (containsMachineOrCable) {
+            reasonText =
+              'Guided path with constant tension curve and reduced spinal axial load.';
+          } else if (isBodyweight) {
+            reasonText =
+              'Closed-kinetic-chain movement optimizing joint proprioception.';
+          } else {
+            reasonText = `Direct biomechanical substitute targeting ${baseExercise.primaryMuscle || 'target muscles'} under identical ${baseExercise.movementPattern} mechanics.`;
+          }
+        }
+
+        return {
+          id: item.id,
+          canonicalId: item.canonicalId,
+          name: item.name,
+          movementPattern: item.movementPattern,
+          primaryMuscle: item.primaryMuscle,
+          bodyPart: item.bodyPart,
+          equipment: equipmentList,
+          mediaUrl: item.mediaStorageUrl || null,
+          reason: reasonText,
+          relationshipType: 'direct_substitute' as const,
+        };
+      });
+
+      return c.json({ data: alternatives });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to fetch exercise alternatives.');
+    }
+  };
+
+  route.get('/exercise-catalog/exercises/:id/alternatives', handleDirectExerciseAlternatives);
+  route.get('/exercises/:id/alternatives', handleDirectExerciseAlternatives);
+
+  // 4. GET /exercise-catalog/exercises/:id
   route.get('/exercise-catalog/exercises/:id', async (c) => {
     try {
       const { db } = getApiRouteContext(c);

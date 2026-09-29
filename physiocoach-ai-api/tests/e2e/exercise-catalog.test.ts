@@ -211,4 +211,63 @@ describe('Behavior-Driven E2E: Exercise Catalog Explore API', () => {
     expect(deadliftJson.data?.painCondition?.code).toBe('lower_back_pain');
     expect(deadliftJson.data?.alternatives?.length).toBe(3);
   });
+
+  it('GET /api/v1/exercise-catalog/exercises/:id/alternatives returns 404 for unknown exercise', async () => {
+    const app = createApp();
+
+    const response = await app.fetch(
+      '/api/v1/exercise-catalog/exercises/unknown-exercise-id-99999/alternatives',
+      { method: 'GET' },
+      mockEnv,
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it('GET /api/v1/exercise-catalog/exercises/:id/alternatives returns direct biomechanical substitutions', async () => {
+    const app = createApp();
+
+    const catalogRes = await app.fetch(
+      '/api/v1/exercise-catalog/exercises?limit=1',
+      { method: 'GET' },
+      mockEnv,
+    );
+    const catalogJson = (await catalogRes.json()) as { data?: Array<{ id: string; name: string }> };
+    const firstExercise = catalogJson.data?.[0];
+
+    if (firstExercise) {
+      const response = await app.fetch(
+        `/api/v1/exercise-catalog/exercises/${firstExercise.id}/alternatives`,
+        { method: 'GET' },
+        mockEnv,
+      );
+      expect(response.status).toBe(200);
+      const json = (await response.json()) as {
+        data?: Array<{
+          id: string;
+          canonicalId: string;
+          name: string;
+          movementPattern: string;
+          primaryMuscle: string;
+          bodyPart: string;
+          equipment: string[];
+          mediaUrl: string | null;
+          reason: string;
+          relationshipType: string;
+        }>;
+      };
+      expect(json.data).toBeDefined();
+      expect(Array.isArray(json.data)).toBe(true);
+      if (json.data && json.data.length > 0) {
+        const item = json.data[0];
+        expect(item).toBeDefined();
+        expect(item?.id).toBeDefined();
+        expect(item?.name).toBeDefined();
+        expect(item?.relationshipType).toBe('direct_substitute');
+        expect(item?.reason).toBeDefined();
+        expect(Array.isArray(item?.equipment)).toBe(true);
+      }
+    }
+  });
 });
+

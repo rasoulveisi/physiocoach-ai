@@ -154,3 +154,39 @@ export async function fetchExerciseAlternatives(slug: string): Promise<ExerciseA
   return res.data;
 }
 
+export interface DirectAlternativeItem {
+  id: string;
+  canonicalId: string;
+  name: string;
+  movementPattern: string;
+  primaryMuscle: string;
+  bodyPart?: string;
+  equipment: string[];
+  mediaUrl: string | null;
+  reason: string;
+  relationshipType?: string;
+}
+
+export async function fetchDirectExerciseAlternatives(
+  exerciseId: string,
+  limitations?: string[],
+  movementPattern?: string,
+  primaryMuscle?: string,
+): Promise<DirectAlternativeItem[]> {
+  const params = new URLSearchParams();
+  if (limitations && limitations.length > 0) {
+    params.set('limitations', limitations.join(','));
+  }
+  if (movementPattern) {
+    params.set('movementPattern', movementPattern);
+  }
+  if (primaryMuscle) {
+    params.set('primaryMuscle', primaryMuscle);
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiClient.get<{ data: DirectAlternativeItem[] }>(
+    `exercise-catalog/exercises/${encodeURIComponent(exerciseId)}/alternatives${query}`,
+  );
+  return res.data ?? [];
+}
+
