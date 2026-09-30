@@ -63,7 +63,7 @@ export type CandidateValidationResult = {
   repaired: boolean;
 };
 
-export function getCandidateLookupKey(exercise: {
+function getCandidateLookupKey(exercise: {
   id?: unknown;
   masterExerciseId?: unknown;
 }): string | undefined {
@@ -79,7 +79,7 @@ export function getCandidateLookupKey(exercise: {
   return undefined;
 }
 
-export function inferMovementPatternFromName(name: string): WorkoutPlanMovementPattern {
+function inferMovementPatternFromName(name: string): WorkoutPlanMovementPattern {
   const lowerName = name.toLowerCase();
   if (lowerName.includes('squat')) return 'squat';
   if (lowerName.includes('deadlift') || lowerName.includes('hinge') || lowerName.includes('rdl')) {
@@ -97,67 +97,78 @@ export function inferMovementPatternFromName(name: string): WorkoutPlanMovementP
   return 'mobility';
 }
 
-function normalizeCandidateText(value?: string | null): string {
-  return (value ?? '').trim().toLowerCase();
+function matchesAny(candidate: CatalogCandidate, terms: readonly string[]): boolean {
+  const text = `${candidate.primaryMuscleGroup ?? ''} ${candidate.name}`.toLowerCase();
+  return terms.some((term) => text.includes(term));
 }
+
+const UPPER_TERMS = [
+  'chest', 'pectoral', 'pec', 'bench', 'dip', 'pushup', 'push-up',
+  'shoulder', 'delt', 'deltoid', 'overhead', 'military', 'lateral raise', 'front raise',
+  'back', 'lat', 'lats', 'latissimus', 'row', 'pull', 'chin-up', 'chinup', 'pulldown', 'pullover',
+  'shrug', 'trapezius', 'trap', 'traps', 'rhomboid',
+  'bicep', 'biceps', 'curl', 'tricep', 'triceps', 'pushdown', 'arm', 'forearm',
+];
+
+const LOWER_TERMS = [
+  'quad', 'quadriceps', 'hamstring', 'hamstrings', 'glute', 'glutes', 'gluteus',
+  'calf', 'calves', 'gastrocnemius', 'soleus', 'hip', 'adductor', 'abductor', 'leg', 'thigh',
+];
+
+const CORE_TERMS = [
+  'core', 'ab', 'abs', 'abdominals', 'rectus abdominis', 'oblique', 'obliques',
+  'plank', 'crunch', 'dead bug', 'deadbug', 'pallof', 'hollow', 'bird dog', 'woodchop',
+];
+
+const UNILATERAL_TERMS = [
+  'split squat', 'bulgarian', 'single leg', 'single-leg', 'single arm', 'single-arm',
+  'step up', 'step-up', 'stepup', 'pistol', 'b-stance', 'kickstand', 'one arm', 'one-arm',
+  'unilateral',
+];
+
+const POSTURAL_TERMS = [
+  'delt', 'deltoid', 'rear delt', 'trap', 'traps', 'trapezius',
+  'upper back', 'rhomboid', 'face pull', 'pull-apart', 'pull apart', 'shrug', 'y-raise', 'w-raise', 'reverse fly',
+];
+
+const GLUTE_HIP_TERMS = [
+  'glute', 'glutes', 'gluteus', 'hip', 'abductor', 'abduction', 'kickback',
+  'clam', 'clamshell', 'bridge', 'thrust', 'monster walk',
+];
 
 function isUpperBodyCandidate(candidate: CatalogCandidate): boolean {
   if (candidate.movementPattern === 'push' || candidate.movementPattern === 'pull') {
     return true;
   }
-  const muscle = normalizeCandidateText(candidate.primaryMuscleGroup);
-  const name = normalizeCandidateText(candidate.name);
-  const upperTerms = [
-    'chest', 'pectoral', 'pec', 'bench', 'dip', 'pushup', 'push-up',
-    'shoulder', 'delt', 'deltoid', 'overhead', 'military', 'lateral raise', 'front raise',
-    'back', 'lat', 'lats', 'latissimus', 'row', 'pull', 'chin-up', 'chinup', 'pulldown', 'pullover',
-    'shrug', 'trapezius', 'trap', 'traps', 'rhomboid',
-    'bicep', 'biceps', 'curl', 'tricep', 'triceps', 'pushdown', 'arm', 'forearm',
-  ];
-  if (upperTerms.some((term) => muscle.includes(term) || name.includes(term))) {
+  if (matchesAny(candidate, UPPER_TERMS)) {
     return true;
   }
-  if (
+  return (
     candidate.movementPattern === 'isolation' &&
     !isLowerBodyCandidate(candidate) &&
     !isCoreCandidate(candidate)
-  ) {
-    return true;
-  }
-  return false;
+  );
 }
 
 function isLowerBodyCandidate(candidate: CatalogCandidate): boolean {
   if (['squat', 'hinge', 'lunge'].includes(candidate.movementPattern)) {
     return true;
   }
-  const muscle = normalizeCandidateText(candidate.primaryMuscleGroup);
-  const name = normalizeCandidateText(candidate.name);
-  const lowerTerms = [
-    'quad', 'quadriceps', 'hamstring', 'hamstrings', 'glute', 'glutes', 'gluteus',
-    'calf', 'calves', 'gastrocnemius', 'soleus', 'hip', 'adductor', 'abductor', 'leg', 'thigh',
-  ];
-  return lowerTerms.some((term) => muscle.includes(term) || name.includes(term));
+  return matchesAny(candidate, LOWER_TERMS);
 }
 
 function isCoreCandidate(candidate: CatalogCandidate): boolean {
   if (candidate.movementPattern === 'core') {
     return true;
   }
-  const muscle = normalizeCandidateText(candidate.primaryMuscleGroup);
-  const name = normalizeCandidateText(candidate.name);
-  const coreTerms = [
-    'core', 'ab', 'abs', 'abdominals', 'rectus abdominis', 'oblique', 'obliques',
-    'plank', 'crunch', 'dead bug', 'deadbug', 'pallof', 'hollow', 'bird dog', 'woodchop',
-  ];
-  return coreTerms.some((term) => muscle.includes(term) || name.includes(term));
+  return matchesAny(candidate, CORE_TERMS);
 }
 
 function isCarryCandidate(candidate: CatalogCandidate): boolean {
   if (candidate.movementPattern === 'carry') {
     return true;
   }
-  const name = normalizeCandidateText(candidate.name);
+  const name = candidate.name.toLowerCase();
   return name.includes('carry') || name.includes('walk') || name.includes('farmer');
 }
 
@@ -165,53 +176,22 @@ function isUnilateralExercise(candidate: CatalogCandidate): boolean {
   if (candidate.movementPattern === 'lunge') {
     return true;
   }
-  const name = normalizeCandidateText(candidate.name);
-  const unilateralTerms = [
-    'split squat', 'bulgarian', 'single leg', 'single-leg', 'single arm', 'single-arm',
-    'step up', 'step-up', 'stepup', 'pistol', 'b-stance', 'kickstand', 'one arm', 'one-arm',
-    'unilateral',
-  ];
-  return unilateralTerms.some((term) => name.includes(term));
+  return matchesAny(candidate, UNILATERAL_TERMS);
 }
 
 function isPosturalUpperBackCandidate(candidate: CatalogCandidate): boolean {
   if (candidate.movementPattern === 'pull') {
     return true;
   }
-  const muscle = normalizeCandidateText(candidate.primaryMuscleGroup);
-  const name = normalizeCandidateText(candidate.name);
-  const posturalTerms = [
-    'delt', 'deltoid', 'rear delt', 'trap', 'traps', 'trapezius',
-    'upper back', 'rhomboid', 'face pull', 'pull-apart', 'pull apart', 'shrug', 'y-raise', 'w-raise', 'reverse fly',
-  ];
-  return posturalTerms.some((term) => muscle.includes(term) || name.includes(term));
+  return matchesAny(candidate, POSTURAL_TERMS);
 }
 
 function isGluteHipCandidate(candidate: CatalogCandidate): boolean {
-  const muscle = normalizeCandidateText(candidate.primaryMuscleGroup);
-  const name = normalizeCandidateText(candidate.name);
-  const gluteHipTerms = [
-    'glute', 'glutes', 'gluteus', 'hip', 'abductor', 'abduction', 'kickback',
-    'clam', 'clamshell', 'bridge', 'thrust', 'monster walk',
-  ];
-  const hasGluteHipTerms = gluteHipTerms.some((term) => muscle.includes(term) || name.includes(term));
-
-  if (candidate.movementPattern === 'hinge' && hasGluteHipTerms) {
-    return true;
-  }
-  if (candidate.movementPattern === 'isolation' && hasGluteHipTerms) {
-    return true;
-  }
-  if (
-    name.includes('glute bridge') ||
-    name.includes('hip thrust') ||
-    name.includes('hip abduction') ||
-    name.includes('clamshell') ||
-    name.includes('cable kickback')
-  ) {
-    return true;
-  }
-  return false;
+  const hasGluteHip = matchesAny(candidate, GLUTE_HIP_TERMS);
+  return (
+    (candidate.movementPattern === 'hinge' || candidate.movementPattern === 'isolation') &&
+    hasGluteHip
+  );
 }
 
 export function isCandidateEligibleForSlot(
@@ -248,14 +228,11 @@ export function isCandidateEligibleForSlot(
       );
     }
     if (slotNumber === 4) {
-      const muscle = normalizeCandidateText(candidate.primaryMuscleGroup);
-      const name = normalizeCandidateText(candidate.name);
       const lowerIsoTerms = [
         'quad', 'quadriceps', 'hamstring', 'hamstrings', 'calf', 'calves',
         'gastrocnemius', 'soleus', 'leg extension', 'leg curl', 'calf raise',
       ];
-      const isQuadHamCalf = lowerIsoTerms.some((term) => muscle.includes(term) || name.includes(term));
-      if (isQuadHamCalf) {
+      if (matchesAny(candidate, lowerIsoTerms)) {
         return true;
       }
       if (candidate.movementPattern === 'isolation') {
@@ -361,7 +338,7 @@ export function validateBlueprintSlotFeasibility(
   return { ok: true };
 }
 
-export function buildCanonicalProgression() {
+function buildCanonicalProgression() {
   return {
     baselineIntensity: 'low-moderate' as const,
     progressionRule: CANONICAL_PROGRESSION_RULE,
@@ -370,14 +347,14 @@ export function buildCanonicalProgression() {
   };
 }
 
-export function buildDefaultSafetyNotes(): string[] {
+function buildDefaultSafetyNotes(): string[] {
   return [
     'Use pain-free range of motion and stop if symptoms increase.',
     'Keep effort conservative while learning the movements.',
   ];
 }
 
-export function buildDefaultWarnings(): string[] {
+function buildDefaultWarnings(): string[] {
   return [
     DISCLAIMER,
     'Stop immediately if pain increases during an exercise.',
@@ -385,7 +362,7 @@ export function buildDefaultWarnings(): string[] {
   ];
 }
 
-export function coercePositiveInteger(value: unknown, fallback: number): number {
+function coercePositiveInteger(value: unknown, fallback: number): number {
   if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
     return value;
   }
@@ -405,7 +382,7 @@ export function coercePositiveInteger(value: unknown, fallback: number): number 
   return fallback;
 }
 
-export function coerceReps(value: unknown): string {
+function coerceReps(value: unknown): string {
   if (typeof value === 'string' && value.trim().length > 0) {
     return value.trim();
   }
@@ -415,7 +392,7 @@ export function coerceReps(value: unknown): string {
   return '8-12';
 }
 
-export function buildMinimalInvalidPlan(
+function buildMinimalInvalidPlan(
   candidateBuild: CandidateBuildResult | readonly CatalogCandidate[],
 ): WorkoutPlan {
   const candidate = Array.isArray(candidateBuild)
@@ -456,77 +433,6 @@ export function buildMinimalInvalidPlan(
     safetyNotes: buildDefaultSafetyNotes(),
     warnings: buildDefaultWarnings(),
   });
-}
-
-export function buildLocalWorkoutPlan(
-  candidateBuild: CandidateBuildResult,
-  frequencyDays: number,
-  sessionMinutes?: number,
-) {
-  const sizing = getSessionSizingGuidance(sessionMinutes);
-  const targetExerciseCount = sizing.targetExercisesPerDay;
-  const pool =
-    candidateBuild.candidates.length > 0 ? candidateBuild.candidates : candidateBuild.allCandidates;
-
-  const byMovement = new Map<string, CatalogCandidate[]>();
-  for (const candidate of pool) {
-    const list = byMovement.get(candidate.movementPattern) ?? [];
-    list.push(candidate);
-    byMovement.set(candidate.movementPattern, list);
-  }
-
-  const movementPatterns = Array.from(byMovement.keys());
-
-  const days = Array.from({ length: frequencyDays }, (_, dayIndex) => {
-    const selected: CatalogCandidate[] = [];
-    const usedIds = new Set<string>();
-
-    // 1. Pick 1 exercise from distinct movement patterns rotated by dayIndex
-    for (let pIdx = 0; pIdx < movementPatterns.length; pIdx += 1) {
-      if (selected.length >= targetExerciseCount) break;
-      const pattern = movementPatterns[(pIdx + dayIndex) % movementPatterns.length];
-      const patternCandidates = pattern !== undefined ? (byMovement.get(pattern) ?? []) : [];
-      const candidate = patternCandidates[(dayIndex + pIdx) % patternCandidates.length];
-      if (candidate && (!usedIds.has(candidate.masterExerciseId) || selected.length < 3)) {
-        usedIds.add(candidate.masterExerciseId);
-        selected.push(candidate);
-      }
-    }
-
-    // 2. Fill remaining slots up to targetExerciseCount from general pool
-    for (let offset = 0; selected.length < targetExerciseCount && offset < pool.length * 2; offset += 1) {
-      const candidateIndex = (dayIndex * 3 + offset) % pool.length;
-      const candidate = pool[candidateIndex];
-      if (
-        candidate &&
-        (!usedIds.has(candidate.masterExerciseId) || selected.length < pool.length)
-      ) {
-        usedIds.add(candidate.masterExerciseId);
-        selected.push(candidate);
-      }
-    }
-
-    const dayExercises = selected.map((candidate) => ({
-      masterExerciseId: candidate.masterExerciseId,
-      name: candidate.name,
-      sets: 3,
-      reps: candidate.movementPattern === 'mobility' ? '30-45 seconds' : '8-12',
-      restSeconds: candidate.movementPattern === 'mobility' ? 45 : 60,
-      ...(candidate.cluster === 'amber' && candidate.requiredModifications?.length
-        ? { notes: candidate.requiredModifications.join(' ') }
-        : {}),
-    }));
-
-    return {
-      dayNumber: dayIndex + 1,
-      name: `Day ${dayIndex + 1}`,
-      focus: dayIndex % 2 === 0 ? 'Strength and posture' : 'Mobility and conditioning',
-      estimatedDurationMinutes: calculateWorkoutDayDurationMinutes({ exercises: dayExercises }),
-      exercises: dayExercises,
-    };
-  });
-
-  return { name: 'Development catalog plan', focus: 'Catalog-backed local plan', days };
 }
 
 export function hydratePlanFromCatalog(
@@ -777,110 +683,7 @@ export function injectRequiredCandidateModifications(
   return injected;
 }
 
-export function repairExcessAmberCandidates(
-  plan: WorkoutPlan,
-  candidateBuild: CandidateBuildResult,
-  maxAmberPerDay = 1,
-): { plan: WorkoutPlan; repaired: boolean } {
-  const candidatesById = new Map(
-    candidateBuild.allCandidates.map((candidate) => [candidate.masterExerciseId, candidate]),
-  );
-
-  const usedIds = new Set<string>();
-  for (const day of plan.days) {
-    for (const exercise of day.exercises) {
-      if (exercise.masterExerciseId) {
-        usedIds.add(exercise.masterExerciseId);
-      }
-    }
-  }
-
-  const greenByMovement = new Map<string, CatalogCandidate[]>();
-  for (const candidate of candidateBuild.clusters.green) {
-    const list = greenByMovement.get(candidate.movementPattern) ?? [];
-    list.push(candidate);
-    greenByMovement.set(candidate.movementPattern, list);
-  }
-
-  let repaired = false;
-
-  const newDays = plan.days.map((day) => {
-    let amberCount = 0;
-    const newExercises = day.exercises.map((exercise) => {
-      const candidate = exercise.masterExerciseId
-        ? candidatesById.get(exercise.masterExerciseId)
-        : undefined;
-
-      if (!candidate || candidate.cluster !== 'amber') {
-        return exercise;
-      }
-
-      amberCount += 1;
-      if (amberCount <= maxAmberPerDay) {
-        return exercise;
-      }
-
-      const greenPool = greenByMovement.get(exercise.movementPattern) ?? [];
-      const replacement = greenPool.find((c) => !usedIds.has(c.masterExerciseId));
-
-      if (replacement) {
-        if (exercise.masterExerciseId) {
-          usedIds.delete(exercise.masterExerciseId);
-        }
-        usedIds.add(replacement.masterExerciseId);
-        repaired = true;
-        return {
-          ...exercise,
-          id: replacement.masterExerciseId,
-          masterExerciseId: replacement.masterExerciseId,
-          name: replacement.name,
-          muscleGroup: replacement.primaryMuscleGroup ?? replacement.movementPattern,
-        };
-      }
-
-      return exercise;
-    });
-
-    return { ...day, exercises: newExercises };
-  });
-
-  if (!repaired) {
-    return { plan, repaired: false };
-  }
-
-  const newPlan = workoutPlanSchema.parse({
-    ...plan,
-    days: newDays,
-  });
-
-  return { plan: newPlan, repaired: true };
-}
-
-export function validatePlanCatalogMembership(
-  plan: WorkoutPlan,
-  candidateBuild: CandidateBuildResult,
-): { ok: boolean; issues: string[] } {
-  const approvedIds = new Set(
-    candidateBuild.candidates.map((candidate) => candidate.masterExerciseId),
-  );
-  const issues: string[] = [];
-
-  for (const day of plan.days) {
-    for (const exercise of day.exercises) {
-      if (!exercise.masterExerciseId) {
-        issues.push(`Missing masterExerciseId for exercise on day ${day.dayNumber ?? 'unknown'}.`);
-        continue;
-      }
-      if (!approvedIds.has(exercise.masterExerciseId)) {
-        issues.push(`Invalid masterExerciseId "${exercise.masterExerciseId}".`);
-      }
-    }
-  }
-
-  return { ok: issues.length === 0, issues };
-}
-
-export function isInternalGenerationWarning(warning: string): boolean {
+function isInternalGenerationWarning(warning: string): boolean {
   return warning.startsWith('Canonicalized exercise ');
 }
 
@@ -888,11 +691,11 @@ export function uniqueUserVisibleWarnings(warnings: readonly string[]): string[]
   return Array.from(new Set(warnings.filter((warning) => !isInternalGenerationWarning(warning))));
 }
 
-export function normalizeExerciseFingerprintValue(value: string): string {
+function normalizeExerciseFingerprintValue(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-export function buildDayExerciseFingerprint(day: WorkoutDayWithExercises): string {
+function buildDayExerciseFingerprint(day: WorkoutDayWithExercises): string {
   return day.exercises
     .map((exercise) =>
       [
@@ -905,7 +708,7 @@ export function buildDayExerciseFingerprint(day: WorkoutDayWithExercises): strin
     .join('|');
 }
 
-export function allWorkoutDaysHaveSameExerciseFingerprint(
+function allWorkoutDaysHaveSameExerciseFingerprint(
   days: WorkoutDayWithExercises[],
 ): boolean {
   if (days.length <= 1) {

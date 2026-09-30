@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from './api-client';
 
-export type SyncItemType =
+type SyncItemType =
   | 'workout-session-complete'
   | 'workout-log'
   | 'pain-alert'
   | 'exercise-log'
   | 'generic-post';
 
-export interface SyncQueueItem {
+interface SyncQueueItem {
   id: string;
   type: SyncItemType;
   endpoint: string;

@@ -1,4 +1,4 @@
-export type UnitSystem = 'metric' | 'imperial';
+type UnitSystem = 'metric' | 'imperial';
 
 export interface PerformanceRecord {
   weight: number;
@@ -17,7 +17,7 @@ export interface ProgressiveOverloadInput {
   unitSystem?: UnitSystem;
 }
 
-export type OverloadType = 'overload' | 'deload' | 'maintain' | 'baseline';
+type OverloadType = 'overload' | 'deload' | 'maintain' | 'baseline';
 
 export interface OverloadRecommendation {
   type: OverloadType;
@@ -63,17 +63,19 @@ export function calculateProgressiveOverload(
   const weightStepKg = isImperial ? 5 / 2.20462 : 2.5; // +5 lbs or +2.5 kg
   const weightStepDisplay = isImperial ? 5 : 2.5;
 
-  const parsedTargetReps = typeof targetReps === 'number'
-    ? targetReps
-    : typeof targetReps === 'string' && !isNaN(Number(targetReps))
-    ? Number(targetReps)
-    : currentReps || 10;
+  const parsedTargetReps =
+    typeof targetReps === 'number'
+      ? targetReps
+      : typeof targetReps === 'string' && !isNaN(Number(targetReps))
+      ? Number(targetReps)
+      : currentReps || 10;
 
   // 1. Joint Discomfort / Pain Flare-up Deload Rule (Pain >= 4)
   if (recentPainScore !== null && recentPainScore !== undefined && recentPainScore >= 4) {
-    const baseWeight = previousPerformance?.weight && previousPerformance.weight > 0
-      ? previousPerformance.weight
-      : currentWeightKg;
+    const baseWeight =
+      previousPerformance?.weight && previousPerformance.weight > 0
+        ? previousPerformance.weight
+        : currentWeightKg;
 
     // Conservative 10% deload
     const deloadWeightKg = Math.max(0, Math.round(baseWeight * 0.9 * 2) / 2);

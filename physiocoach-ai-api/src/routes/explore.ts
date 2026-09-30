@@ -18,7 +18,8 @@ function normalizeFilterString(value: string): string {
   return value.toLowerCase().replace(/[-_\s]/g, '');
 }
 
-function parseJsonSafe<T>(raw: string, fallback: T): T {
+function parseJsonSafe<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw) return fallback;
   try {
     return JSON.parse(raw) as T;
   } catch {
@@ -83,22 +84,8 @@ function convertWorkoutPlanRecordToExploreDto(
   if (!parsed.ok || !parsed.dto.plan?.days?.length) return null;
 
   const planData = parsed.dto.plan;
-  let rawPlan: Record<string, unknown>;
-  try {
-    rawPlan = typeof row.planJson === 'string' ? JSON.parse(row.planJson) : (row.planJson ?? {});
-  } catch {
-    rawPlan = {};
-  }
-
-  let aiMetadata: Record<string, unknown>;
-  try {
-    aiMetadata =
-      typeof row.aiMetadataJson === 'string'
-        ? JSON.parse(row.aiMetadataJson)
-        : (row.aiMetadataJson ?? {});
-  } catch {
-    aiMetadata = {};
-  }
+  const rawPlan = parseJsonSafe<Record<string, unknown>>(row.planJson, {});
+  const aiMetadata = parseJsonSafe<Record<string, unknown>>(row.aiMetadataJson, {});
 
   const personaEvaluation = evaluatePlanPersonas(rawPlan);
   const targetPersonas =
@@ -261,13 +248,12 @@ export function createExploreRoutes() {
 
   route.get('/explore/plans', async (c) => {
     try {
-      const url = new URL(c.req.url, 'http://localhost');
-      const splitParam = url.searchParams.get('split')?.trim();
-      const equipmentParam = url.searchParams.get('equipment')?.trim();
-      const injuryFilterParam = url.searchParams.get('injuryFilter')?.trim();
-      const experienceLevelParam = url.searchParams.get('experienceLevel')?.trim();
-      const searchParam = url.searchParams.get('search')?.trim();
-      const daysParam = url.searchParams.get('days')?.trim() || url.searchParams.get('frequencyDays')?.trim();
+      const splitParam = c.req.query('split')?.trim();
+      const equipmentParam = c.req.query('equipment')?.trim();
+      const injuryFilterParam = c.req.query('injuryFilter')?.trim();
+      const experienceLevelParam = c.req.query('experienceLevel')?.trim();
+      const searchParam = c.req.query('search')?.trim();
+      const daysParam = c.req.query('days')?.trim() || c.req.query('frequencyDays')?.trim();
 
       const routeContext = getApiRouteContext(c);
       let plans: ExplorePlanDto[] = [];
@@ -303,15 +289,7 @@ export function createExploreRoutes() {
             .limit(20);
 
           for (const row of dbRows) {
-            let aiMetadata: Record<string, unknown> = {};
-            try {
-              aiMetadata =
-                typeof row.aiMetadataJson === 'string'
-                  ? JSON.parse(row.aiMetadataJson)
-                  : (row.aiMetadataJson ?? {});
-            } catch {
-              aiMetadata = {};
-            }
+            const aiMetadata = parseJsonSafe<Record<string, unknown>>(row.aiMetadataJson, {});
 
             // Include only if explicitly published and not deleted
             if (row.status !== 'deleted' && aiMetadata.isPublished === true) {
@@ -328,15 +306,7 @@ export function createExploreRoutes() {
 
       // Include published plans from inMemoryWorkoutPlans
       for (const row of inMemoryWorkoutPlans.values()) {
-        let aiMetadata: Record<string, unknown> = {};
-        try {
-          aiMetadata =
-            typeof row.aiMetadataJson === 'string'
-              ? JSON.parse(row.aiMetadataJson)
-              : (row.aiMetadataJson ?? {});
-        } catch {
-          aiMetadata = {};
-        }
+        const aiMetadata = parseJsonSafe<Record<string, unknown>>(row.aiMetadataJson, {});
 
         if (row.status !== 'deleted' && aiMetadata.isPublished === true) {
           const customExplorePlan = convertWorkoutPlanRecordToExploreDto(row);

@@ -1,33 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
   ArrowLeftRight,
   ArrowRight,
   Check,
   ChevronDown,
   ChevronUp,
-  Clock,
   Dumbbell,
   Flame,
-  Minus,
   PartyPopper,
   Pause,
   Play,
   Plus,
   RefreshCw,
-  RotateCcw,
   ShieldAlert,
-  ShieldCheck,
-  Square,
-  Timer,
   Trophy,
   WifiOff,
   Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
 import { Toast } from '../components/ui/Toast';
 import { Tooltip } from '../components/ui/Tooltip';
@@ -37,7 +28,6 @@ import { PlateCalculatorModal } from '../components/ui/PlateCalculatorModal';
 import { ExerciseSwapModal, type SwapCandidateItem } from '../components/ui/ExerciseSwapModal';
 import { PrehabWarmupSection } from '../components/ui/PrehabWarmupSection';
 import { SessionSkeleton } from '../components/ui/Skeleton';
-import { resolveExerciseSafetyNotes } from '../services/exercise-safety-notes';
 import { soundCueService } from '../services/sound-cue-service';
 import { usePreferences } from '../context/PreferencesContext';
 import { apiClient } from '../services/api-client';
@@ -663,8 +653,6 @@ export function SessionPage() {
         ) : (
           <div className="space-y-3 sm:space-y-3.5">
             {exercises.map((exercise, exIdx) => {
-            const safety = exercise.safetyLevel || 'safe';
-            const safetyNotes = resolveExerciseSafetyNotes(exercise.name);
             const exerciseSets = logs[exIdx] || [];
             const completedCount = exerciseSets.filter((s) => s.completed).length;
             const isAllComplete = exerciseSets.length > 0 && completedCount === exerciseSets.length;

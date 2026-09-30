@@ -9,14 +9,10 @@ const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default:
 const AssessmentPage = lazy(() => import('./pages/AssessmentPage').then((m) => ({ default: m.AssessmentPage })));
 const AuthPage = lazy(() => import('./pages/AuthPage').then((m) => ({ default: m.AuthPage })));
 const CalculatorPage = lazy(() => import('./pages/CalculatorPage').then((m) => ({ default: m.CalculatorPage })));
-const CoachDashboardPage = lazy(() =>
-  import('./pages/CoachDashboardPage').then((m) => ({ default: m.CoachDashboardPage })),
-);
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const ExerciseAlternativesPage = lazy(() =>
   import('./pages/ExerciseAlternativesPage').then((m) => ({ default: m.ExerciseAlternativesPage })),
 );
-const ExercisesPage = lazy(() => import('./pages/ExercisesPage').then((m) => ({ default: m.ExercisesPage })));
 const ExplorePlansPage = lazy(() => import('./pages/ExplorePlansPage').then((m) => ({ default: m.ExplorePlansPage })));
 const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({ default: m.ImportPage })));
 const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));

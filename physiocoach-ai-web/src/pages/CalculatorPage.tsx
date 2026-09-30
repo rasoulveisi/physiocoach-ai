@@ -1,11 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import {
-  Activity,
   ArrowRight,
   BarChart3,
   Calculator,
   ChevronDown,
-  ChevronUp,
   Dumbbell,
   Flame,
   Gauge,
@@ -13,14 +11,10 @@ import {
   Info,
   Layers,
   Minus,
-  Percent,
   Plus,
-  RefreshCw,
   RotateCcw,
   Scale,
   ShieldAlert,
-  ShieldCheck,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -102,7 +96,6 @@ export function CalculatorPage() {
 
   // Active matrix highlight or filter
   const [selectedMatrixCell, setSelectedMatrixCell] = useState<{ reps: number; rpe: number } | null>(null);
-  const [showFullMatrix, setShowFullMatrix] = useState<boolean>(false);
 
   // Handle unit system switch with proper value conversion
   const handleUnitToggle = (newUnit: UnitSystem) => {

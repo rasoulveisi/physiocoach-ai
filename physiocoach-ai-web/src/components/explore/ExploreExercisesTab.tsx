@@ -1,14 +1,11 @@
 import { useState, useEffect, useTransition, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Activity,
   Dumbbell,
   Filter,
   Layers,
   RotateCcw,
   Search,
-  ShieldCheck,
-  Sparkles,
   X,
 } from 'lucide-react';
 import { ExerciseCard } from '../../app/features/exercise-catalog/components/ExerciseCard';
@@ -34,14 +31,6 @@ const QUICK_MUSCLE_OPTIONS = [
   { id: 'glutes', label: 'Glutes' },
   { id: 'abs', label: 'Core / Abs' },
   { id: 'calves', label: 'Calves' },
-];
-
-const QUICK_SAFETY_OPTIONS = [
-  { id: 'all', label: 'All Levels' },
-  { id: 'safe', label: 'Joint-Safe Only' },
-  { id: 'knee_friendly', label: 'Knee-Friendly' },
-  { id: 'low_spine_load', label: 'Low Spine Load' },
-  { id: 'shoulder_safe', label: 'Shoulder-Safe' },
 ];
 
 function isMuscleOptionActive(optionId: string, currentSelected?: string): boolean {

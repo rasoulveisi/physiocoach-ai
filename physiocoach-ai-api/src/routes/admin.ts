@@ -1,6 +1,11 @@
 import { createExpressRouter } from './express-adapter';
 import { getApiRouteContext } from './context';
 import { forbidden, handleRouteError, notFound } from '../shared/errors/api';
+import {
+  deleteExpiredAuditLogs,
+  getAuditLogById,
+  queryAuditLogs,
+} from '../services/ai-audit-logger';
 
 type AuthenticatedUser = ReturnType<typeof getApiRouteContext>['user'];
 
@@ -77,20 +82,13 @@ export function createAdminRoutes() {
       const task = c.req.query('task');
       const status = c.req.query('status');
       const parsedLimit = limitStr ? Number.parseInt(limitStr, 10) : 20;
-      const queryOpts: {
-        limit?: number;
-        traceId?: string;
-        task?: string;
-        status?: string;
-      } = {
-        limit: Number.isNaN(parsedLimit) ? 20 : parsedLimit,
-      };
-      if (traceId) queryOpts.traceId = traceId;
-      if (task) queryOpts.task = task;
-      if (status) queryOpts.status = status;
 
-      const { queryAuditLogs } = await import('../services/ai-audit-logger');
-      const logs = await queryAuditLogs(db, queryOpts);
+      const logs = await queryAuditLogs(db, {
+        limit: Number.isNaN(parsedLimit) ? 20 : parsedLimit,
+        ...(traceId ? { traceId } : {}),
+        ...(task ? { task } : {}),
+        ...(status ? { status } : {}),
+      });
 
       return c.json({ data: logs });
     } catch (error) {
@@ -102,7 +100,6 @@ export function createAdminRoutes() {
     try {
       const { db } = getApiRouteContext(c);
       const id = c.req.param('id');
-      const { getAuditLogById } = await import('../services/ai-audit-logger');
       const log = await getAuditLogById(db, id);
 
       if (!log) {
@@ -123,17 +120,14 @@ export function createAdminRoutes() {
       }
 
       const retentionDays = Number.parseInt(c.req.query('days') ?? '7', 10);
-      const { deleteExpiredAuditLogs } = await import('../services/ai-audit-logger');
-      const deletedCount = await deleteExpiredAuditLogs(
-        db,
-        Number.isNaN(retentionDays) ? 7 : retentionDays,
-      );
+      const validRetentionDays = Number.isNaN(retentionDays) ? 7 : retentionDays;
+      const deletedCount = await deleteExpiredAuditLogs(db, validRetentionDays);
 
       return c.json({
         data: {
           purged: true,
           deletedCount,
-          retentionDays: Number.isNaN(retentionDays) ? 7 : retentionDays,
+          retentionDays: validRetentionDays,
           purgedAt: new Date().toISOString(),
         },
       });

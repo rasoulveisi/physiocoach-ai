@@ -30,7 +30,20 @@ export interface DayDurationDetails {
   totalSets: number;
 }
 
-export function parseRepCount(reps: string | number | undefined): {
+interface ExerciseDurationInput {
+  sets?: number;
+  reps?: string | number;
+  restSeconds?: number;
+  movementPattern?: string;
+  name?: string;
+}
+
+interface WorkoutDayDurationInput {
+  dayNumber?: number;
+  exercises?: ExerciseDurationInput[];
+}
+
+function parseRepCount(reps: string | number | undefined): {
   isTimed: boolean;
   seconds?: number;
   avgReps: number;
@@ -41,76 +54,47 @@ export function parseRepCount(reps: string | number | undefined): {
 
   const str = String(reps || '').toLowerCase().trim();
 
-  // Check for timed holds, e.g. "30s", "40 sec", "45 seconds", "1 min", "1.5 min"
+  // Timed holds: "1 min", "1.5 min", etc.
   const minMatch = str.match(/(\d+(?:\.\d+)?)\s*(?:min|minute|minutes)\b/);
-  if (minMatch && minMatch[1]) {
-    const mins = parseFloat(minMatch[1]);
-    const secs = Math.min(180, Math.max(15, Math.round(mins * 60)));
+  if (minMatch?.[1]) {
+    const secs = Math.min(180, Math.max(15, Math.round(parseFloat(minMatch[1]) * 60)));
     return { isTimed: true, seconds: secs, avgReps: 1 };
   }
 
+  // Timed holds in seconds: "30s", "45 secs", etc.
   const secMatch = str.match(/(\d+)\s*(?:s|sec|secs|second|seconds)\b/);
-  if (secMatch && secMatch[1]) {
+  if (secMatch?.[1]) {
     const secs = Math.min(180, Math.max(10, parseInt(secMatch[1], 10)));
     return { isTimed: true, seconds: secs, avgReps: 1 };
   }
 
-  // Check for rep range: e.g. "5-8", "8-12", "12-15", "10-12"
+  // Rep range: "8-12", "5-8"
   const rangeMatch = str.match(/(\d+)\s*[-–/]\s*(\d+)/);
-  if (rangeMatch && rangeMatch[1] && rangeMatch[2]) {
-    const low = parseInt(rangeMatch[1], 10);
-    const high = parseInt(rangeMatch[2], 10);
-    const avg = Math.round((low + high) / 2);
+  if (rangeMatch?.[1] && rangeMatch[2]) {
+    const avg = Math.round((parseInt(rangeMatch[1], 10) + parseInt(rangeMatch[2], 10)) / 2);
     return { isTimed: false, avgReps: Math.min(50, Math.max(1, avg)) };
   }
 
-  // Check for single integer: e.g. "10", "12", "8 reps"
+  // Single count: "10", "12 reps"
   const singleMatch = str.match(/(\d+)/);
-  if (singleMatch && singleMatch[1]) {
-    const count = parseInt(singleMatch[1], 10);
-    return { isTimed: false, avgReps: Math.min(50, Math.max(1, count)) };
+  if (singleMatch?.[1]) {
+    return { isTimed: false, avgReps: Math.min(50, Math.max(1, parseInt(singleMatch[1], 10))) };
   }
 
   return { isTimed: false, avgReps: 10 };
 }
 
-export function isUnilateralExercise(name: string): boolean {
+function isUnilateralExercise(name: string): boolean {
   const n = name.toLowerCase();
-  return (
-    n.includes('split squat') ||
-    n.includes('step-up') ||
-    n.includes('step up') ||
-    n.includes('lunge') ||
-    n.includes('single-leg') ||
-    n.includes('single leg') ||
-    n.includes('one-arm') ||
-    n.includes('one arm') ||
-    n.includes('single-arm') ||
-    n.includes('single arm') ||
-    n.includes('bulgarian') ||
-    n.includes('pistol')
-  );
+  return /split squat|step-?up|lunge|single-?(?:leg|arm)|one-?arm|bulgarian|pistol/.test(n);
 }
 
-export function calculateExerciseDuration(exercise: {
-  sets?: number;
-  reps?: string | number;
-  restSeconds?: number;
-  movementPattern?: string;
-  name?: string;
-}): ExerciseDurationDetails {
-  const sets =
-    typeof exercise.sets === 'number' && Number.isFinite(exercise.sets) && exercise.sets > 0
-      ? exercise.sets
-      : 3;
-
+function calculateExerciseDuration(exercise: ExerciseDurationInput): ExerciseDurationDetails {
+  const sets = typeof exercise.sets === 'number' && exercise.sets > 0 ? exercise.sets : 3;
   const restPerSet =
-    typeof exercise.restSeconds === 'number' &&
-    Number.isFinite(exercise.restSeconds) &&
-    exercise.restSeconds > 0
+    typeof exercise.restSeconds === 'number' && exercise.restSeconds > 0
       ? exercise.restSeconds
       : 60;
-
   const restSeconds = Math.max(0, sets - 1) * restPerSet;
 
   const name = (exercise.name || '').toLowerCase();
@@ -145,7 +129,6 @@ export function calculateExerciseDuration(exercise: {
     }
 
     let calculatedWork = Math.round(repInfo.avgReps * secondsPerRep);
-
     if (isUnilateralExercise(name)) {
       calculatedWork = Math.round(calculatedWork * 1.85);
     }
@@ -176,16 +159,17 @@ export function calculateExerciseDuration(exercise: {
   };
 }
 
-export function calculateWorkoutDayDuration(day: {
-  dayNumber?: number;
-  exercises?: Array<{
-    sets?: number;
-    reps?: string | number;
-    restSeconds?: number;
-    movementPattern?: string;
-    name?: string;
-  }>;
-}): DayDurationDetails {
+/**
+ * Estimates duration in seconds for a single exercise
+ */
+export function estimateExerciseDurationSeconds(exercise: ExerciseDurationInput): number {
+  return calculateExerciseDuration(exercise).totalSeconds;
+}
+
+/**
+ * Calculates complete duration details for a workout day
+ */
+export function calculateWorkoutDayDuration(day: WorkoutDayDurationInput): DayDurationDetails {
   const exercises = Array.isArray(day.exercises) ? day.exercises : [];
   if (exercises.length === 0) {
     return {
@@ -217,7 +201,8 @@ export function calculateWorkoutDayDuration(day: {
   const cooldownSeconds = 120;
   const sessionBufferSeconds = warmupSeconds + cooldownSeconds;
 
-  const totalSeconds = totalWorkSeconds + totalRestSeconds + totalSetupSeconds + sessionBufferSeconds;
+  const totalSeconds =
+    totalWorkSeconds + totalRestSeconds + totalSetupSeconds + sessionBufferSeconds;
   const totalMinutes = Math.max(10, Math.round(totalSeconds / 60));
 
   return {
@@ -232,14 +217,14 @@ export function calculateWorkoutDayDuration(day: {
   };
 }
 
-export function calculateWorkoutDayDurationMinutes(day: {
-  exercises?: Array<{
-    sets?: number;
-    reps?: string | number;
-    restSeconds?: number;
-    movementPattern?: string;
-    name?: string;
-  }>;
-}): number {
+/**
+ * Returns estimated duration in minutes for a workout day
+ */
+export function calculateWorkoutDayDurationMinutes(day: WorkoutDayDurationInput): number {
   return calculateWorkoutDayDuration(day).totalMinutes;
 }
+
+/**
+ * Alias for calculateWorkoutDayDurationMinutes
+ */
+export const calculateWorkoutDuration = calculateWorkoutDayDurationMinutes;

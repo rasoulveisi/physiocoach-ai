@@ -30,7 +30,7 @@ export function usePlanSafetyEvaluator(days: PlanBuilderDay[], split?: string) {
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
 
   const lastEvaluatedHash = useRef<string>('');
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Quick signature of the days & exercises to avoid duplicate requests
   const computePlanSignature = useCallback((daysList: PlanBuilderDay[]): string => {

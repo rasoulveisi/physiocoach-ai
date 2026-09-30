@@ -3,7 +3,6 @@ import type { CatalogCandidate } from '../../types/workout-generator';
 import { WORKOUT_PLAN_MOVEMENT_PATTERNS } from '../../types/workout-plan-contract';
 
 type WorkoutPlanMovementPattern = (typeof WORKOUT_PLAN_MOVEMENT_PATTERNS)[number];
-type ExperienceLevel = WorkoutPlanGenerationContext['experienceLevel'];
 
 const MIN_PROMPT_CANDIDATE_MULTIPLIER = 5;
 const PREFERRED_PROMPT_CANDIDATE_MULTIPLIER = 6;
@@ -22,7 +21,7 @@ export function getPromptCandidateTargets(frequencyDays: number, sessionMinutes?
   };
 }
 
-export function getPromptCandidateId(
+function getPromptCandidateId(
   candidate: Pick<CatalogCandidate, 'masterExerciseId' | 'sourceId'>,
 ): string {
   return candidate.sourceId ?? candidate.masterExerciseId;
@@ -106,22 +105,7 @@ export function getSessionSizingGuidance(
   };
 }
 
-export function getExperiencePlanGuidance(
-  experienceLevel: ExperienceLevel,
-  sessionMinutes?: number,
-): string {
-  const sizing = getSessionSizingGuidance(sessionMinutes);
-  switch (experienceLevel) {
-    case 'beginner':
-      return `beginner; prioritize skill practice, simple setup, conservative complexity, ${sizing.setsGuidance} with ${sizing.restGuidance}, and usually ${sizing.minExercisesPerDay}-${sizing.maxExercisesPerDay} exercises per day (${sizing.styleLabel})`;
-    case 'intermediate':
-      return `intermediate; use moderate volume and complexity when recovery and focus allow, ${sizing.setsGuidance} with ${sizing.restGuidance}, usually ${sizing.minExercisesPerDay}-${sizing.maxExercisesPerDay} exercises per day (${sizing.styleLabel})`;
-    case 'advanced':
-      return `advanced; allow higher complexity or specialization when appropriate, ${sizing.setsGuidance} with ${sizing.restGuidance}, usually ${sizing.minExercisesPerDay}-${sizing.maxExercisesPerDay} exercises per day (${sizing.styleLabel})`;
-  }
-}
-
-export function formatSessionDuration(sessionMinutes: number | undefined): string {
+function formatSessionDuration(sessionMinutes: number | undefined): string {
   return typeof sessionMinutes === 'number' && Number.isFinite(sessionMinutes) && sessionMinutes > 0
     ? `${sessionMinutes} min`
     : 'not specified';
@@ -1339,42 +1323,7 @@ export function getSlotArchitecture(sessionMinutes?: number): SlotArchitecture {
   return getDaySlotBlueprint('general', 1, sessionMinutes);
 }
 
-export function groupApprovedExerciseMapByMovement(
-  candidates: readonly CatalogCandidate[],
-): Record<string, Record<string, string>> {
-  return candidates.reduce<Record<string, Record<string, string>>>((grouped, candidate) => {
-    const group = grouped[candidate.movementPattern] ?? {};
-    group[getPromptCandidateId(candidate)] = candidate.name;
-    grouped[candidate.movementPattern] = group;
-    return grouped;
-  }, {});
-}
-
-export function countGroupedApprovedExercises(
-  grouped: Record<string, Record<string, string>>,
-): number {
-  return Object.values(grouped).reduce((total, group) => total + Object.keys(group).length, 0);
-}
-
-export function formatAmberCandidates(candidates: readonly CatalogCandidate[]): Array<{
-  id: string;
-  name: string;
-  movement: WorkoutPlanMovementPattern;
-  reasons: readonly string[];
-  requiredModifications: readonly string[];
-}> {
-  return candidates
-    .filter((candidate) => candidate.cluster === 'amber')
-    .map((candidate) => ({
-      id: getPromptCandidateId(candidate),
-      name: candidate.name,
-      movement: candidate.movementPattern,
-      reasons: candidate.cautionReasons ?? [],
-      requiredModifications: candidate.requiredModifications ?? [],
-    }));
-}
-
-export function formatList(values: readonly string[] | undefined, fallback: string): string {
+function formatList(values: readonly string[] | undefined, fallback: string): string {
   if (!values || values.length === 0) {
     return fallback;
   }

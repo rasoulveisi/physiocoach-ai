@@ -28,11 +28,10 @@ interface OpenRouterChatCompletionResponse {
   };
 }
 
-export const DEFAULT_WORKOUT_MODEL = 'google/gemma-4-31b-it';
-export const LOCAL_WORKOUT_MODEL = 'local-deterministic-v1';
-export const DEFAULT_WORKOUT_TIMEOUT_MS = 90_000;
-export const DEFAULT_WORKOUT_MAX_RETRIES = 0;
-export const ALLOWED_WORKOUT_MODELS = [
+const DEFAULT_WORKOUT_MODEL = 'google/gemma-4-31b-it';
+const DEFAULT_WORKOUT_TIMEOUT_MS = 90_000;
+const DEFAULT_WORKOUT_MAX_RETRIES = 0;
+const ALLOWED_WORKOUT_MODELS = [
   // Free primary — confirmed working (~28s response, cost=0)
   'nvidia/nemotron-3-ultra-550b-a55b:free',
   // Gemini API (low-cost/free gemma) — confirmed working via GEMINI_API_KEY
@@ -67,7 +66,7 @@ export const ALLOWED_WORKOUT_MODELS = [
   'gemini-3.1-pro',
   'google/gemini-flash-1.5',
 ] as const;
-export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
+const DEFAULT_WORKOUT_FALLBACK_MODELS = [
   'google/gemma-4-26b-a4b-it',   // Gemini API — confirmed working, fast
   'google/gemma-4-31b-it',        // Gemini API — confirmed working
   'meta-llama/llama-3.3-70b-instruct',
@@ -76,11 +75,11 @@ export const DEFAULT_WORKOUT_FALLBACK_MODELS = [
   'nvidia/nemotron-3.5-lightning:free',
   'openrouter/free',
 ] as const;
-export const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([...ALLOWED_WORKOUT_MODELS]);
-export const WORKOUT_MODEL_ALLOWLIST = new Set<string>(ALLOWED_WORKOUT_MODELS);
+const WORKOUT_PRIMARY_ALLOWLIST = new Set<string>([...ALLOWED_WORKOUT_MODELS]);
+const WORKOUT_MODEL_ALLOWLIST = new Set<string>(ALLOWED_WORKOUT_MODELS);
 const WORKOUT_MAX_RETRIES_CAP = 0;
 
-export const WORKOUT_PLAN_SYSTEM_PROMPT = `Act as a licensed physiotherapist and elite strength and conditioning coach designing safe, evidence-informed training plans. Return strict JSON only.
+const WORKOUT_PLAN_SYSTEM_PROMPT = `Act as a licensed physiotherapist and elite strength and conditioning coach designing safe, evidence-informed training plans. Return strict JSON only.
 EXACT JSON SCHEMA: {"days": [{"dayNumber": 1, "name": "Day 1", "focus": "Focus", "exercises": [{"name": "Exercise Name", "masterExerciseId": "catalog_id", "sets": 3, "reps": "8-12", "restSeconds": 60, "notes": "Note"}]}]}.
 Each day MUST contain 4 to 6 distinct exercises covering main and accessory movements. CRITICAL: You MUST select exercise names and masterExerciseIds ONLY from the provided Approved green exercise ID map ({movement:{id:name}}). Do NOT invent or output exercises that are not in the approved map! Top-level object may contain only "days". Do not include muscle groups, movement patterns, warnings, rationale, instructions, markdown, or prose. Do not include introductory text, or trailing markdown syntax blocks (like \`\`\`json). Output must initiate with '{' and terminate with '}'.`;
 

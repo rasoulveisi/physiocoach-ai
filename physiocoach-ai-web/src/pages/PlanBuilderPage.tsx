@@ -1,37 +1,24 @@
-import React, { useState, useEffect, useMemo, useTransition } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
-  Activity,
   ArrowDown,
   ArrowLeft,
   ArrowLeftRight,
   ArrowUp,
-  BarChart3,
-  Check,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Clock,
   AlertTriangle,
   Dumbbell,
-  Flame,
-  Info,
-  Layers,
   Plus,
-  RotateCcw,
   Save,
   Search,
   ShieldAlert,
   ShieldCheck,
   Sliders,
-  Sparkles,
-  Target,
-  Timer,
   Trash2,
   X,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Badge } from '../components/ui/Badge';
@@ -109,9 +96,6 @@ const SET_TYPE_CONFIG: Record<
     desc: 'Maximum exertion (0 RIR)',
   },
 };
-
-const TEMPO_PRESETS = ['3-0-1-0', '2-0-1-1', '4-1-1-0', '2-0-2-0'];
-const REST_PRESETS = [60, 90, 120, 180];
 
 const MUSCLE_FILTER_OPTIONS = [
   'All',
@@ -309,7 +293,6 @@ function getInitialDaysForSplit(split: SplitPreset): PlanBuilderDay[] {
 export function PlanBuilderPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [, startTransition] = useTransition();
 
   const [searchParams] = useSearchParams();
   const incomingPlan = location.state?.plan;

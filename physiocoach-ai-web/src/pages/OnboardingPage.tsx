@@ -2,17 +2,12 @@ import { useState, useEffect } from 'react';
 import {
   Activity,
   Check,
-  Clock,
   Dumbbell,
   Flame,
-  HeartPulse,
   Info,
   Scale,
-  ShieldAlert,
   ShieldCheck,
   Sparkles,
-  Target,
-  User,
   Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

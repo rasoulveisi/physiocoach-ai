@@ -5,14 +5,7 @@ import {
   Database,
   Search,
   ShieldAlert,
-  ShieldCheck,
-  Dumbbell,
-  Filter,
-  Eye,
   BrainCircuit,
-  FileText,
-  Clock,
-  Sparkles,
 } from 'lucide-react';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -315,11 +308,15 @@ export function AdminPage() {
                   </tbody>
                 </table>
 
-                {!filteredExercises.length && (
+                {loading ? (
+                  <p className="p-12 text-center text-xs text-slate-500 animate-pulse">
+                    Loading exercise catalog...
+                  </p>
+                ) : !filteredExercises.length ? (
                   <p className="p-12 text-center text-xs text-slate-500">
                     No matching exercises in catalog.
                   </p>
-                )}
+                ) : null}
               </div>
             </CardContent>
           </Card>

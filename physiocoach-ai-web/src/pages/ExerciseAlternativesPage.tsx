@@ -5,22 +5,13 @@ import {
   AlertOctagon,
   AlertTriangle,
   ArrowRight,
-  ArrowRightLeft,
-  CheckCircle2,
-  ChevronDown,
   ChevronRight,
   Copy,
   Check,
-  Dumbbell,
   ExternalLink,
-  Flame,
   Gauge,
   HeartPulse,
   HelpCircle,
-  Info,
-  Layers,
-  RotateCcw,
-  Search,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -28,7 +19,6 @@ import {
   Zap,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { ExerciseDetailModal } from '../app/features/exercise-catalog/components/ExerciseDetailModal';
@@ -734,7 +724,7 @@ export function ExerciseAlternativesPage() {
           open={!!selectedExerciseForModal}
           exercise={selectedExerciseForModal}
           onClose={() => setSelectedExerciseForModal(null)}
-          onSelectAlternative={(id, name) => {
+          onSelectAlternative={(_id, name) => {
             setSelectedExerciseForModal(null);
             navigate(`/exercises?q=${encodeURIComponent(name)}`);
           }}

@@ -899,9 +899,8 @@ export function createCoachRoutes() {
   route.get('/coach/clients', async (c) => {
     try {
       const { user, db } = getApiRouteContext(c);
-      const url = new URL(c.req.url, 'http://localhost');
-      const statusFilter = url.searchParams.get('status')?.trim().toLowerCase();
-      const searchQuery = url.searchParams.get('search')?.trim().toLowerCase();
+      const statusFilter = c.req.query('status')?.trim().toLowerCase();
+      const searchQuery = c.req.query('search')?.trim().toLowerCase();
 
       let clientList: CoachClientDto[] = [];
 
@@ -1757,8 +1756,7 @@ export function createCoachRoutes() {
     try {
       const { db } = getApiRouteContext(c);
       const clientId = c.req.param('clientId');
-      const url = new URL(c.req.url, 'http://localhost');
-      const markRead = url.searchParams.get('markRead') !== 'false';
+      const markRead = c.req.query('markRead') !== 'false';
 
       let messages: CoachMessageDto[] = [];
 
@@ -1959,9 +1957,8 @@ export function createCoachRoutes() {
   route.get('/coach/alerts', async (c) => {
     try {
       const { user, db } = getApiRouteContext(c);
-      const url = new URL(c.req.url, 'http://localhost');
-      const statusFilter = url.searchParams.get('status')?.trim().toLowerCase() || 'active';
-      const clientId = url.searchParams.get('clientId')?.trim();
+      const statusFilter = c.req.query('status')?.trim().toLowerCase() || 'active';
+      const clientId = c.req.query('clientId')?.trim();
 
       let alerts: CoachPainAlertDto[] = [];
 

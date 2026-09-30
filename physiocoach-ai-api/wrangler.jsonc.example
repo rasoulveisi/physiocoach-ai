@@ -8,8 +8,8 @@
   "routes": [
     {
       "pattern": "physiocoach-ai-api.otconnect.ir",
-      "custom_domain": true,
-    },
+      "custom_domain": true
+    }
   ],
   "vars": {
     "APP_ENV": "production",
@@ -21,23 +21,23 @@
     "OPENROUTER_TIMEOUT_MS": "90000",
     "OPENROUTER_MAX_RETRIES": "0",
     "CORS_ORIGIN": "https://physiocoach.otconnect.ir,http://localhost:4200,http://localhost:4300,http://localhost:8787",
-    "DATABASE_URL": "postgresql://neondb_owner:npg_T7m0LDSedrvi@ep-quiet-thunder-ax8hxhfy-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require",
-    "GOOGLE_OAUTH_REDIRECT_URI": "https://physiocoach-ai-api.otconnect.ir/api/v1/auth/google/callback",
+    "DATABASE_URL": "postgresql://neondb_owner:<NEON_PASSWORD>@ep-quiet-thunder-ax8hxhfy-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require",
+    "GOOGLE_OAUTH_REDIRECT_URI": "https://physiocoach-ai-api.otconnect.ir/api/v1/auth/google/callback"
   },
   "observability": {
     "logs": {
       "enabled": false,
-      "invocation_logs": true,
-    },
+      "invocation_logs": true
+    }
   },
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
       "id": "385f7148d4c94f748473afc78dc4cac9",
-      "localConnectionString": "postgresql://neondb_owner:npg_T7m0LDSedrvi@ep-quiet-thunder-ax8hxhfy-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require",
-    },
+      "localConnectionString": "postgresql://neondb_owner:<NEON_PASSWORD>@ep-quiet-thunder-ax8hxhfy-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
+    }
   ],
   "triggers": {
-    "crons": ["0 3 * * SUN"],
-  },
+    "crons": ["0 3 * * SUN"]
+  }
 }

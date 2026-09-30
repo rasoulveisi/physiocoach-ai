@@ -24,11 +24,7 @@ export interface PasswordHashParts {
 }
 
 export function isStrongPassword(password: string): boolean {
-  // Minimum policy: >= 8 chars, at least one letter and one number.
-  if (typeof password !== 'string' || password.length < 8 || password.length > 256) {
-    return false;
-  }
-  return /[a-zA-Z]/.test(password) && /[0-9]/.test(password);
+  return typeof password === 'string' && password.length >= 8 && password.length <= 256;
 }
 
 export async function hashPassword(password: string): Promise<string> {

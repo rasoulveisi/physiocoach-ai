@@ -16,6 +16,10 @@ dist/
 .env.*
 !.env.example
 !.env.*.example
+wrangler.jsonc
+wrangler.toml
+!wrangler.jsonc.example
+!wrangler.toml.example
 
 # OS & IDE
 .DS_Store

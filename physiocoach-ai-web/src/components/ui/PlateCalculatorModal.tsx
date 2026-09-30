@@ -30,7 +30,7 @@ export function PlateCalculatorModal({
   initialWeight = 60,
   exerciseName,
   onApplyWeight,
-  unitSystem = 'metric',
+  unitSystem: _unitSystem = 'metric',
 }: PlateCalculatorModalProps) {
   const [targetWeight, setTargetWeight] = useState<number>(() => Math.max(20, initialWeight || 20));
   const [barWeight, setBarWeight] = useState<number>(20);

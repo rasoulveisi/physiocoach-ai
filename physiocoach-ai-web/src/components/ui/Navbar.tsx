@@ -1,4 +1,4 @@
-import { Activity, Bell, CalendarDays, Compass, LayoutDashboard, Settings, ShieldAlert, ShieldCheck, UserCheck } from 'lucide-react';
+import { Activity, Bell, CalendarDays, Compass, LayoutDashboard, Settings, ShieldCheck } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import type { User } from '../../context/AuthContext';

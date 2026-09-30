@@ -26,26 +26,35 @@ const legacyPostureAliases: Record<string, string> = {
 export function normalizeLegacyAssessmentConsiderations(
   input: LegacyAssessmentInput,
 ): AssessmentConsideration[] {
-  const normalized = [
-    ...(input.limitations ?? []).map((code) => ({
-      code,
-      severity: 'moderate' as const,
-      side: 'unspecified' as const,
-      inferred: true,
-    })),
-    ...(input.postureFlags ?? []).map((code) => ({
-      code: legacyPostureAliases[code] ?? code,
-      severity: 'mild' as const,
-      side: 'unspecified' as const,
-      inferred: true,
-    })),
-  ];
+  const result: AssessmentConsideration[] = [];
   const seenCodes = new Set<string>();
-  return normalized.filter(({ code }) => {
-    if (seenCodes.has(code)) return false;
-    seenCodes.add(code);
-    return true;
-  });
+
+  for (const code of input.limitations ?? []) {
+    if (!seenCodes.has(code)) {
+      seenCodes.add(code);
+      result.push({
+        code,
+        severity: 'moderate',
+        side: 'unspecified',
+        inferred: true,
+      });
+    }
+  }
+
+  for (const code of input.postureFlags ?? []) {
+    const resolvedCode = legacyPostureAliases[code] ?? code;
+    if (!seenCodes.has(resolvedCode)) {
+      seenCodes.add(resolvedCode);
+      result.push({
+        code: resolvedCode,
+        severity: 'mild',
+        side: 'unspecified',
+        inferred: true,
+      });
+    }
+  }
+
+  return result;
 }
 
 export function hasExplicitConsiderations(input: unknown): boolean {
@@ -63,44 +72,15 @@ export function resolveAssessmentConsiderations(input: {
   postureFlags?: string[] | undefined;
 }): AssessmentConsideration[] {
   if (input.considerations !== undefined) {
-    return input.considerations!.map((consideration) => ({
-      ...consideration,
+    return input.considerations.map((consideration) => ({
+      code: consideration.code,
+      severity: consideration.severity,
       side: consideration.side ?? 'unspecified',
+      notes: consideration.notes,
       inferred: consideration.inferred ?? false,
     }));
   }
   return normalizeLegacyAssessmentConsiderations(input);
-}
-
-export function legacySafetyContextFromConsiderations(
-  considerations: readonly AssessmentConsideration[],
-): Pick<AssessmentInput, 'limitations' | 'postureFlags'> {
-  const limitationCodes = new Set(['shoulder_pain', 'knee_pain', 'lower_back_pain', 'neck_pain']);
-  const postureCodes = new Set([
-    'rounded_shoulders',
-    'forward_head',
-    'anterior_pelvic_tilt',
-    'tight_hips',
-    'lower_back_discomfort',
-  ]);
-
-  const postureAliases: Record<string, NonNullable<AssessmentInput['postureFlags']>[number]> = {
-    forward_head_posture: 'forward_head',
-    limited_hip_mobility: 'tight_hips',
-  };
-
-  return {
-    limitations: considerations
-      .map(({ code }) => code)
-      .filter((code): code is NonNullable<AssessmentInput['limitations']>[number] =>
-        limitationCodes.has(code),
-      ),
-    postureFlags: considerations
-      .map(({ code }) => postureAliases[code] ?? code)
-      .filter((code): code is NonNullable<AssessmentInput['postureFlags']>[number] =>
-        postureCodes.has(code),
-      ),
-  };
 }
 
 export const assessmentInputSchema = z
@@ -138,17 +118,43 @@ export const assessmentInputSchema = z
       )
       .default([]),
   })
-  .strict()
-  .refine(
-    ({ considerations }) => {
-      const codes = considerations.map(({ code }) => code);
-      return new Set(codes).size === codes.length;
-    },
-    { path: ['considerations'], message: 'Duplicate consideration codes are not allowed.' },
-  );
+  .strict();
 
 // Use the input shape so TypeScript callers can continue omitting defaulted legacy fields.
 export type AssessmentInput = z.input<typeof assessmentInputSchema>;
+
+const VALID_LIMITATIONS = new Set(['shoulder_pain', 'knee_pain', 'lower_back_pain', 'neck_pain']);
+const VALID_POSTURE_FLAGS = new Set([
+  'rounded_shoulders',
+  'forward_head',
+  'anterior_pelvic_tilt',
+  'tight_hips',
+  'lower_back_discomfort',
+]);
+
+const POSTURE_ALIASES: Record<string, NonNullable<AssessmentInput['postureFlags']>[number]> = {
+  forward_head_posture: 'forward_head',
+  limited_hip_mobility: 'tight_hips',
+};
+
+export function legacySafetyContextFromConsiderations(
+  considerations: readonly AssessmentConsideration[],
+): Pick<AssessmentInput, 'limitations' | 'postureFlags'> {
+  const limitations: NonNullable<AssessmentInput['limitations']> = [];
+  const postureFlags: NonNullable<AssessmentInput['postureFlags']> = [];
+
+  for (const { code } of considerations) {
+    if (VALID_LIMITATIONS.has(code)) {
+      limitations.push(code as NonNullable<AssessmentInput['limitations']>[number]);
+    }
+    const postureCode = POSTURE_ALIASES[code] ?? code;
+    if (VALID_POSTURE_FLAGS.has(postureCode)) {
+      postureFlags.push(postureCode as NonNullable<AssessmentInput['postureFlags']>[number]);
+    }
+  }
+
+  return { limitations, postureFlags };
+}
 
 export const latestAssessmentOutputSchema = z.object({
   goals: z.array(z.string()),

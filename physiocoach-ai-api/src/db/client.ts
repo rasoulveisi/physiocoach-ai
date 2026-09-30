@@ -2,8 +2,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-export const DEFAULT_DATABASE_URL =
-  'postgresql://neondb_owner:npg_T7m0LDSedrvi@ep-quiet-thunder-ax8hxhfy-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require';
+export const DEFAULT_DATABASE_URL = process.env.DATABASE_URL || '';
 
 export function createDb(connectionStringOrBinding?: string | { connectionString: string }) {
   const connectionString =
@@ -14,6 +13,10 @@ export function createDb(connectionStringOrBinding?: string | { connectionString
       : typeof connectionStringOrBinding === 'string' && connectionStringOrBinding.length > 0
         ? connectionStringOrBinding
         : process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
+
+  if (!connectionString) {
+    throw new Error('Database connection is not configured. Set DATABASE_URL or provide connectionString.');
+  }
 
   const client = postgres(connectionString, {
     max: 5,

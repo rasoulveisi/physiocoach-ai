@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import {
   UploadCloud,
   FileText,
@@ -10,13 +10,11 @@ import {
   RefreshCw,
   FolderDown,
   Layers,
-  Calendar,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   parseWorkoutFile,
   fuzzyMatchExercise,
-  type ParsedImportWorkout,
   type CatalogExerciseItem,
   type ParseResult,
 } from '../services/workoutImporter';
@@ -24,7 +22,6 @@ import { apiClient } from '../services/api-client';
 
 export function ImportPage() {
   const [catalog, setCatalog] = useState<CatalogExerciseItem[]>([]);
-  const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [mappings, setMappings] = useState<Record<string, string | null>>({});
   const [saveTemplates, setSaveTemplates] = useState(true);
@@ -42,11 +39,10 @@ export function ImportPage() {
       })
       .catch(() => {
         // Continue even if catalog load fails (will fallback to custom exercises)
-      })
-      .finally(() => setLoadingCatalog(false));
+      });
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 

@@ -60,6 +60,46 @@ const BODY_CONSIDERATION_OPTIONS = [
   },
 ] as const;
 
+function safeJsonParse<T>(input: string | null | undefined, fallback: T): T {
+  if (!input) return fallback;
+  try {
+    return JSON.parse(input) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseGoalsPayload(goalsJson: string | null | undefined): {
+  goals: string[];
+  sessionMinutes?: number;
+  archetype?: string;
+} {
+  const fallback = { goals: ['strength'] };
+  if (!goalsJson) return fallback;
+  try {
+    const parsed = JSON.parse(goalsJson) as unknown;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return { goals: parsed as string[] };
+    }
+    if (parsed && typeof parsed === 'object') {
+      const obj = parsed as Record<string, unknown>;
+      const result: { goals: string[]; sessionMinutes?: number; archetype?: string } = {
+        goals: Array.isArray(obj.goals) && obj.goals.length > 0 ? (obj.goals as string[]) : ['strength'],
+      };
+      if (typeof obj.sessionMinutes === 'number') {
+        result.sessionMinutes = obj.sessionMinutes;
+      }
+      if (typeof obj.archetype === 'string') {
+        result.archetype = obj.archetype;
+      }
+      return result;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function createAssessmentRoutes() {
   const route = createExpressRouter();
 
@@ -79,26 +119,10 @@ export function createAssessmentRoutes() {
     const row = rows[0];
     if (!row) return c.json({ data: null });
 
-    const rawGoals = safeJsonParse<unknown>(row.goalsJson, ['strength']);
-    const parsedGoals = Array.isArray(rawGoals)
-      ? rawGoals
-      : rawGoals && typeof rawGoals === 'object' && 'goals' in rawGoals && Array.isArray((rawGoals as { goals: unknown }).goals)
-        ? (rawGoals as { goals: string[] }).goals
-        : ['strength'];
-
-    const parsedSessionMinutes =
-      rawGoals && typeof rawGoals === 'object' && 'sessionMinutes' in rawGoals && typeof (rawGoals as { sessionMinutes?: unknown }).sessionMinutes === 'number'
-        ? (rawGoals as { sessionMinutes: number }).sessionMinutes
-        : undefined;
-
-    const parsedArchetype =
-      rawGoals && typeof rawGoals === 'object' && 'archetype' in rawGoals && typeof (rawGoals as { archetype?: unknown }).archetype === 'string'
-        ? (rawGoals as { archetype: string }).archetype
-        : undefined;
-
-    const parsedLimitations = safeJsonParse(row.limitationsJson, []);
-    const parsedPostureFlags = safeJsonParse(row.postureFlagsJson, []);
-    const parsedEquipment = safeJsonParse(row.equipmentJson, ['home_gym']);
+    const { goals, sessionMinutes, archetype } = parseGoalsPayload(row.goalsJson);
+    const parsedLimitations = safeJsonParse<string[]>(row.limitationsJson, []);
+    const parsedPostureFlags = safeJsonParse<string[]>(row.postureFlagsJson, []);
+    const parsedEquipment = safeJsonParse<string[]>(row.equipmentJson, ['home_gym']);
     const normalizedConsiderations = await loadAssessmentConsiderations(db, row.id);
     const considerations =
       normalizedConsiderations.length > 0
@@ -114,16 +138,16 @@ export function createAssessmentRoutes() {
         : new Date().toISOString();
 
     const candidate = {
-      goals: Array.isArray(parsedGoals) && parsedGoals.length > 0 ? parsedGoals : ['strength'],
+      goals,
       frequencyDays: typeof row.frequencyDays === 'number' && row.frequencyDays >= 2 ? row.frequencyDays : 3,
-      ...(typeof parsedSessionMinutes === 'number' ? { sessionMinutes: parsedSessionMinutes } : {}),
-      ...(typeof parsedArchetype === 'string' ? { archetype: parsedArchetype } : {}),
-      equipment: Array.isArray(parsedEquipment) && parsedEquipment.length > 0 ? parsedEquipment : ['home_gym'],
-      limitations: Array.isArray(parsedLimitations) ? parsedLimitations : [],
-      postureFlags: Array.isArray(parsedPostureFlags) ? parsedPostureFlags : [],
-      considerations: Array.isArray(considerations) ? considerations : [],
+      ...(sessionMinutes !== undefined ? { sessionMinutes } : {}),
+      ...(archetype !== undefined ? { archetype } : {}),
+      equipment: parsedEquipment.length > 0 ? parsedEquipment : ['home_gym'],
+      limitations: parsedLimitations,
+      postureFlags: parsedPostureFlags,
+      considerations,
       completedAt: safeCompletedAt,
-      inputHash: typeof row.inputHash === 'string' && row.inputHash.length > 0 ? row.inputHash : 'assessment_legacy',
+      inputHash: row.inputHash && row.inputHash.length > 0 ? row.inputHash : 'assessment_legacy',
     };
 
     const parsed = latestAssessmentOutputSchema.safeParse(candidate);
@@ -141,12 +165,13 @@ export function createAssessmentRoutes() {
         ? parsed.data
         : { ...parsed.data, considerations: undefined };
 
+      const considerations = resolveAssessmentConsiderations(input);
+      const legacySafety = legacySafetyContextFromConsiderations(considerations);
+      const assessment = { ...input, considerations, ...legacySafety };
+
       if (hasDbClient(context)) {
         const assessmentId = `assessment_${crypto.randomUUID()}`;
         const now = new Date().toISOString();
-        const considerations = normalizedAssessmentConsiderations(input);
-        const legacySafety = legacySafetyContextFromConsiderations(considerations);
-        const assessment = { ...input, considerations, ...legacySafety };
         const inputHash = await createInputHash({
           promptVersion: '1.0',
           assessment,
@@ -179,15 +204,12 @@ export function createAssessmentRoutes() {
           limitationsJson: JSON.stringify(legacySafety.limitations),
           postureFlagsJson: JSON.stringify(legacySafety.postureFlags),
           completedAt: now,
-          inputHash: inputHash,
+          inputHash,
         });
         await insertAssessmentConsiderations(context.db, assessmentId, considerations, now);
-        return c.json({ data: assessment });
       }
 
-      const considerations = normalizedAssessmentConsiderations(input);
-      const legacySafety = legacySafetyContextFromConsiderations(considerations);
-      return c.json({ data: { ...input, considerations, ...legacySafety } });
+      return c.json({ data: assessment });
     } catch (error) {
       return handleRouteError(c, error, 'Failed to save assessment.');
     }
@@ -206,14 +228,6 @@ export function createAssessmentRoutes() {
 }
 
 export const assessmentsRouter = createAssessmentRoutes();
-
-function normalizedAssessmentConsiderations(input: {
-  considerations?: AssessmentConsideration[] | undefined;
-  limitations?: string[] | undefined;
-  postureFlags?: string[] | undefined;
-}): AssessmentConsideration[] {
-  return resolveAssessmentConsiderations(input);
-}
 
 async function findInactiveOrUnknownCodes(
   db: NonNullable<ReturnType<typeof getApiRouteContext>['db']>,
@@ -291,13 +305,4 @@ export async function loadAssessmentConsiderations(
     ...(row.notes ? { notes: row.notes } : {}),
     inferred: Boolean(row.inferred),
   }));
-}
-
-function safeJsonParse<T>(input: string, fallback: T): T {
-  try {
-    const parsed = JSON.parse(input) as T;
-    return parsed;
-  } catch {
-    return fallback;
-  }
 }

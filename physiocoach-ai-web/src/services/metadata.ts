@@ -12,12 +12,12 @@ export interface PageMetadataOptions {
   noindex?: boolean;
 }
 
-export const DEFAULT_PAGE_TITLE = 'PhysioCoach AI · Precision Athletic & Rehab Platform';
-export const DEFAULT_PAGE_DESCRIPTION =
+const DEFAULT_PAGE_TITLE = 'PhysioCoach AI · Precision Athletic & Rehab Platform';
+const DEFAULT_PAGE_DESCRIPTION =
   'Medical-grade AI strength programming, injury-aware biomechanical safeguards, and live gym floor tracking.';
-export const DEFAULT_OG_IMAGE = 'https://physiocoach.ai/og-preview.png';
-export const SITE_NAME = 'PhysioCoach AI';
-export const BASE_SITE_URL = 'https://physiocoach.ai';
+const DEFAULT_OG_IMAGE = 'https://physiocoach.ai/og-preview.png';
+const SITE_NAME = 'PhysioCoach AI';
+const BASE_SITE_URL = 'https://physiocoach.ai';
 
 function formatDocumentTitle(title?: string): string {
   if (!title || !title.trim()) {

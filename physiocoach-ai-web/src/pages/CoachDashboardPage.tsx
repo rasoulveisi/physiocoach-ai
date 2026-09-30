@@ -1,36 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
-  AlertCircle,
   AlertTriangle,
-  ArrowUpRight,
   Award,
-  Bell,
   Check,
   CheckCircle2,
   ChevronRight,
   ClipboardList,
-  Clock,
   Copy,
-  CornerDownRight,
   CreditCard,
-  Dumbbell,
-  ExternalLink,
-  Filter,
-  Flame,
-  HeartPulse,
   Key,
   MessageSquare,
   Plus,
-  Radio,
-  RefreshCw,
   Search,
   Send,
   ShieldAlert,
   Sparkles,
   Ticket,
   Trash2,
-  TrendingUp,
   UserCheck,
   UserPlus,
   Users,
@@ -273,7 +260,6 @@ export function CoachDashboardPage() {
   const [stats, setStats] = useState<CoachStats | null>(null);
   const [seatsSummary, setSeatsSummary] = useState<CoachSeatSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingSeats, setLoadingSeats] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'graduated' | 'paused'>('all');
   const [activeViewTab, setActiveViewTab] = useState<'roster' | 'seats'>('roster');
@@ -293,7 +279,6 @@ export function CoachDashboardPage() {
 
   // Pain Alerts State
   const [alerts, setAlerts] = useState<CoachPainAlert[]>([]);
-  const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [selectedAlertForReview, setSelectedAlertForReview] = useState<CoachPainAlert | null>(null);
   const [alertDirectiveNote, setAlertDirectiveNote] = useState('');
   const [sendDirectiveToChat, setSendDirectiveToChat] = useState(true);
@@ -377,7 +362,6 @@ export function CoachDashboardPage() {
   // Load seat licensing telemetry
   const fetchSeatsData = async () => {
     try {
-      setLoadingSeats(true);
       const res = await apiClient.get<any>('coach/seats');
       const rootData = res?.data || res;
       if (rootData) {
@@ -385,23 +369,18 @@ export function CoachDashboardPage() {
       }
     } catch (error) {
       console.warn('Failed to load coach seat licensing info', error);
-    } finally {
-      setLoadingSeats(false);
     }
   };
 
   // Load pain alerts
   const fetchAlertsData = async () => {
     try {
-      setLoadingAlerts(true);
       const res = await apiClient.get<any>('coach/alerts?status=active');
       const rootData = res?.data || res;
       const alertList = Array.isArray(rootData) ? rootData : (rootData?.data || []);
       setAlerts(alertList);
     } catch (error) {
       console.warn('Failed to load coach pain alerts', error);
-    } finally {
-      setLoadingAlerts(false);
     }
   };
 

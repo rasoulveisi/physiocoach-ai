@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type TouchEvent } from 'react';
-import { ArrowRight, ShieldCheck, Activity, Dumbbell, Sparkles } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Activity, Dumbbell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { LogoBadge } from '../components/ui/Logo';

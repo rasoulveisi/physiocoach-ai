@@ -39,35 +39,33 @@ export function validateCandidatePlan(
   candidates: readonly CatalogCandidate[],
   candidateBuild?: { clusters: { green: readonly CatalogCandidate[] } },
 ): { ok: boolean; issues: string[] } {
-  const candidatesById = new Map(
-    candidates.map((candidate) => [candidate.masterExerciseId, candidate]),
-  );
+  const candidatesById = new Map(candidates.map((c) => [c.masterExerciseId, c]));
   const greenMovements = new Set(
     candidateBuild?.clusters.green.map((c) => c.movementPattern) ?? [],
   );
   const issues: string[] = [];
 
   for (const day of plan.days) {
+    const dayLabel = `Day ${day.dayNumber ?? 'unknown'}`;
     let amberCount = 0;
+
     for (const exercise of day.exercises) {
-      const candidate = exercise.masterExerciseId
-        ? candidatesById.get(exercise.masterExerciseId)
-        : undefined;
+      if (!exercise.masterExerciseId) continue;
+      const candidate = candidatesById.get(exercise.masterExerciseId);
       if (!candidate) continue;
+
       if (candidate.cluster === 'red') {
-        issues.push(
-          `Day ${day.dayNumber ?? 'unknown'} selected excluded catalog exercise "${candidate.masterExerciseId}".`,
-        );
-      }
-      if (candidate.cluster === 'amber') {
-        if (!candidateBuild || greenMovements.has(candidate.movementPattern)) {
-          amberCount += 1;
-        }
+        issues.push(`${dayLabel} selected excluded catalog exercise "${candidate.masterExerciseId}".`);
+      } else if (candidate.cluster === 'amber') {
+        // Only count as excess if a safe green movement alternative exists
+        const hasGreenAlternative = !candidateBuild || greenMovements.has(candidate.movementPattern);
+        if (hasGreenAlternative) amberCount += 1;
       }
     }
+
     if (amberCount > MAX_AMBER_PER_DAY) {
       issues.push(
-        `Day ${day.dayNumber ?? 'unknown'} contains ${amberCount} amber candidates; at most ${MAX_AMBER_PER_DAY} is allowed.`,
+        `${dayLabel} contains ${amberCount} amber candidates; at most ${MAX_AMBER_PER_DAY} is allowed.`,
       );
     }
   }
@@ -82,15 +80,9 @@ interface ExerciseLocation {
   exerciseIndex: number;
 }
 
-function addUniqueWarning(warnings: string[], warning: string): void {
-  if (!warnings.includes(warning)) {
-    warnings.push(warning);
-  }
-}
-
-function addUniqueCorrection(corrections: string[], correction: string): void {
-  if (!corrections.includes(correction)) {
-    corrections.push(correction);
+function addUnique(list: string[], item: string): void {
+  if (!list.includes(item)) {
+    list.push(item);
   }
 }
 
@@ -235,8 +227,8 @@ function capBeginnerMuscleVolume(
               day.exercises.splice(exerciseIndex, 1, replacement);
 
               const warning = `Added conservative replacement exercise to ${day.name} because safety filtering removed every exercise.`;
-              addUniqueWarning(warnings, warning);
-              corrections.push(warning);
+              addUnique(warnings, warning);
+              addUnique(corrections, warning);
             }
           } else {
             day.exercises.splice(exerciseIndex, 1);
@@ -248,8 +240,8 @@ function capBeginnerMuscleVolume(
       }
 
       const warning = `Beginner ${muscleGroup} volume capped at 20 sets per week.`;
-      addUniqueWarning(warnings, warning);
-      addUniqueCorrection(corrections, warning);
+      addUnique(warnings, warning);
+      addUnique(corrections, warning);
     }
 
     if (!changed) {
@@ -266,7 +258,7 @@ function validateRoundedShouldersPullVolume(plan: WorkoutPlan, warnings: string[
     return true;
   }
 
-  addUniqueWarning(
+  addUnique(
     warnings,
     'Rounded shoulders risk: pulling volume should meet or exceed pushing volume.',
   );
@@ -296,8 +288,8 @@ function removeRiskyExercisesForLimitations(
         }
 
         const warning = `Removed risky exercise pattern for ${limitation}: ${riskyName}.`;
-        addUniqueWarning(warnings, warning);
-        corrections.push(warning);
+        addUnique(warnings, warning);
+        addUnique(corrections, warning);
         return false;
       });
     }
@@ -356,8 +348,8 @@ function addSafeReplacementExercisesForEmptyDays(
     day.exercises.push(getConservativeReplacementExercise(day));
 
     const warning = `Added conservative replacement exercise to ${day.name} because safety filtering removed every exercise.`;
-    addUniqueWarning(warnings, warning);
-    corrections.push(warning);
+    addUnique(warnings, warning);
+    addUnique(corrections, warning);
   }
 }
 
@@ -384,7 +376,7 @@ export function validateWorkoutPlan(candidatePlan: unknown, context: SafetyConte
   const safetyFailures: string[] = [];
   const limitations = getLimitationRiskNames(context);
 
-  addUniqueWarning(warnings, DISCLAIMER);
+  addUnique(warnings, DISCLAIMER);
 
   removeRiskyExercisesForLimitations(plan, limitations, warnings, corrections);
   addSafeReplacementExercisesForEmptyDays(plan, warnings, corrections);

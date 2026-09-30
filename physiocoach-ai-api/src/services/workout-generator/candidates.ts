@@ -92,7 +92,7 @@ const BALANCED_CANDIDATE_QUOTAS: Record<WorkoutPlanMovementPattern, number> = {
   isolation: 20,
 };
 
-export const BODYWEIGHT_EQUIPMENT_IDS = new Set([
+const BODYWEIGHT_EQUIPMENT_IDS = new Set([
   'bodyweight',
   'body_weight',
   'bodyweight_exercise',
@@ -101,7 +101,7 @@ export const BODYWEIGHT_EQUIPMENT_IDS = new Set([
   'none',
 ]);
 
-export const CATALOG_EQUIPMENT_TOKENS_BY_ASSESSMENT_VALUE: Record<string, readonly string[]> = {
+const CATALOG_EQUIPMENT_TOKENS_BY_ASSESSMENT_VALUE: Record<string, readonly string[]> = {
   full_gym: [
     'barbell',
     'bench',
@@ -145,43 +145,31 @@ export const CATALOG_EQUIPMENT_TOKENS_BY_ASSESSMENT_VALUE: Record<string, readon
   machine: ['machine', 'cable_machine', 'leg_press_machine'],
 };
 
-export function normalizeText(value: string | undefined | null): string {
-  return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-export function normalizeEquipment(value: string | undefined | null): string {
+function normalizeSlug(value: string | undefined | null): string {
   return (value ?? '')
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_');
 }
 
-export function normalizeGoalTag(value: string | undefined | null): string {
-  return normalizeText(value).replace(/[\s-]+/g, '_');
-}
-
-export function getNormalizedGoals(context: WorkoutPlanGenerationContext): readonly string[] {
+function getNormalizedGoals(context: WorkoutPlanGenerationContext): readonly string[] {
   const goals = context.goals && context.goals.length > 0 ? context.goals : [context.goal];
-  return Array.from(
-    new Set(goals.map((goal) => normalizeGoalTag(goal)).filter((goal) => goal.length > 0)),
-  );
+  return Array.from(new Set(goals.map(normalizeSlug).filter(Boolean)));
 }
 
-export function getNormalizedLimitations(context: WorkoutPlanGenerationContext): readonly string[] {
+function getNormalizedLimitations(context: WorkoutPlanGenerationContext): readonly string[] {
   return Array.from(
-    new Set(
-      (context.limitations ?? []).map((limitation) => normalizeGoalTag(limitation)).filter(Boolean),
-    ),
+    new Set((context.limitations ?? []).map(normalizeSlug).filter(Boolean)),
   );
 }
 
 export function getUserEquipmentTokens(context: WorkoutPlanGenerationContext): Set<string> {
   const tokens = new Set<string>();
-  tokens.add(normalizeEquipment('bodyweight'));
-  tokens.add(normalizeEquipment('body_weight'));
-  tokens.add(normalizeEquipment('n_a'));
+  tokens.add(normalizeSlug('bodyweight'));
+  tokens.add(normalizeSlug('body_weight'));
+  tokens.add(normalizeSlug('n_a'));
 
-  const explicitBuckets = (context.equipment ?? []).map((value) => normalizeEquipment(value));
+  const explicitBuckets = (context.equipment ?? []).map(normalizeSlug);
   for (const token of explicitBuckets) {
     tokens.add(token);
     const mapped = CATALOG_EQUIPMENT_TOKENS_BY_ASSESSMENT_VALUE[token];
@@ -189,18 +177,14 @@ export function getUserEquipmentTokens(context: WorkoutPlanGenerationContext): S
       continue;
     }
     for (const alias of mapped) {
-      tokens.add(normalizeEquipment(alias));
+      tokens.add(normalizeSlug(alias));
     }
   }
 
   return tokens;
 }
 
-export function getCanonicalEquipmentForCandidate(value: string): string {
-  return normalizeEquipment(value);
-}
-
-export function parseCandidateStringList(value: string | null | unknown): string[] {
+function parseCandidateStringList(value: string | null | unknown): string[] {
   if (typeof value !== 'string' || value.length === 0) {
     return [];
   }
@@ -213,14 +197,14 @@ export function parseCandidateStringList(value: string | null | unknown): string
 
     return parsed
       .filter((item): item is string => typeof item === 'string')
-      .map((item) => normalizeGoalTag(item))
+      .map((item) => normalizeSlug(item))
       .filter((item) => item.length > 0);
   } catch {
     return [];
   }
 }
 
-export function parseCandidateSafetyRating(
+function parseCandidateSafetyRating(
   row: DbCatalogCandidateRow,
   provisionalNoRuleCautions = false,
 ): CandidateSafetyRatingCell | undefined {
@@ -247,7 +231,7 @@ export function parseCandidateSafetyRating(
   };
 }
 
-export function addCandidateSafetyRating(
+function addCandidateSafetyRating(
   ratings: CandidateSafetyRatingCell[],
   rating: CandidateSafetyRatingCell | undefined,
 ): void {
@@ -263,20 +247,20 @@ export function addCandidateSafetyRating(
   }
 }
 
-export function parseCatalogExperienceLevel(
+function parseCatalogExperienceLevel(
   value: string | null | undefined,
 ): ExperienceLevel | undefined {
   if (!value) {
     return undefined;
   }
 
-  const normalized = normalizeGoalTag(value);
+  const normalized = normalizeSlug(value);
   return normalized === 'beginner' || normalized === 'intermediate' || normalized === 'advanced'
     ? normalized
     : undefined;
 }
 
-export function isCandidateLevelCompatible(
+function isCandidateLevelCompatible(
   userLevel: ExperienceLevel,
   candidateRecommendedLevel: ExperienceLevel | undefined,
 ): boolean {
@@ -301,7 +285,7 @@ const DEFAULT_MOVEMENT_PATTERN_NEEDS: readonly WorkoutPlanMovementPattern[] = [
   'isolation',
 ];
 
-export function deriveMovementPatternNeeds(): WorkoutPlanMovementPattern[] {
+function deriveMovementPatternNeeds(): WorkoutPlanMovementPattern[] {
   // Every fundamental resistance training movement pattern is required for all
   // plans so candidate selection stays balanced across upper/lower/core days.
   return WORKOUT_PLAN_MOVEMENT_PATTERNS.filter((pattern) =>
@@ -315,7 +299,7 @@ export function buildCandidateExerciseSet(
 ): CandidateBuildResult {
   const normalizedGoals = new Set(getNormalizedGoals(context));
   const normalizedLimitations = new Set(
-    getNormalizedLimitations(context).map((value) => normalizeGoalTag(value)),
+    getNormalizedLimitations(context).map((value) => normalizeSlug(value)),
   );
   const userEquipment = getUserEquipmentTokens(context);
 
@@ -327,7 +311,7 @@ export function buildCandidateExerciseSet(
     }
 
     const equipmentMatches = candidate.allowedEquipment.some((equipment) => {
-      const normalizedCandidateEquipment = getCanonicalEquipmentForCandidate(equipment);
+      const normalizedCandidateEquipment = normalizeSlug(equipment);
       if (BODYWEIGHT_EQUIPMENT_IDS.has(normalizedCandidateEquipment)) {
         return true;
       }
@@ -340,7 +324,7 @@ export function buildCandidateExerciseSet(
 
     if (
       candidate.excludedLimitations?.some((limitation) =>
-        normalizedLimitations.has(normalizeGoalTag(limitation)),
+        normalizedLimitations.has(normalizeSlug(limitation)),
       )
     ) {
       return false;
@@ -387,12 +371,12 @@ export function buildCandidateExerciseSet(
     }
 
     const leftGoalMatched = left.goalTags?.some((goal) =>
-      normalizedGoals.has(normalizeGoalTag(goal)),
+      normalizedGoals.has(normalizeSlug(goal)),
     )
       ? 0
       : 1;
     const rightGoalMatched = right.goalTags?.some((goal) =>
-      normalizedGoals.has(normalizeGoalTag(goal)),
+      normalizedGoals.has(normalizeSlug(goal)),
     )
       ? 0
       : 1;
@@ -550,8 +534,8 @@ export async function loadCatalogCandidatesFromDb(
 
     const candidate = candidatesById.get(row.exerciseCanonicalId);
     if (candidate) {
-      candidate.allowedEquipment.add(normalizeEquipment(row.equipmentName ?? ''));
-      candidate.allowedEquipment.add(normalizeEquipment(row.equipmentCanonicalId ?? ''));
+      candidate.allowedEquipment.add(normalizeSlug(row.equipmentName ?? ''));
+      candidate.allowedEquipment.add(normalizeSlug(row.equipmentCanonicalId ?? ''));
       if (!candidate.goalTags.length && row.goalTagsJson) {
         candidate.goalTags = parseCandidateStringList(row.goalTagsJson);
       }
@@ -575,8 +559,8 @@ export async function loadCatalogCandidatesFromDb(
     }
 
     const allowedEquipment = new Set<string>();
-    allowedEquipment.add(normalizeEquipment(row.equipmentName ?? ''));
-    allowedEquipment.add(normalizeEquipment(row.equipmentCanonicalId ?? ''));
+    allowedEquipment.add(normalizeSlug(row.equipmentName ?? ''));
+    allowedEquipment.add(normalizeSlug(row.equipmentCanonicalId ?? ''));
     const maxLevel = parseCatalogExperienceLevel(row.recommendedLevel);
 
     const dbCandidate: {

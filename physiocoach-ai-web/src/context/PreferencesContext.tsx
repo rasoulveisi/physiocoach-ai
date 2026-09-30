@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 
 export type UnitSystem = 'metric' | 'imperial';
 
@@ -68,81 +68,103 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     return saved !== null ? saved === 'true' : true;
   });
 
-  const setUnitSystem = (unit: UnitSystem) => {
+  const setUnitSystem = useCallback((unit: UnitSystem) => {
     setUnitSystemState(unit);
     localStorage.setItem(STORAGE_KEYS.UNIT_SYSTEM, unit);
-  };
+  }, []);
 
-  const setDefaultRestSeconds = (seconds: number) => {
+  const setDefaultRestSeconds = useCallback((seconds: number) => {
     setDefaultRestSecondsState(seconds);
     localStorage.setItem(STORAGE_KEYS.REST_SECONDS, String(seconds));
-  };
+  }, []);
 
-  const setDefaultSessionMinutes = (minutes: number) => {
+  const setDefaultSessionMinutes = useCallback((minutes: number) => {
     setDefaultSessionMinutesState(minutes);
     localStorage.setItem(STORAGE_KEYS.SESSION_MINUTES, String(minutes));
-  };
+  }, []);
 
-  const setSoundEnabled = (enabled: boolean) => {
+  const setSoundEnabled = useCallback((enabled: boolean) => {
     setSoundEnabledState(enabled);
     localStorage.setItem(STORAGE_KEYS.SOUND_ENABLED, String(enabled));
-  };
+  }, []);
 
-  const setVoiceCuesEnabled = (enabled: boolean) => {
+  const setVoiceCuesEnabled = useCallback((enabled: boolean) => {
     setVoiceCuesEnabledState(enabled);
     localStorage.setItem(STORAGE_KEYS.VOICE_CUES_ENABLED, String(enabled));
-  };
+  }, []);
 
-  const setHapticsEnabled = (enabled: boolean) => {
+  const setHapticsEnabled = useCallback((enabled: boolean) => {
     setHapticsEnabledState(enabled);
     localStorage.setItem(STORAGE_KEYS.HAPTICS_ENABLED, String(enabled));
-  };
+  }, []);
 
-  const setAutoStartRestTimer = (autoStart: boolean) => {
+  const setAutoStartRestTimer = useCallback((autoStart: boolean) => {
     setAutoStartRestTimerState(autoStart);
     localStorage.setItem(STORAGE_KEYS.AUTO_START_TIMER, String(autoStart));
-  };
+  }, []);
 
-  const formatWeight = (weightKg: number) => {
-    if (unitSystem === 'imperial') {
-      const lbs = Math.round(weightKg * 2.20462 * 10) / 10;
-      return { value: lbs, label: `${lbs} lbs`, unit: 'lbs' };
-    }
-    const val = Math.round(weightKg * 10) / 10;
-    return { value: val, label: `${val} kg`, unit: 'kg' };
-  };
-
-  const convertInputToKg = (displayValue: number): number => {
-    if (unitSystem === 'imperial') {
-      return Math.round((displayValue / 2.20462) * 10) / 10;
-    }
-    return Math.round(displayValue * 10) / 10;
-  };
-
-  return (
-    <PreferencesContext.Provider
-      value={{
-        unitSystem,
-        setUnitSystem,
-        defaultRestSeconds,
-        setDefaultRestSeconds,
-        defaultSessionMinutes,
-        setDefaultSessionMinutes,
-        soundEnabled,
-        setSoundEnabled,
-        voiceCuesEnabled,
-        setVoiceCuesEnabled,
-        hapticsEnabled,
-        setHapticsEnabled,
-        autoStartRestTimer,
-        setAutoStartRestTimer,
-        formatWeight,
-        convertInputToKg,
-      }}
-    >
-      {children}
-    </PreferencesContext.Provider>
+  const formatWeight = useCallback(
+    (weightKg: number) => {
+      if (unitSystem === 'imperial') {
+        const lbs = Math.round(weightKg * 2.20462 * 10) / 10;
+        return { value: lbs, label: `${lbs} lbs`, unit: 'lbs' };
+      }
+      const val = Math.round(weightKg * 10) / 10;
+      return { value: val, label: `${val} kg`, unit: 'kg' };
+    },
+    [unitSystem],
   );
+
+  const convertInputToKg = useCallback(
+    (displayValue: number): number => {
+      if (unitSystem === 'imperial') {
+        return Math.round((displayValue / 2.20462) * 10) / 10;
+      }
+      return Math.round(displayValue * 10) / 10;
+    },
+    [unitSystem],
+  );
+
+  const value = useMemo(
+    () => ({
+      unitSystem,
+      setUnitSystem,
+      defaultRestSeconds,
+      setDefaultRestSeconds,
+      defaultSessionMinutes,
+      setDefaultSessionMinutes,
+      soundEnabled,
+      setSoundEnabled,
+      voiceCuesEnabled,
+      setVoiceCuesEnabled,
+      hapticsEnabled,
+      setHapticsEnabled,
+      autoStartRestTimer,
+      setAutoStartRestTimer,
+      formatWeight,
+      convertInputToKg,
+    }),
+    [
+      unitSystem,
+      setUnitSystem,
+      defaultRestSeconds,
+      setDefaultRestSeconds,
+      defaultSessionMinutes,
+      setDefaultSessionMinutes,
+      soundEnabled,
+      setSoundEnabled,
+      voiceCuesEnabled,
+      setVoiceCuesEnabled,
+      hapticsEnabled,
+      setHapticsEnabled,
+      autoStartRestTimer,
+      setAutoStartRestTimer,
+      formatWeight,
+      convertInputToKg,
+    ],
+  );
+
+  return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
 }
 
 export function usePreferences(): PreferencesState {

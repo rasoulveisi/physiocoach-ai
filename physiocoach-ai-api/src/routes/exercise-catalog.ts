@@ -54,6 +54,16 @@ function parseExerciseEquipment(attributesJson: string | null | undefined): stri
   return ['bodyweight'];
 }
 
+function parseJsonArray(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+  } catch {
+    return [];
+  }
+}
+
 function exerciseHasExcludedLimitations(
   excludedLimitationsJson: string | null | undefined,
   limitations: string[],
@@ -526,38 +536,9 @@ export function createExerciseCatalogRoutes() {
         .offset(offset);
 
       const mapped = rows.map((r) => {
-        let secondaryMuscles: string[] = [];
-        try {
-          if (r.secondaryMusclesJson) {
-            secondaryMuscles = JSON.parse(r.secondaryMusclesJson);
-          }
-        } catch {
-          secondaryMuscles = [];
-        }
-
-        let equipmentList: string[] = [];
-        try {
-          if (r.attributesJson) {
-            const attrs = JSON.parse(r.attributesJson);
-            if (Array.isArray(attrs.equipmentRequired) && attrs.equipmentRequired.length > 0) {
-              equipmentList = attrs.equipmentRequired;
-            }
-          }
-        } catch {
-          equipmentList = [];
-        }
-        if (equipmentList.length === 0) {
-          equipmentList = ['bodyweight'];
-        }
-
-        let excludedLimitations: string[] = [];
-        try {
-          if (r.excludedLimitationsJson) {
-            excludedLimitations = JSON.parse(r.excludedLimitationsJson);
-          }
-        } catch {
-          excludedLimitations = [];
-        }
+        const secondaryMuscles = parseJsonArray(r.secondaryMusclesJson);
+        const equipmentList = parseExerciseEquipment(r.attributesJson);
+        const excludedLimitations = parseJsonArray(r.excludedLimitationsJson);
 
         const highlightTags: string[] = [];
         if (!excludedLimitations.includes('lower_back_pain')) highlightTags.push('Low Spine Load');
@@ -975,15 +956,7 @@ export function createExerciseCatalogRoutes() {
         .where(eq(exerciseConsiderationRatings.exerciseId, exercise.id))
         .limit(25);
 
-      let instructionsList: string[] = [];
-      if (exercise.instructionsJson) {
-        try {
-          const parsed = JSON.parse(exercise.instructionsJson);
-          if (Array.isArray(parsed)) instructionsList = parsed;
-        } catch {
-          instructionsList = [];
-        }
-      }
+      let instructionsList = parseJsonArray(exercise.instructionsJson);
       if (instructionsList.length === 0 && exercise.instructions) {
         instructionsList = exercise.instructions
           .split(/\r?\n+|\.\s+/)
@@ -998,29 +971,8 @@ export function createExerciseCatalogRoutes() {
         ];
       }
 
-      let secondaryMuscles: string[] = [];
-      try {
-        if (exercise.secondaryMusclesJson) {
-          secondaryMuscles = JSON.parse(exercise.secondaryMusclesJson);
-        }
-      } catch {
-        secondaryMuscles = [];
-      }
-
-      let equipmentList: string[] = [];
-      try {
-        if (exercise.attributesJson) {
-          const attrs = JSON.parse(exercise.attributesJson);
-          if (Array.isArray(attrs.equipmentRequired) && attrs.equipmentRequired.length > 0) {
-            equipmentList = attrs.equipmentRequired;
-          }
-        }
-      } catch {
-        equipmentList = [];
-      }
-      if (equipmentList.length === 0) {
-        equipmentList = ['bodyweight'];
-      }
+      const secondaryMuscles = parseJsonArray(exercise.secondaryMusclesJson);
+      const equipmentList = parseExerciseEquipment(exercise.attributesJson);
 
       const alternatives = await db
         .select({

@@ -27,7 +27,7 @@ export const workoutSessionCreateSchema = z
   .object({
     workoutPlanId: z.string().min(1),
     dayIndex: z.number().int().min(0),
-    scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    scheduledDate: z.string().min(1),
   })
   .strict();
 
@@ -555,7 +555,10 @@ export function createWorkoutSessionRoutes() {
     }
   });
 
-  route.post('/workout-sessions/pain-alert', async (c) => {
+  const handlePainAlert = async (
+    c: Parameters<Parameters<typeof route.post>[1]>[0],
+    explicitSessionId?: string,
+  ) => {
     try {
       const parsed = await parseJsonPayload(c, recordPainAlertSchema);
       if (!parsed.success) return parsed.response;
@@ -568,7 +571,7 @@ export function createWorkoutSessionRoutes() {
         jointRegion: parsed.data.jointRegion,
         exerciseName: parsed.data.exerciseName,
         notes: parsed.data.notes,
-        sessionId: parsed.data.sessionId,
+        sessionId: explicitSessionId ?? parsed.data.sessionId,
         db,
       });
 
@@ -583,38 +586,12 @@ export function createWorkoutSessionRoutes() {
     } catch (error) {
       return handleRouteError(c, error, 'Failed to record pain alert.');
     }
-  });
+  };
 
-  route.post('/workout-sessions/:sessionId/pain-alert', async (c) => {
-    try {
-      const sessionId = c.req.param('sessionId');
-      const parsed = await parseJsonPayload(c, recordPainAlertSchema);
-      if (!parsed.success) return parsed.response;
-
-      const { user, db } = getApiRouteContext(c);
-      const alert = await triggerHighPriorityPainAlert({
-        userId: user.id,
-        userName: user.displayName,
-        painScore: parsed.data.painScore,
-        jointRegion: parsed.data.jointRegion,
-        exerciseName: parsed.data.exerciseName,
-        notes: parsed.data.notes,
-        sessionId,
-        db,
-      });
-
-      return c.json({
-        success: true,
-        alertTriggered: Boolean(alert),
-        alert,
-        message: alert
-          ? 'High-priority pain alert transmitted directly to your Physical Therapist.'
-          : 'Pain score recorded within safe tolerance.',
-      });
-    } catch (error) {
-      return handleRouteError(c, error, 'Failed to record pain alert.');
-    }
-  });
+  route.post('/workout-sessions/pain-alert', (c) => handlePainAlert(c));
+  route.post('/workout-sessions/:sessionId/pain-alert', (c) =>
+    handlePainAlert(c, c.req.param('sessionId')),
+  );
 
   route.post('/workout-sessions/:sessionId/complete', async (c) => {
     try {
@@ -622,18 +599,9 @@ export function createWorkoutSessionRoutes() {
       if (!db) return notFound(c, 'Workout session not found.');
 
       const sessionId = c.req.param('sessionId');
-      let painScore: number | null = null;
-      let jointRegion: string | null = null;
-      let notes: string | null = null;
-
-      try {
-        const body = (await c.req.json()) as Record<string, unknown>;
-        if (typeof body?.painScore === 'number') painScore = body.painScore;
-        if (typeof body?.jointRegion === 'string') jointRegion = body.jointRegion;
-        if (typeof body?.notes === 'string') notes = body.notes;
-      } catch {
-        // Body is optional
-      }
+      const body = await c.req.json().catch(() => ({}));
+      const parsed = workoutSessionCompleteSchema.safeParse(body);
+      const data = parsed.success ? parsed.data : {};
 
       const existing = await db
         .select()
@@ -654,13 +622,13 @@ export function createWorkoutSessionRoutes() {
         })
         .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, user.id)));
 
-      if (painScore !== null && painScore > 4) {
+      if (data.painScore !== null && data.painScore !== undefined && data.painScore > 4) {
         await triggerHighPriorityPainAlert({
           userId: user.id,
           userName: user.displayName,
-          painScore,
-          jointRegion,
-          notes,
+          painScore: data.painScore,
+          jointRegion: data.jointRegion,
+          notes: data.notes,
           sessionId,
           db,
         });

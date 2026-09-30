@@ -8,6 +8,16 @@ import type { ProfileInput } from '../types/profile';
 
 export { mapProfileRecordToInput };
 
+function parseEquipmentJson(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function createProfileRoutes() {
   const route = createExpressRouter();
 
@@ -40,16 +50,7 @@ export function createProfileRoutes() {
     const userRecord = userRows[0];
     const profile = profileRows[0];
     const latestAssessment = assessmentRows[0];
-
-    let availableEquipment: string[] = [];
-    if (latestAssessment?.equipmentJson) {
-      try {
-        const parsed = JSON.parse(latestAssessment.equipmentJson);
-        if (Array.isArray(parsed)) availableEquipment = parsed;
-      } catch {
-        // Fallback to empty equipment on invalid JSON
-      }
-    }
+    const availableEquipment = parseEquipmentJson(latestAssessment?.equipmentJson);
 
     return c.json({
       data: {
@@ -159,9 +160,11 @@ export function createProfileRoutes() {
       context.db.insert(profiles).values(profileInsert),
     ];
 
-    let savedEquipment: string[] = [];
+    const savedEquipment = Array.isArray(raw.availableEquipment)
+      ? (raw.availableEquipment as string[])
+      : parseEquipmentJson(latestAssessment?.equipmentJson);
+
     if (Array.isArray(raw.availableEquipment)) {
-      savedEquipment = raw.availableEquipment as string[];
       if (latestAssessment) {
         writePromises.push(
           context.db
@@ -183,13 +186,6 @@ export function createProfileRoutes() {
             inputHash: 'settings_init',
           }),
         );
-      }
-    } else if (latestAssessment?.equipmentJson) {
-      try {
-        const parsed = JSON.parse(latestAssessment.equipmentJson);
-        if (Array.isArray(parsed)) savedEquipment = parsed;
-      } catch {
-        // Fallback to empty equipment on invalid JSON
       }
     }
 

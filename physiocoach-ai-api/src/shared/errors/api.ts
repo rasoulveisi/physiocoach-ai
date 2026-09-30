@@ -26,7 +26,7 @@ interface ErrorResponsePayload {
 const AUTH_CONTEXT_ERROR_MESSAGE = 'Missing or invalid authenticated user context.';
 
 function withRequestId(c: ExpressRouteContext, payload: ErrorResponsePayload): ErrorResponsePayload {
-  const precomputedRequestId = (c as { get?: (key: string) => unknown }).get?.('requestId');
+  const precomputedRequestId = c.get('requestId');
   if (typeof precomputedRequestId === 'string' && precomputedRequestId.length > 0) {
     return {
       ...payload,

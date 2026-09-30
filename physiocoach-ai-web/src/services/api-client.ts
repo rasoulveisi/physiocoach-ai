@@ -1,4 +1,4 @@
-export function getApiBaseUrl(): string {
+function getApiBaseUrl(): string {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL.replace(/\/$/, '');
   }
@@ -16,7 +16,7 @@ export const AUTH_TOKEN_KEY = 'physiocoach_auth_token';
 export const REFRESH_TOKEN_KEY = 'physiocoach_refresh_token';
 export const USER_KEY = 'physiocoach_auth_user';
 
-export interface ProblemDetails {
+interface ProblemDetails {
   type?: string;
   title: string;
   status: number;
@@ -40,7 +40,6 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
 
 // Endpoints that manage their own session lifecycle never trigger the silent-refresh flow.
 const SESSION_PATHS = new Set(['auth/login', 'auth/register', 'auth/refresh']);
-
 const isSessionPath = (path: string): boolean => SESSION_PATHS.has(path.replace(/^\//, ''));
 
 function clearStoredTokens(): void {
@@ -54,10 +53,16 @@ interface AuthAttempt {
   payload: unknown;
 }
 
-async function sendRequest(path: string, method: string, options: ApiRequestOptions, token: string | null): Promise<AuthAttempt> {
+async function sendRequest(
+  path: string,
+  method: string,
+  options: ApiRequestOptions,
+  token: string | null,
+): Promise<AuthAttempt> {
   const { body, headers, ...init } = options;
   const userStr = typeof window !== 'undefined' ? localStorage.getItem(USER_KEY) : null;
   let userHeaders: Record<string, string> = {};
+
   if (userStr) {
     try {
       const u = JSON.parse(userStr);
@@ -89,7 +94,8 @@ async function sendRequest(path: string, method: string, options: ApiRequestOpti
 }
 
 function toProblem(payload: unknown, response: Response): ProblemDetails {
-  const problem = typeof payload === 'object' && payload !== null ? (payload as Partial<ProblemDetails>) : {};
+  const problem =
+    typeof payload === 'object' && payload !== null ? (payload as Partial<ProblemDetails>) : {};
   return {
     ...problem,
     title: problem.title || response.statusText || 'Request failed',
@@ -116,15 +122,25 @@ async function performSilentRefresh(): Promise<string | null> {
       return null;
     }
 
-    const attempt = await sendRequest('auth/refresh', 'POST', { body: { refreshToken }, token: null }, null);
-    const data: RefreshResponse = typeof attempt.payload === 'object' && attempt.payload !== null ? attempt.payload : {};
+    const attempt = await sendRequest(
+      'auth/refresh',
+      'POST',
+      { body: { refreshToken }, token: null },
+      null,
+    );
+    const data: RefreshResponse =
+      typeof attempt.payload === 'object' && attempt.payload !== null ? attempt.payload : {};
     if (!attempt.response.ok || !data.accessToken) {
-      throw new Error(toProblem(attempt.payload, attempt.response).detail || 'Silent refresh failed.');
+      throw new Error(
+        toProblem(attempt.payload, attempt.response).detail || 'Silent refresh failed.',
+      );
     }
 
     localStorage.setItem(AUTH_TOKEN_KEY, data.accessToken);
     if (data.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
-    if (data.user !== undefined && data.user !== null) localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    if (data.user !== undefined && data.user !== null) {
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    }
     window.dispatchEvent(new CustomEvent('auth:session-updated', { detail: data }));
     return data.accessToken;
   } catch {
@@ -144,7 +160,7 @@ function requestSilentRefresh(): Promise<string | null> {
 }
 
 // In-flight GET request deduplicator
-const inFlightGets = new Map<string, Promise<any>>();
+const inFlightGets = new Map<string, Promise<unknown>>();
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const method = (options.method || 'GET').toUpperCase();
@@ -187,10 +203,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 }
 
 export const apiClient = {
-  get: <T>(path: string, options?: ApiRequestOptions) => apiRequest<T>(path, { ...options, method: 'GET' }),
-  post: <T>(path: string, body?: unknown, options?: ApiRequestOptions) => apiRequest<T>(path, { ...options, method: 'POST', body }),
-  put: <T>(path: string, body?: unknown, options?: ApiRequestOptions) => apiRequest<T>(path, { ...options, method: 'PUT', body }),
-  patch: <T>(path: string, body?: unknown, options?: ApiRequestOptions) => apiRequest<T>(path, { ...options, method: 'PATCH', body }),
-  delete: <T>(path: string, options?: ApiRequestOptions) => apiRequest<T>(path, { ...options, method: 'DELETE' }),
+  get: <T>(path: string, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: 'GET' }),
+  post: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: 'POST', body }),
+  put: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: 'PUT', body }),
+  patch: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: 'PATCH', body }),
+  delete: <T>(path: string, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: 'DELETE' }),
 };
-

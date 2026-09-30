@@ -9,7 +9,7 @@ export interface PrehabExercise {
   mediaUrl?: string | undefined;
 }
 
-export interface PrehabExerciseCandidate extends PrehabExercise {
+interface PrehabExerciseCandidate extends PrehabExercise {
   patterns: string[];
   limitations: string[];
   muscleGroups: string[];
@@ -33,7 +33,7 @@ export interface PrehabGenerateOutput {
   routine: PrehabExercise[];
 }
 
-export const CLINICAL_PREHAB_CATALOG: PrehabExerciseCandidate[] = [
+const CLINICAL_PREHAB_CATALOG: PrehabExerciseCandidate[] = [
   {
     id: 'prehab_90_90_hip_flow',
     name: '90/90 Hip Flow',
@@ -192,7 +192,7 @@ export const CLINICAL_PREHAB_CATALOG: PrehabExerciseCandidate[] = [
   },
 ];
 
-export function inferMovementPattern(name: string): string | null {
+function inferMovementPattern(name: string): string | null {
   const lower = name.toLowerCase();
   if (lower.includes('squat') || lower.includes('leg press') || lower.includes('hack')) return 'squat';
   if (lower.includes('deadlift') || lower.includes('rdl') || lower.includes('hinge') || lower.includes('good morning') || lower.includes('hip thrust')) return 'hinge';

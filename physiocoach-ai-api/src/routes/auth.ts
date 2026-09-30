@@ -79,10 +79,7 @@ export function createAuthRoutes() {
     if (!isStrongPassword(parsed.data.password)) {
       return authRouteError(
         c,
-        new AuthError(
-          'password_too_weak',
-          'Password must be at least 8 characters and include a letter and a number.',
-        ),
+        new AuthError('password_too_weak', 'Password must be at least 8 characters.'),
       );
     }
 
@@ -218,7 +215,7 @@ export function createAuthRoutes() {
   });
 
   route.post('/auth/logout', async (c) => {
-    const sessionId = (c as unknown as { get?: (key: string) => unknown }).get?.('authSessionId');
+    const sessionId = c.get('authSessionId');
     if (typeof sessionId !== 'string' || sessionId.length === 0) {
       return unauthorized(c, 'Missing authenticated session.');
     }
@@ -237,7 +234,7 @@ export function createAuthRoutes() {
   });
 
   route.get('/auth/me', async (c) => {
-    const user = (c as unknown as { get?: (key: string) => unknown }).get?.('authUser');
+    const user = c.get('authUser');
     if (!isAuthenticatedUser(user)) {
       return unauthorized(c, 'Missing authenticated user.');
     }
@@ -268,7 +265,7 @@ export function createAuthRoutes() {
       const targetUrl = new URL(returnUrl);
       targetUrl.searchParams.set('code', 'oauth-dev-code');
       targetUrl.searchParams.set('state', 'oauth-dev-state');
-      if (c.req.header('accept')?.includes('text/html') || !c.req.header('accept')?.includes('application/json')) {
+      if (prefersHtml(c)) {
         return c.redirect(targetUrl.toString(), 302);
       }
       return c.json({ authorizationUrl: targetUrl.toString(), state: 'oauth-dev-state' });
@@ -288,7 +285,7 @@ export function createAuthRoutes() {
     authorizationUrl.searchParams.set('access_type', 'offline');
     authorizationUrl.searchParams.set('prompt', 'select_account');
 
-    if (c.req.header('accept')?.includes('text/html') || !c.req.header('accept')?.includes('application/json')) {
+    if (prefersHtml(c)) {
       return c.redirect(authorizationUrl.toString(), 302);
     }
     return c.json({ authorizationUrl: authorizationUrl.toString(), state });
@@ -361,10 +358,6 @@ export function createAuthRoutes() {
         accessExpiresAt: access.expiresAt,
         user: toAuthenticatedUser(localUser),
       });
-    }
-
-    if (!config) {
-      return createApiError(c, 'invalid_request', 'Google OAuth is not configured.');
     }
 
     if (!db) {
@@ -520,6 +513,18 @@ function resolveOAuthReturnTo(c: ExpressRouteContext): string | null {
   }
 }
 
+function prefersHtml(c: ExpressRouteContext): boolean {
+  const accept = c.req.header('accept');
+  return Boolean(!accept || accept.includes('text/html') || !accept.includes('application/json'));
+}
+
+const DEFAULT_ALLOWED_DEV_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://localhost:4300',
+  'http://localhost:4200',
+  'http://localhost:8787',
+]);
+
 function isAllowedOAuthReturnUrl(url: URL, corsOrigins: string): boolean {
   // Mobile app deep link schemes (Expo Go and native standalone builds)
   if (url.protocol === 'exp:' || url.protocol === 'physiocoach:') {
@@ -532,12 +537,7 @@ function isAllowedOAuthReturnUrl(url: URL, corsOrigins: string): boolean {
 }
 
 function isAllowedOAuthReturnOrigin(origin: string, corsOrigins: string): boolean {
-  if (
-    origin === 'http://localhost:5173' ||
-    origin === 'http://localhost:4300' ||
-    origin === 'http://localhost:4200' ||
-    origin === 'http://localhost:8787'
-  ) {
+  if (DEFAULT_ALLOWED_DEV_ORIGINS.has(origin)) {
     return true;
   }
   return corsOrigins

@@ -3,13 +3,10 @@ import {
   Activity,
   AlertTriangle,
   ArrowRightLeft,
-  CheckCircle2,
   Dumbbell,
-  Info,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  X,
 } from 'lucide-react';
 import { Modal } from '../../../../components/ui/Modal';
 import { Badge } from '../../../../components/ui/Badge';
@@ -78,7 +75,6 @@ export function ExerciseDetailModal({
 
   if (!open || !exercise) return null;
 
-  const currentData = detail || exercise;
   const isAvoid = exercise.safetySummary?.overallRating === 'avoid';
   const isCaution = exercise.safetySummary?.overallRating === 'caution';
 

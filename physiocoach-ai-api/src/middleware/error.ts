@@ -5,7 +5,7 @@ import { isAuthError } from '../auth/errors';
 
 type HttpError = Error & { status?: number; auditLogId?: string };
 
-const statusTitles: Record<number, string> = {
+const STATUS_TITLES: Record<number, string> = {
   400: 'Bad Request',
   401: 'Unauthorized',
   403: 'Forbidden',
@@ -17,18 +17,20 @@ const statusTitles: Record<number, string> = {
   503: 'Service Unavailable',
 };
 
-export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next) => {
-  void next;
+function resolveStatusCode(error: unknown, candidate: HttpError): number {
+  if (error instanceof ZodError) return 400;
+  if (isAuthError(error)) return error.statusCode;
+  if (typeof candidate.status === 'number' && candidate.status >= 400 && candidate.status < 600) {
+    return candidate.status;
+  }
+  return 500;
+}
+
+export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, _next) => {
+  void _next;
   const candidate: HttpError =
-    error instanceof Error ? (error as HttpError) : new Error('Unexpected API error.');
-  const status =
-    error instanceof ZodError
-      ? 400
-      : isAuthError(error)
-        ? error.statusCode
-        : typeof candidate.status === 'number' && candidate.status >= 400 && candidate.status < 600
-          ? candidate.status
-          : 500;
+    error instanceof Error ? error : new Error('Unexpected API error.');
+  const status = resolveStatusCode(error, candidate);
   const traceId = req.traceId || crypto.randomUUID();
   const auditLogId = candidate.auditLogId || req.auditLogId || null;
 
@@ -41,7 +43,7 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next
     .type('application/problem+json')
     .json({
       type: `https://physiocoach.otconnect.ir/problems/${status}`,
-      title: statusTitles[status] || 'Request Failed',
+      title: STATUS_TITLES[status] || 'Request Failed',
       detail: candidate.message || 'Unexpected API error.',
       instance: req.originalUrl,
       traceId,

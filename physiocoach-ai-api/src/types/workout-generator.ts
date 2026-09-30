@@ -204,189 +204,85 @@ export interface WorkoutPlanParseError {
 export type WorkoutPlanParseResult =
   { ok: true; dto: WorkoutPlanDto } | { ok: false; error: WorkoutPlanParseError };
 
+function parsePositiveInt(val: unknown): number | undefined {
+  if (typeof val === 'number') return Number.isInteger(val) && val > 0 ? val : undefined;
+  if (typeof val === 'string') {
+    const parsed = parseInt(val.replace(/\D/g, ''), 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function cleanString(val: unknown): string | undefined {
+  if (typeof val !== 'string') return undefined;
+  const trimmed = val.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function normalizeAiExerciseKeys(val: unknown): unknown {
   if (!val || typeof val !== 'object' || Array.isArray(val)) {
     return val;
   }
-  const obj = { ...val } as Record<string, unknown>;
+  const raw = val as Record<string, unknown>;
 
-  // Normalize masterExerciseId key
-  const masterIdKeys = ['masterExerciseId', 'master_exercise_id', 'masterId', 'master_id'];
-  for (const key of masterIdKeys) {
-    if (obj[key] !== undefined && key !== 'masterExerciseId') {
-      if (obj.masterExerciseId === undefined) {
-        obj.masterExerciseId = obj[key];
-      }
-      delete obj[key];
-    }
-  }
+  const masterExerciseId = cleanString(
+    raw.masterExerciseId ?? raw.master_exercise_id ?? raw.masterId ?? raw.master_id,
+  );
+  const id = cleanString(raw.id ?? raw.exerciseId ?? raw.exercise_id);
+  const name = cleanString(
+    raw.name ?? raw.namename ?? raw.exerciseName ?? raw.exercise_name ?? raw.title,
+  );
+  const slot = parsePositiveInt(
+    raw.slot ?? raw.slotNumber ?? raw.slot_number ?? raw.slotId ?? raw.slot_id,
+  );
+  const restSeconds = parsePositiveInt(
+    raw.restSeconds ?? raw.rest_seconds ?? raw.rest ?? raw.restTime ?? raw.rest_time,
+  );
+  const notes = cleanString(raw.notes);
 
-  // Normalize id key
-  const idKeys = ['id', 'exerciseId', 'exercise_id'];
-  for (const key of idKeys) {
-    if (obj[key] !== undefined && key !== 'id') {
-      if (obj.id === undefined) {
-        obj.id = obj[key];
-      }
-      delete obj[key];
-    }
-  }
-
-  // Normalize name key
-  const nameKeys = ['name', 'namename', 'exerciseName', 'exercise_name', 'title'];
-  for (const key of nameKeys) {
-    if (obj[key] !== undefined && key !== 'name') {
-      if (obj.name === undefined) {
-        obj.name = obj[key];
-      }
-      delete obj[key];
-    }
-  }
-
-  // Normalize slot key
-  const slotKeys = ['slot', 'slotNumber', 'slot_number', 'slotId', 'slot_id'];
-  for (const key of slotKeys) {
-    if (obj[key] !== undefined && key !== 'slot') {
-      if (obj.slot === undefined) {
-        obj.slot = obj[key];
-      }
-      delete obj[key];
-    }
-  }
-
-  // Coerce slot to number if it is string
-  if (obj.slot !== undefined) {
-    if (typeof obj.slot === 'string') {
-      const parsed = parseInt((obj.slot as string).replace(/\D/g, ''), 10);
-      obj.slot = isNaN(parsed) || parsed <= 0 ? undefined : parsed;
-    }
-  }
-
-  // Normalize restSeconds key
-  const restKeys = ['restSeconds', 'rest_seconds', 'rest', 'restTime', 'rest_time'];
-  for (const key of restKeys) {
-    if (obj[key] !== undefined && key !== 'restSeconds') {
-      if (obj.restSeconds === undefined) {
-        obj.restSeconds = obj[key];
-      }
-      delete obj[key];
-    }
-  }
-
-  // Coerce restSeconds to number if it is string
-  if (obj.restSeconds !== undefined) {
-    if (typeof obj.restSeconds === 'string') {
-      const parsed = parseInt(obj.restSeconds.replace(/\D/g, ''), 10);
-      obj.restSeconds = isNaN(parsed) || parsed <= 0 ? undefined : parsed;
-    }
-  }
-
-  // Clean empty strings
-  if (typeof obj.name === 'string') {
-    if (obj.name.trim() === '') {
-      delete obj.name;
-    } else {
-      obj.name = obj.name.trim();
-    }
-  }
-  if (typeof obj.masterExerciseId === 'string') {
-    if (obj.masterExerciseId.trim() === '') {
-      delete obj.masterExerciseId;
-    } else {
-      obj.masterExerciseId = obj.masterExerciseId.trim();
-    }
-  }
-  if (typeof obj.id === 'string') {
-    if (obj.id.trim() === '') {
-      delete obj.id;
-    } else {
-      obj.id = obj.id.trim();
-    }
-  }
-
-  // Clean empty notes string
-  if (typeof obj.notes === 'string') {
-    if (obj.notes.trim() === '') {
-      delete obj.notes;
-    } else {
-      obj.notes = obj.notes.trim();
-    }
-  }
-
-  return obj;
+  return {
+    ...raw,
+    ...(slot !== undefined ? { slot } : {}),
+    ...(masterExerciseId !== undefined ? { masterExerciseId } : {}),
+    ...(id !== undefined ? { id } : {}),
+    ...(name !== undefined ? { name } : {}),
+    ...(restSeconds !== undefined ? { restSeconds } : {}),
+    ...(notes !== undefined ? { notes } : {}),
+  };
 }
 
 export function normalizeAiDayKeys(val: unknown): unknown {
   if (!val || typeof val !== 'object' || Array.isArray(val)) {
     return val;
   }
-  const obj = { ...val } as Record<string, unknown>;
+  const raw = val as Record<string, unknown>;
 
-  // Normalize dayNumber key
-  const dayNumKeys = [
-    'dayNumber',
-    'day_number',
-    'dayNo',
-    'day_no',
-    'day',
-    'dayIndex',
-    'day_index',
-    'index',
-  ];
-  for (const key of dayNumKeys) {
-    if (obj[key] !== undefined && key !== 'dayNumber') {
-      if (obj.dayNumber === undefined) {
-        obj.dayNumber = obj[key];
-      }
-      delete obj[key];
-    }
-  }
+  const dayNumber = parsePositiveInt(
+    raw.dayNumber ??
+      raw.day_number ??
+      raw.dayNo ??
+      raw.day_no ??
+      raw.day ??
+      raw.dayIndex ??
+      raw.day_index ??
+      raw.index,
+  );
+  const name = cleanString(raw.name ?? raw.dayName ?? raw.day_name ?? raw.title);
+  const estimatedDurationMinutes = parsePositiveInt(
+    raw.estimatedDurationMinutes ??
+      raw.estimatedDuration ??
+      raw.durationMinutes ??
+      raw.duration ??
+      raw.estimated_duration_minutes ??
+      raw.estimated_duration,
+  );
 
-  // Coerce dayNumber to number
-  if (obj.dayNumber !== undefined) {
-    if (typeof obj.dayNumber === 'string') {
-      const parsed = parseInt(obj.dayNumber.replace(/\D/g, ''), 10);
-      obj.dayNumber = isNaN(parsed) || parsed <= 0 ? undefined : parsed;
-    }
-  }
-
-  // Normalize name key
-  const dayNameKeys = ['name', 'dayName', 'day_name', 'title'];
-  for (const key of dayNameKeys) {
-    if (obj[key] !== undefined && key !== 'name') {
-      if (obj.name === undefined) {
-        obj.name = obj[key];
-      }
-      delete obj[key];
-    }
-  }
-
-  // Normalize estimatedDurationMinutes key
-  const dayDurationKeys = [
-    'estimatedDurationMinutes',
-    'estimatedDuration',
-    'durationMinutes',
-    'duration',
-    'estimated_duration_minutes',
-    'estimated_duration',
-  ];
-  for (const key of dayDurationKeys) {
-    if (obj[key] !== undefined && key !== 'estimatedDurationMinutes') {
-      if (obj.estimatedDurationMinutes === undefined) {
-        obj.estimatedDurationMinutes = obj[key];
-      }
-      delete obj[key];
-    }
-  }
-
-  if (obj.estimatedDurationMinutes !== undefined) {
-    if (typeof obj.estimatedDurationMinutes === 'string') {
-      const parsed = parseInt((obj.estimatedDurationMinutes as string).replace(/\D/g, ''), 10);
-      obj.estimatedDurationMinutes = isNaN(parsed) || parsed <= 0 ? undefined : parsed;
-    }
-  }
-
-  return obj;
+  return {
+    ...raw,
+    ...(dayNumber !== undefined ? { dayNumber } : {}),
+    ...(name !== undefined ? { name } : {}),
+    ...(estimatedDurationMinutes !== undefined ? { estimatedDurationMinutes } : {}),
+  };
 }
 
 export const leanAiExerciseSchema = z.preprocess(
@@ -399,12 +295,11 @@ export const leanAiExerciseSchema = z.preprocess(
       name: z.string().min(1).optional(),
       movementPattern: z.string().optional(),
       muscleGroup: z.string().optional(),
-      sets: z.number().int().min(1).optional(),
+      sets: z.number().int().positive().optional(),
       reps: z.union([z.string().min(1), z.number().positive()]).optional(),
-      restSeconds: z.number().int().min(1).optional(),
+      restSeconds: z.number().int().positive().optional(),
       notes: z.string().min(1).max(180).optional(),
     })
-    .strict()
     .refine((data) => Boolean(data.masterExerciseId || data.id || data.name), {
       message: 'Exercise must have either masterExerciseId, id, or name.',
     }),
@@ -412,24 +307,20 @@ export const leanAiExerciseSchema = z.preprocess(
 
 export const leanAiDaySchema = z.preprocess(
   normalizeAiDayKeys,
-  z
-    .object({
-      dayNumber: z.number().int().min(1),
-      name: z.string().min(1).optional(),
-      focus: z.string().min(1).optional(),
-      estimatedDurationMinutes: z.number().int().positive().optional(),
-      exercises: z.array(leanAiExerciseSchema).min(1),
-    })
-    .strict(),
-);
-
-export const leanAiWorkoutPlanSchema = z
-  .object({
+  z.object({
+    dayNumber: z.number().int().min(1),
     name: z.string().min(1).optional(),
     focus: z.string().min(1).optional(),
-    days: z.array(leanAiDaySchema).min(1),
-  })
-  .strict();
+    estimatedDurationMinutes: z.number().int().positive().optional(),
+    exercises: z.array(leanAiExerciseSchema).min(1),
+  }),
+);
+
+export const leanAiWorkoutPlanSchema = z.object({
+  name: z.string().min(1).optional(),
+  focus: z.string().min(1).optional(),
+  days: z.array(leanAiDaySchema).min(1),
+});
 
 export type LeanAiExercise = z.infer<typeof leanAiExerciseSchema>;
 export type LeanAiDay = z.infer<typeof leanAiDaySchema>;

@@ -3,13 +3,15 @@
  * Feature 3.3: Explore Marketplace Publishing & Persona Matching
  */
 
-export interface CandidatePersonaResult {
+interface CandidatePersonaResult {
   personas: string[];
   targetAudience: string;
   jointTags: string[];
 }
 
-export function evaluateCandidatePersonas(rawPlan: Record<string, unknown>): CandidatePersonaResult {
+export function evaluateCandidatePersonas(
+  rawPlan: Record<string, unknown>,
+): CandidatePersonaResult {
   const days = Array.isArray(rawPlan.days) ? rawPlan.days : [];
 
   let totalSets = 0;
@@ -27,7 +29,8 @@ export function evaluateCandidatePersonas(rawPlan: Record<string, unknown>): Can
   for (const day of days) {
     const exercises = Array.isArray(day?.exercises) ? day.exercises : [];
     for (const ex of exercises) {
-      const sets = typeof ex.sets === 'number' ? ex.sets : Array.isArray(ex.sets) ? ex.sets.length : 3;
+      const sets =
+        typeof ex.sets === 'number' ? ex.sets : Array.isArray(ex.sets) ? ex.sets.length : 3;
       totalSets += sets;
 
       const name = (ex.name || ex.exerciseName || '').toLowerCase().trim();
@@ -44,7 +47,9 @@ export function evaluateCandidatePersonas(rawPlan: Record<string, unknown>): Can
 
       const primaryMuscle = (
         ex.muscleGroup || (Array.isArray(ex.muscleGroups) ? ex.muscleGroups[0] : '') || ''
-      ).toLowerCase().trim();
+      )
+        .toLowerCase()
+        .trim();
       if (primaryMuscle) {
         muscleSets[primaryMuscle] = (muscleSets[primaryMuscle] || 0) + sets;
       }
@@ -55,7 +60,8 @@ export function evaluateCandidatePersonas(rawPlan: Record<string, unknown>): Can
   const matchedPersonas: string[] = [];
   const jointTags: string[] = [];
 
-  const backVolume = (muscleSets['back'] || 0) + (muscleSets['lats'] || 0) + (muscleSets['upper_back'] || 0);
+  const backVolume =
+    (muscleSets['back'] || 0) + (muscleSets['lats'] || 0) + (muscleSets['upper_back'] || 0);
   const chestVolume = muscleSets['chest'] || 0;
   const hamstringGluteVolume = (muscleSets['hamstrings'] || 0) + (muscleSets['glutes'] || 0);
   const quadVolume = muscleSets['quads'] || 0;

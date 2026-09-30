@@ -1,4 +1,4 @@
-import React, { useState, type ReactNode } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 
 export interface TooltipProps {
   content: ReactNode;
@@ -16,15 +16,21 @@ export function Tooltip({
   delayMs = 150,
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [timeoutId, setTimeoutId] = useState<any>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const show = () => {
-    const id = setTimeout(() => setIsVisible(true), delayMs);
-    setTimeoutId(id);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setIsVisible(true), delayMs);
   };
 
   const hide = () => {
-    if (timeoutId) clearTimeout(timeoutId);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsVisible(false);
   };
 

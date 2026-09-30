@@ -1,11 +1,22 @@
+import fs from 'node:fs';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { explorePlans } from '../src/db/schema';
 import { VERIFIED_EXPLORE_TEMPLATES } from '../src/types/explore';
-import { DEFAULT_DATABASE_URL } from '../src/db/client';
+
+if (!process.env.DATABASE_URL) {
+  if (fs.existsSync('.dev.vars')) {
+    process.loadEnvFile('.dev.vars');
+  } else if (fs.existsSync('.env')) {
+    process.loadEnvFile('.env');
+  }
+}
 
 async function seedExplorePlans() {
-  const connectionString = process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL environment variable is required.');
+  }
   console.log('Connecting to database...');
   const client = postgres(connectionString, {
     max: 1,

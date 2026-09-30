@@ -18,31 +18,37 @@ declare global {
   }
 }
 
+const PUBLIC_PATHS = new Set([
+  '/api/v1/health',
+  '/api/v1/docs',
+  '/health',
+  '/sitemap.xml',
+  '/api/v1/sitemap.xml',
+  '/robots.txt',
+  '/api/v1/robots.txt',
+  '/api/v1/auth/register',
+  '/api/v1/auth/login',
+  '/api/v1/auth/refresh',
+]);
+
+const PUBLIC_PREFIXES = [
+  '/api/v1/auth/oauth',
+  '/api/v1/auth/google',
+  '/api/v1/auth/verify',
+  '/api/v1/auth/reset',
+  '/api/v1/exercise-catalog',
+  '/api/v1/explore',
+  '/explore',
+];
+
 function isPublicPath(path?: string): boolean {
   const segment = (path || '').split('?')[0] ?? '';
   const normalized = segment.replace(/\/+$/, '');
-  return (
-    normalized === '/api/v1/health' ||
-    normalized === '/api/v1/openapi.json' ||
-    normalized === '/api/v1/docs' ||
-    normalized === '/health' ||
-    normalized === '/sitemap.xml' ||
-    normalized === '/api/v1/sitemap.xml' ||
-    normalized === '/robots.txt' ||
-    normalized === '/api/v1/robots.txt' ||
-    normalized === '/api/v1/auth/register' ||
-    normalized === '/api/v1/auth/login' ||
-    normalized === '/api/v1/auth/refresh' ||
-    normalized === '/api/v1/auth/google' ||
-    normalized.startsWith('/api/v1/auth/oauth') ||
-    normalized.startsWith('/api/v1/auth/google') ||
-    normalized.startsWith('/api/v1/auth/verify') ||
-    normalized.startsWith('/api/v1/auth/reset') ||
-    normalized.startsWith('/api/v1/exercise-catalog') ||
-    normalized.startsWith('/api/v1/explore') ||
-    normalized.startsWith('/explore') ||
-    (normalized.includes('/workout-plans/') && normalized.endsWith('/ratings'))
-  );
+
+  if (PUBLIC_PATHS.has(normalized)) return true;
+  if (PUBLIC_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return true;
+
+  return normalized.includes('/workout-plans/') && normalized.endsWith('/ratings');
 }
 
 function bearerToken(req: Request): string | null {
