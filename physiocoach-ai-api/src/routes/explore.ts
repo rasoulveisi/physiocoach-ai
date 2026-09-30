@@ -313,8 +313,8 @@ export function createExploreRoutes() {
               aiMetadata = {};
             }
 
-            // Include if status is active or explicitly published and not deleted
-            if (row.status !== 'deleted' && (row.status === 'active' || aiMetadata.isPublished === true)) {
+            // Include only if explicitly published and not deleted
+            if (row.status !== 'deleted' && aiMetadata.isPublished === true) {
               const customExplorePlan = convertWorkoutPlanRecordToExploreDto(row);
               if (customExplorePlan && !plans.some((p) => p.id === customExplorePlan.id)) {
                 plans.push(customExplorePlan);
@@ -338,7 +338,7 @@ export function createExploreRoutes() {
           aiMetadata = {};
         }
 
-        if (row.status !== 'deleted' && (row.status === 'active' || aiMetadata.isPublished === true)) {
+        if (row.status !== 'deleted' && aiMetadata.isPublished === true) {
           const customExplorePlan = convertWorkoutPlanRecordToExploreDto(row);
           if (customExplorePlan && !plans.some((p) => p.id === customExplorePlan.id)) {
             plans.push(customExplorePlan);
