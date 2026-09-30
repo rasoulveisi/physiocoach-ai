@@ -1,7 +1,8 @@
-import { Activity, Bell, CalendarDays, Compass, Dumbbell, LayoutDashboard, Settings, ShieldAlert, ShieldCheck, UserCheck } from 'lucide-react';
+import { Activity, Bell, CalendarDays, Compass, LayoutDashboard, Settings, ShieldAlert, ShieldCheck, UserCheck } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import type { User } from '../../context/AuthContext';
+import { LogoBadge } from './Logo';
 
 const baseLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,9 +32,7 @@ export function DesktopNavbar({ user }: { user: User | null }) {
     <header className="w-full border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-7 px-4 sm:px-6">
         <Link to="/dashboard" className="flex items-center gap-2.5 font-black tracking-tight group">
-          <span className="grid size-9 place-items-center rounded-xl bg-lime-400 text-zinc-950 shadow-sm transition-transform group-hover:scale-105">
-            <Dumbbell className="h-5 w-5 stroke-[2.5]" />
-          </span>
+          <LogoBadge size="md" className="group-hover:scale-105" />
           <span className="text-lg font-extrabold tracking-tight text-white">
             PHYSIO<span className="text-lime-400">COACH</span> <span className="rounded-md border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">AI</span>
           </span>

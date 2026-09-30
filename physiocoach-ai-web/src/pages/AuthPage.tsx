@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Dumbbell, ShieldCheck, ArrowRight } from 'lucide-react';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
+import { LogoBadge } from '../components/ui/Logo';
 import { Toast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../services/api-client';
@@ -50,9 +51,7 @@ export function AuthPage() {
         <div className="pointer-events-none absolute -left-20 -top-20 size-80 rounded-full bg-volt/10 blur-3xl" />
 
         <Link to="/" className="flex items-center gap-2.5 font-black text-xl tracking-tight">
-          <span className="grid size-10 place-items-center rounded-xl bg-volt text-obsidian-950">
-            <Dumbbell className="h-6 w-6 stroke-[2.5]" />
-          </span>
+          <LogoBadge size="lg" />
           <span>
             PHYSIO<span className="text-volt">COACH</span> <span className="text-xs text-slate-500 font-normal">AI</span>
           </span>
