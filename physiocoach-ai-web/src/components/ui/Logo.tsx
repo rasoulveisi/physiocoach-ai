@@ -20,7 +20,7 @@ export function Logo({
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="-187 -177 1360 1360"
+      viewBox="130 0 720 1005"
       width={size}
       height={size}
       role="img"
@@ -97,9 +97,9 @@ export interface LogoBadgeProps {
 
 export function LogoBadge({ size = 'md', className }: LogoBadgeProps) {
   const sizeMap = {
-    sm: 'size-8 rounded-xl p-1',
-    md: 'size-9 rounded-xl p-1.5',
-    lg: 'size-10 rounded-xl p-1.5',
+    sm: 'size-9 rounded-xl p-1',
+    md: 'size-10 rounded-xl p-1',
+    lg: 'size-12 rounded-2xl p-1.5',
   };
 
   return (
