@@ -57,6 +57,31 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
 
   try {
     const bindings = (req.app.locals.workerEnv ?? process.env) as unknown as WorkerBindings;
+    const token = bearerToken(req);
+
+    if (token) {
+      try {
+        const claims = await verifyAccessToken(getAuthKeyConfig(bindings), token);
+        const roles = claims.roles.length > 0 ? claims.roles : ['user'];
+        req.user = {
+          id: claims.sub,
+          email: claims.email,
+          role: roles.includes('admin') ? 'admin' : 'user',
+          roles,
+        };
+        req.authSessionId = claims.sid;
+        return next();
+      } catch (tokenError) {
+        if (bindings.APP_ENV && bindings.APP_ENV !== 'local') {
+          return next(
+            Object.assign(tokenError instanceof Error ? tokenError : new Error('Authentication failed.'), {
+              status: 401,
+            }),
+          );
+        }
+      }
+    }
+
     if (!bindings.APP_ENV || bindings.APP_ENV === 'local') {
       req.user = {
         id: req.header('x-user-id') || '00000000-0000-4000-8000-000000000001',
@@ -68,21 +93,7 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
       return next();
     }
 
-    const token = bearerToken(req);
-    if (!token) {
-      return next(Object.assign(new Error('Missing Authorization header'), { status: 401 }));
-    }
-
-    const claims = await verifyAccessToken(getAuthKeyConfig(bindings), token);
-    const roles = claims.roles.length > 0 ? claims.roles : ['user'];
-    req.user = {
-      id: claims.sub,
-      email: claims.email,
-      role: roles.includes('admin') ? 'admin' : 'user',
-      roles,
-    };
-    req.authSessionId = claims.sid;
-    next();
+    return next(Object.assign(new Error('Missing Authorization header'), { status: 401 }));
   } catch (error) {
     next(
       Object.assign(error instanceof Error ? error : new Error('Authentication failed.'), {

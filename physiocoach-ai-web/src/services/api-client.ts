@@ -56,6 +56,20 @@ interface AuthAttempt {
 
 async function sendRequest(path: string, method: string, options: ApiRequestOptions, token: string | null): Promise<AuthAttempt> {
   const { body, headers, ...init } = options;
+  const userStr = typeof window !== 'undefined' ? localStorage.getItem(USER_KEY) : null;
+  let userHeaders: Record<string, string> = {};
+  if (userStr) {
+    try {
+      const u = JSON.parse(userStr);
+      if (u && typeof u === 'object' && u.id) {
+        userHeaders = {
+          'x-user-id': String(u.id),
+          ...(u.email ? { 'x-user-email': String(u.email) } : {}),
+        };
+      }
+    } catch {}
+  }
+
   const response = await fetch(`${API_URL}/${path.replace(/^\//, '')}`, {
     ...init,
     method,
@@ -63,6 +77,7 @@ async function sendRequest(path: string, method: string, options: ApiRequestOpti
       Accept: 'application/json',
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...userHeaders,
       ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),

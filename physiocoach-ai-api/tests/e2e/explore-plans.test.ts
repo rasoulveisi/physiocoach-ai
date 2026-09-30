@@ -316,5 +316,15 @@ describe('E2E: Public Explore Workout Plans Feed & Clone Workflow', () => {
     expect(deleteJson.success).toBe(true);
     expect(deleteJson.data.id).toBe(planId);
     expect(deleteJson.data.deleted).toBe(true);
+
+    // 3. Verify plan no longer appears in my-plans library
+    const myPlansRes = await app.fetch(
+      '/api/v1/workout-plans/my-plans',
+      { method: 'GET' },
+      mockEnv,
+    );
+    expect(myPlansRes.status).toBe(200);
+    const myPlansJson = (await myPlansRes.json()) as { data: Array<{ id: string }> };
+    expect(myPlansJson.data.some((p) => p.id === planId)).toBe(false);
   });
 });

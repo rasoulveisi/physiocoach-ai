@@ -273,21 +273,64 @@ export function PlanPage() {
     }
   };
 
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+
+  const handleEditSavedPlan = async (planId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingPlanId(planId);
+    try {
+      if (planView?.id === planId && planView.plan) {
+        setLibraryOpen(false);
+        navigate('/plans/builder', {
+          state: { plan: planView.plan, planId },
+        });
+        return;
+      }
+      const res = await apiClient.get<any>(`workout-plans/${planId}`);
+      const payload = res?.data || res;
+      if (payload && (payload.plan || payload.days)) {
+        setLibraryOpen(false);
+        navigate('/plans/builder', {
+          state: { plan: payload.plan || payload, planId },
+        });
+      } else {
+        throw new Error('Could not load plan details for editing.');
+      }
+    } catch (err) {
+      setToast({
+        message: err instanceof Error ? err.message : 'Failed to load routine for editing.',
+        type: 'error',
+      });
+    } finally {
+      setEditingPlanId(null);
+    }
+  };
+
   const handleDeleteSavedPlan = async (planId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm('Delete this plan from your library?')) return;
     try {
+      setMyPlans((prev) => prev.filter((p) => p.id !== planId));
       await apiClient.delete(`workout-plans/${planId}`);
       setToast({ message: 'Plan removed from library.', type: 'info' });
-      await fetchMyPlans();
+      const freshPlans = await apiClient.get<any>('workout-plans/my-plans');
+      const payload = freshPlans?.data || (Array.isArray(freshPlans) ? freshPlans : []);
+      const updatedList = Array.isArray(payload) ? payload : [];
+      setMyPlans(updatedList);
+
       if (planView?.id === planId) {
-        await fetchCurrentPlan();
+        if (updatedList.length > 0) {
+          await handleActivatePlan(updatedList[0].id, updatedList[0].title);
+        } else {
+          setPlanView(null);
+        }
       }
     } catch (err) {
       setToast({
         message: err instanceof Error ? err.message : 'Could not delete plan.',
         type: 'error',
       });
+      await fetchMyPlans();
     }
   };
 
@@ -1224,7 +1267,20 @@ export function PlanPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            loading={editingPlanId === plan.id}
+                            onClick={(e) => handleEditSavedPlan(plan.id, e)}
+                            title="Edit routine in Builder"
+                            className="h-7 px-2 text-xs font-bold text-zinc-300 hover:text-white hover:border-zinc-700"
+                          >
+                            <Pencil className="h-3 w-3 mr-1 text-[#10E760]" />
+                            <span>Edit</span>
+                          </Button>
+
                           <Button
                             type="button"
                             variant="ghost"

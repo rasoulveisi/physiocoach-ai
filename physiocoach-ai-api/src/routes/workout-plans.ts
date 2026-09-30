@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { createExpressRouter } from './express-adapter';
 import { createDb } from '../db/client';
@@ -10,6 +10,7 @@ import {
   explorePlans,
   workoutPlanRatings,
   workoutPlans,
+  workoutSessions,
 } from '../db/schema';
 import { createApiError, internalServerError, notFound, unauthorized } from '../shared/errors/api';
 import { runPlanAudit } from '../services/plan-audit';
@@ -658,7 +659,7 @@ export function createWorkoutPlanRoutes() {
         const rows = await db
           .select()
           .from(workoutPlans)
-          .where(eq(workoutPlans.userId, user.id))
+          .where(and(eq(workoutPlans.userId, user.id), ne(workoutPlans.status, 'deleted')))
           .orderBy(desc(workoutPlans.createdAt));
 
         for (const row of rows) {
@@ -720,7 +721,7 @@ export function createWorkoutPlanRoutes() {
 
       // Check inMemoryWorkoutPlans for user
       for (const [id, row] of inMemoryWorkoutPlans.entries()) {
-        if (row.userId === user.id && !seenIds.has(id)) {
+        if (row.userId === user.id && row.status !== 'deleted' && !seenIds.has(id)) {
           const parsed = parseWorkoutPlanRecordOrError(row);
           if (!parsed.ok || !parsed.dto.plan?.days) continue;
 
@@ -806,7 +807,7 @@ export function createWorkoutPlanRoutes() {
         const rows = await db
           .update(workoutPlans)
           .set({ status: 'active' })
-          .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)))
+          .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id), ne(workoutPlans.status, 'deleted')))
           .returning();
 
         if (rows[0]) {
@@ -815,13 +816,16 @@ export function createWorkoutPlanRoutes() {
       }
 
       if (!targetRecord && inMemoryWorkoutPlans.has(planId)) {
-        // Archive in memory
-        for (const [id, r] of inMemoryWorkoutPlans.entries()) {
-          if (r.userId === user.id) {
-            inMemoryWorkoutPlans.set(id, { ...r, status: id === planId ? 'active' : 'archived' });
+        const mem = inMemoryWorkoutPlans.get(planId);
+        if (mem && mem.userId === user.id && mem.status !== 'deleted') {
+          // Archive other active in memory
+          for (const [id, r] of inMemoryWorkoutPlans.entries()) {
+            if (r.userId === user.id && r.status !== 'deleted') {
+              inMemoryWorkoutPlans.set(id, { ...r, status: id === planId ? 'active' : 'archived' });
+            }
           }
+          targetRecord = inMemoryWorkoutPlans.get(planId) ?? null;
         }
-        targetRecord = inMemoryWorkoutPlans.get(planId) ?? null;
       }
 
       if (!targetRecord) {
@@ -855,18 +859,25 @@ export function createWorkoutPlanRoutes() {
   route.get('/workout-plans/:planId', async (c) => {
     try {
       const { user, db } = getApiRouteContext(c);
-      if (!db) {
-        return c.json({ data: null });
+      const planId = c.req.param('planId');
+      let row: (typeof workoutPlans.$inferSelect) | WorkoutPlanRecord | undefined = undefined;
+
+      if (db) {
+        const rows = await db
+          .select()
+          .from(workoutPlans)
+          .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id), ne(workoutPlans.status, 'deleted')))
+          .limit(1);
+        row = rows[0];
       }
 
-      const planId = c.req.param('planId');
-      const rows = await db
-        .select()
-        .from(workoutPlans)
-        .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)))
-        .limit(1);
+      if (!row && inMemoryWorkoutPlans.has(planId)) {
+        const mem = inMemoryWorkoutPlans.get(planId)!;
+        if (mem.userId === user.id && mem.status !== 'deleted') {
+          row = mem;
+        }
+      }
 
-      const row = rows[0];
       if (!row) {
         return c.json({ data: null }, 404);
       }
@@ -910,10 +921,33 @@ export function createWorkoutPlanRoutes() {
         return c.json({ data: null }, 404);
       }
 
-      await db
-        .update(workoutPlans)
-        .set({ status: 'archived' })
-        .where(and(eq(workoutPlans.userId, user.id), eq(workoutPlans.status, 'active')));
+      try {
+        const sessions = await db
+          .select({ id: workoutSessions.id })
+          .from(workoutSessions)
+          .where(eq(workoutSessions.workoutPlanId, current.id))
+          .limit(1);
+
+        if (sessions.length === 0) {
+          await db
+            .delete(workoutPlans)
+            .where(and(eq(workoutPlans.userId, user.id), eq(workoutPlans.id, current.id)));
+        } else {
+          await db
+            .update(workoutPlans)
+            .set({ status: 'deleted' })
+            .where(and(eq(workoutPlans.userId, user.id), eq(workoutPlans.id, current.id)));
+        }
+      } catch {
+        await db
+          .update(workoutPlans)
+          .set({ status: 'deleted' })
+          .where(and(eq(workoutPlans.userId, user.id), eq(workoutPlans.id, current.id)));
+      }
+
+      if (inMemoryWorkoutPlans.has(current.id)) {
+        inMemoryWorkoutPlans.delete(current.id);
+      }
 
       return c.json({ data: { id: current.id, deleted: true } });
     } catch (error) {
@@ -941,10 +975,29 @@ export function createWorkoutPlanRoutes() {
 
         const targetPlan = rows[0];
         if (targetPlan) {
-          await db
-            .update(workoutPlans)
-            .set({ status: 'archived' })
-            .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)));
+          try {
+            const sessions = await db
+              .select({ id: workoutSessions.id })
+              .from(workoutSessions)
+              .where(eq(workoutSessions.workoutPlanId, planId))
+              .limit(1);
+
+            if (sessions.length === 0) {
+              await db
+                .delete(workoutPlans)
+                .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)));
+            } else {
+              await db
+                .update(workoutPlans)
+                .set({ status: 'deleted' })
+                .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)));
+            }
+          } catch {
+            await db
+              .update(workoutPlans)
+              .set({ status: 'deleted' })
+              .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)));
+          }
 
           if (inMemoryWorkoutPlans.has(planId)) {
             inMemoryWorkoutPlans.delete(planId);
@@ -988,12 +1041,15 @@ export function createWorkoutPlanRoutes() {
         const rows = await db
           .select()
           .from(workoutPlans)
-          .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id)))
+          .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.userId, user.id), ne(workoutPlans.status, 'deleted')))
           .limit(1);
         existingRecord = rows[0] ?? null;
       }
-      if (!existingRecord) {
-        existingRecord = inMemoryWorkoutPlans.get(planId) ?? null;
+      if (!existingRecord && inMemoryWorkoutPlans.has(planId)) {
+        const mem = inMemoryWorkoutPlans.get(planId);
+        if (mem && mem.userId === user.id && mem.status !== 'deleted') {
+          existingRecord = mem;
+        }
       }
 
       if (!existingRecord) {

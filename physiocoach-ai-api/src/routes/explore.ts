@@ -313,8 +313,8 @@ export function createExploreRoutes() {
               aiMetadata = {};
             }
 
-            // Include if status is active or explicitly published
-            if (row.status === 'active' || aiMetadata.isPublished === true) {
+            // Include if status is active or explicitly published and not deleted
+            if (row.status !== 'deleted' && (row.status === 'active' || aiMetadata.isPublished === true)) {
               const customExplorePlan = convertWorkoutPlanRecordToExploreDto(row);
               if (customExplorePlan && !plans.some((p) => p.id === customExplorePlan.id)) {
                 plans.push(customExplorePlan);
@@ -338,7 +338,7 @@ export function createExploreRoutes() {
           aiMetadata = {};
         }
 
-        if (row.status === 'active' || aiMetadata.isPublished === true) {
+        if (row.status !== 'deleted' && (row.status === 'active' || aiMetadata.isPublished === true)) {
           const customExplorePlan = convertWorkoutPlanRecordToExploreDto(row);
           if (customExplorePlan && !plans.some((p) => p.id === customExplorePlan.id)) {
             plans.push(customExplorePlan);
@@ -478,7 +478,7 @@ export function createExploreRoutes() {
           .where(eq(workoutPlans.id, planId))
           .limit(1);
 
-        if (rows[0]) {
+        if (rows[0] && rows[0].status !== 'deleted') {
           const exploreDto = convertWorkoutPlanRecordToExploreDto(rows[0]);
           if (exploreDto) {
             return c.json({ data: exploreDto });
@@ -492,7 +492,7 @@ export function createExploreRoutes() {
 
       // Check inMemoryWorkoutPlans
       const inMem = inMemoryWorkoutPlans.get(planId);
-      if (inMem) {
+      if (inMem && inMem.status !== 'deleted') {
         const exploreDto = convertWorkoutPlanRecordToExploreDto(inMem);
         if (exploreDto) {
           return c.json({ data: exploreDto });

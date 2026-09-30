@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useTransition } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Activity,
   ArrowDown,
@@ -311,7 +311,9 @@ export function PlanBuilderPage() {
   const location = useLocation();
   const [, startTransition] = useTransition();
 
+  const [searchParams] = useSearchParams();
   const incomingPlan = location.state?.plan;
+  const incomingPlanId = location.state?.planId || searchParams.get('planId') || null;
 
   // Initialize title, split, and days from incomingPlan if available
   const initialData = useMemo(() => {
@@ -320,7 +322,7 @@ export function PlanBuilderPage() {
         id: d.id || `day_${dIdx + 1}`,
         dayName: d.name || d.dayName || d.title || `Day ${dIdx + 1}`,
         exercises: (d.exercises || []).map((ex: any, exIdx: number) => {
-          const rawSets = ex.sets;
+          const rawSets = ex.customSets || ex.sets;
           let parsedSets: PlanBuilderSet[] = [];
           if (Array.isArray(rawSets) && rawSets.length > 0 && typeof rawSets[0] === 'object') {
             parsedSets = rawSets.map((s: any, sIdx: number) => ({
@@ -372,6 +374,66 @@ export function PlanBuilderPage() {
   const [days, setDays] = useState<PlanBuilderDay[]>(initialData.days);
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [showPlanDetails, setShowPlanDetails] = useState(false);
+
+  // If opening builder with a planId and no cached plan in location state, fetch from API
+  useEffect(() => {
+    if (incomingPlanId && !incomingPlan) {
+      let active = true;
+      apiClient
+        .get<any>(`workout-plans/${incomingPlanId}`)
+        .then((res) => {
+          if (!active) return;
+          const payload = res?.data || res;
+          const planData = payload?.plan || (payload?.days ? payload : null);
+          if (planData && Array.isArray(planData.days)) {
+            setTitle(planData.name || planData.title || 'Custom Hypertrophy Blueprint');
+            setDescription(planData.description || '');
+            if (planData.scheduleType) {
+              setSplit(planData.scheduleType as SplitPreset);
+            }
+            const parsedDays: PlanBuilderDay[] = planData.days.map((d: any, dIdx: number) => ({
+              id: d.id || `day_${dIdx + 1}`,
+              dayName: d.name || d.dayName || d.title || `Day ${dIdx + 1}`,
+              exercises: (d.exercises || []).map((ex: any, exIdx: number) => {
+                const rawSets = ex.customSets || ex.sets;
+                let parsedSets: PlanBuilderSet[] = [];
+                if (Array.isArray(rawSets) && rawSets.length > 0 && typeof rawSets[0] === 'object') {
+                  parsedSets = rawSets.map((s: any, sIdx: number) => ({
+                    id: s.id || `set_${dIdx}_${exIdx}_${sIdx}`,
+                    setNumber: s.setNumber || sIdx + 1,
+                    setType: (s.setType as SetType) || 'NORMAL',
+                    targetReps: String(s.targetReps || s.reps || '8-10'),
+                    targetRir: Number(s.targetRir ?? s.rir ?? 2),
+                    tempo: s.tempo || '3-0-1-0',
+                    restSeconds: Number(s.restSeconds || s.rest || 90),
+                  }));
+                } else {
+                  const count = typeof rawSets === 'number' ? rawSets : 3;
+                  parsedSets = Array.from({ length: count }, (_, sIdx) =>
+                    createDefaultSet(sIdx + 1, sIdx === 0 ? 'WARMUP' : 'NORMAL')
+                  );
+                }
+                return {
+                  id: ex.id || `builder_ex_${dIdx}_${exIdx}`,
+                  exerciseId: ex.masterExerciseId || ex.exerciseId || ex.id || String(exIdx + 1),
+                  exerciseName: ex.name || ex.exerciseName || 'Exercise',
+                  movementPattern: ex.movementPattern || 'push',
+                  muscleGroups: ex.muscleGroup ? [ex.muscleGroup] : ex.muscleGroups || ['chest'],
+                  sets: parsedSets,
+                };
+              }),
+            }));
+            setDays(parsedDays);
+          }
+        })
+        .catch((err) => {
+          console.warn('Failed to load plan for editing in builder:', err);
+        });
+      return () => {
+        active = false;
+      };
+    }
+  }, [incomingPlanId, incomingPlan]);
 
   // Exercise Picker Drawer State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -836,9 +898,18 @@ export function PlanBuilderPage() {
         })),
       };
 
-      const res = await apiClient.post<any>('workout-plans/custom', payload);
+      let res: any;
+      if (incomingPlanId) {
+        res = await apiClient.put<any>(`workout-plans/${incomingPlanId}`, payload);
+      } else {
+        res = await apiClient.post<any>('workout-plans/custom', payload);
+      }
+
       if (res && (res.success || res.data?.id || res.planId)) {
-        setToast({ message: 'Custom workout plan saved and activated!', type: 'success' });
+        setToast({
+          message: incomingPlanId ? 'Workout routine updated successfully!' : 'Custom workout plan saved and activated!',
+          type: 'success',
+        });
         setTimeout(() => {
           navigate('/plan');
         }, 600);
@@ -907,9 +978,15 @@ export function PlanBuilderPage() {
       })),
     };
 
-    // 1. Save plan to obtain planId
-    const saveRes = await apiClient.post<any>('workout-plans/custom', payload);
-    const planId = saveRes?.planId || saveRes?.data?.id;
+    // 1. Save or update plan to obtain planId
+    let planId = incomingPlanId;
+    if (incomingPlanId) {
+      await apiClient.put<any>(`workout-plans/${incomingPlanId}`, payload);
+    } else {
+      const saveRes = await apiClient.post<any>('workout-plans/custom', payload);
+      planId = saveRes?.planId || saveRes?.data?.id;
+    }
+
     if (!planId) {
       throw new Error('Could not save routine before publishing.');
     }
@@ -977,7 +1054,7 @@ export function PlanBuilderPage() {
               className="h-8 px-3 text-xs font-black shadow-md shadow-[#10E760]/20"
             >
               <Save className="h-3.5 w-3.5 mr-1" />
-              <span>Save</span>
+              <span>{incomingPlanId ? 'Update Routine' : 'Save'}</span>
             </Button>
           </div>
         </div>

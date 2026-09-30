@@ -121,7 +121,7 @@ export interface WorkoutPlanRecord {
   id: string;
   userId: string;
   assessmentId: string;
-  status: 'draft' | 'active' | 'archived';
+  status: 'draft' | 'active' | 'archived' | 'deleted';
   planJson: string;
   safetyWarningsJson: string;
   aiMetadataJson: string;
