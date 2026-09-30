@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import {
   ArrowRight,
+  Bookmark,
   Calendar,
   ShieldCheck,
   Sparkles,
   Star,
-  Users,
 } from 'lucide-react';
 import { ExerciseVisual } from './ExerciseVisual';
 import type { ExplorePlanDto } from '../../pages/ExplorePlansPage';
@@ -44,27 +44,13 @@ export function ExplorePlanCard({ plan, onPreview }: ExplorePlanCardProps) {
     return plan.jointTags?.[0] || plan.targetPersonas?.[0] || null;
   }, [plan.jointTags, plan.targetPersonas]);
 
-  // Deterministic realistic athlete community counts
-  const displayAthletes = useMemo(() => {
-    let hash = 0;
-    for (let i = 0; i < plan.id.length; i++) {
-      hash = (hash << 5) - hash + plan.id.charCodeAt(i);
-      hash |= 0;
-    }
-    const base = 2800 + Math.abs(hash % 9500);
-    const total = base + (plan.cloneCount || 0) * 45;
-    return total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total.toLocaleString();
-  }, [plan.id, plan.cloneCount]);
+  // Real saves / clone count
+  const savesCount = plan.cloneCount ?? 0;
 
   const ratingFormatted = useMemo(() => {
     if (plan.rating && plan.rating > 0) return plan.rating.toFixed(1);
-    let hash = 0;
-    for (let i = 0; i < plan.id.length; i++) {
-      hash = (hash << 5) - hash + plan.id.charCodeAt(i);
-      hash |= 0;
-    }
-    return (4.6 + Math.abs(hash % 4) * 0.1).toFixed(1);
-  }, [plan.id, plan.rating]);
+    return null;
+  }, [plan.rating]);
 
   // Multi-day collage exercises
   const collageExercises = useMemo(() => {
@@ -227,11 +213,17 @@ export function ExplorePlanCard({ plan, onPreview }: ExplorePlanCardProps) {
               <span className="text-lime-400 font-extrabold">{plan.totalWeeklySets} Sets</span>
             </div>
 
-            {/* Rating */}
-            <div className="rounded-lg bg-zinc-950/85 border border-zinc-800/90 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono font-black text-amber-300 backdrop-blur-md flex items-center gap-1 shadow-sm">
-              <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
-              <span>{ratingFormatted}</span>
-            </div>
+            {/* Rating or New badge */}
+            {ratingFormatted ? (
+              <div className="rounded-lg bg-zinc-950/85 border border-zinc-800/90 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono font-black text-amber-300 backdrop-blur-md flex items-center gap-1 shadow-sm">
+                <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                <span>{ratingFormatted}</span>
+              </div>
+            ) : (
+              <div className="rounded-lg bg-zinc-950/85 border border-zinc-800/90 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold text-zinc-400 backdrop-blur-md shadow-sm">
+                New
+              </div>
+            )}
           </div>
         </div>
 
@@ -241,11 +233,11 @@ export function ExplorePlanCard({ plan, onPreview }: ExplorePlanCardProps) {
         </h3>
       </div>
 
-      {/* 3. Card Footer with Athlete Count & Inspection Arrow */}
+      {/* 3. Card Footer with Saves Count & Inspection Arrow */}
       <div className="mt-2.5 flex items-center justify-between border-t border-zinc-800/70 pt-2 text-[11px]">
         <div className="flex items-center gap-1 font-mono text-zinc-400">
-          <Users className="h-3 w-3 text-zinc-500" />
-          <span>{displayAthletes} athletes</span>
+          <Bookmark className="h-3 w-3 text-zinc-500" />
+          <span>{savesCount} {savesCount === 1 ? 'save' : 'saves'}</span>
         </div>
 
         <div className="flex items-center gap-1 font-bold text-lime-400 text-xs transition-transform duration-200 group-hover:translate-x-0.5">

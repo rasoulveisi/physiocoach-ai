@@ -1046,13 +1046,13 @@ export function ExplorePlansPage() {
 
                   <div className="text-right font-mono">
                     <span className="text-base font-black text-amber-300">
-                      {previewPlan.reviewsCount === 0
-                        ? '5.0'
-                        : (previewPlan.rating ? previewPlan.rating.toFixed(1) : '5.0')}
+                      {previewPlan.reviewsCount === 0 || !previewPlan.rating
+                        ? '—'
+                        : previewPlan.rating.toFixed(1)}
                     </span>
                     <span className="text-[10px] text-zinc-500 block">
                       {previewPlan.reviewsCount === 0
-                        ? '(New)'
+                        ? '(No reviews yet)'
                         : `(${previewPlan.reviewsCount} ${previewPlan.reviewsCount === 1 ? 'review' : 'reviews'})`}
                     </span>
                   </div>
