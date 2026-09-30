@@ -1,9 +1,11 @@
-const CACHE_NAME = 'physiocoach-v5';
+const CACHE_NAME = 'physiocoach-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/favicon.ico',
+  '/favicon.svg',
+  '/favicon-32x32.png',
   '/logo.svg',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
