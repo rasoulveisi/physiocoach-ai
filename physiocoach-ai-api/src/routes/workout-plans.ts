@@ -290,7 +290,7 @@ export function createWorkoutPlanRoutes() {
           source: 'fallback',
           model: 'custom-plan-builder',
           isCustom: true,
-          generation: { fallbackUsed: false },
+          generation: { modelUsed: 'custom-plan-builder' },
           providerMetadata: {
             isCustom: true,
             title: validated.title,
@@ -1439,7 +1439,7 @@ export function createWorkoutPlanRoutes() {
           aiMetadataJson: JSON.stringify({
             source: 'fallback',
             model: 'physiocoach-clinical-curated-v1',
-            generation: { fallbackUsed: false },
+            generation: { modelUsed: 'physiocoach-clinical-curated-v1' },
             providerMetadata: {
               clonedFromTemplateId: template.id,
               author: template.author.name,

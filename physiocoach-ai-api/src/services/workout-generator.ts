@@ -365,7 +365,7 @@ export async function generateWorkoutPlanWithSafety(
         plan: safetyResult.correctedPlan,
         warnings,
         generation: {
-          fallbackUsed: modelIndex > 0,
+          modelUsed: response.model,
         },
       };
     } catch (error) {

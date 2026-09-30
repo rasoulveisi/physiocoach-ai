@@ -37,7 +37,8 @@ function parseWorkoutPlanRecordCore(
       model: z.string().min(1),
       generation: z
         .object({
-          fallbackUsed: z.boolean(),
+          modelUsed: z.string().optional(),
+          fallbackUsed: z.boolean().optional(),
           errorCode: z
             .enum(['rate_limited', 'provider_timeout', 'provider_error', 'fallback_used'])
             .optional(),
@@ -47,13 +48,20 @@ function parseWorkoutPlanRecordCore(
     })
     .parse(JSON.parse(record.aiMetadataJson));
 
+  const generationDto = metadata.generation
+    ? {
+        modelUsed: metadata.generation.modelUsed ?? metadata.model,
+        ...(metadata.generation.errorCode ? { errorCode: metadata.generation.errorCode } : {}),
+      }
+    : undefined;
+
   return {
     id: record.id,
     source: metadata.source,
     model: metadata.model,
     plan: workoutPlanSchema.parse(JSON.parse(record.planJson)),
     warnings: z.array(z.string()).parse(JSON.parse(record.safetyWarningsJson)),
-    ...(metadata.generation ? { generation: metadata.generation } : {}),
+    ...(generationDto ? { generation: generationDto } : {}),
     createdAt: record.createdAt,
     inputHash: record.inputHash,
     cached: false,

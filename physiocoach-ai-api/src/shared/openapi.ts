@@ -1084,9 +1084,9 @@ export function createOpenApiDocument() {
         },
         WorkoutPlanGenerationDiagnostics: {
           type: 'object',
-          required: ['fallbackUsed'],
+          required: ['modelUsed'],
           properties: {
-            fallbackUsed: { type: 'boolean' },
+            modelUsed: { type: 'string' },
             errorCode: {
               type: 'string',
               enum: ['rate_limited', 'provider_timeout', 'provider_error', 'fallback_used'],

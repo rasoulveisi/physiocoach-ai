@@ -55,7 +55,8 @@ export interface WorkoutPlanOrchestrationResult {
   plan: WorkoutPlan;
   warnings: string[];
   generation?: {
-    fallbackUsed: boolean;
+    modelUsed: string;
+    fallbackUsed?: boolean;
     errorCode?:
       'rate_limited' | 'provider_timeout' | 'provider_error' | 'fallback_used' | undefined;
   };
@@ -98,7 +99,8 @@ export interface WorkoutPlanRecordInput {
     plan: WorkoutPlan;
     warnings: string[];
     generation?: {
-      fallbackUsed: boolean;
+      modelUsed: string;
+      fallbackUsed?: boolean;
       errorCode?:
         'rate_limited' | 'provider_timeout' | 'provider_error' | 'fallback_used' | undefined;
     };
@@ -183,7 +185,8 @@ export interface WorkoutPlanDto {
   plan: WorkoutPlan;
   warnings: string[];
   generation?: {
-    fallbackUsed: boolean;
+    modelUsed: string;
+    fallbackUsed?: boolean;
     errorCode?:
       'rate_limited' | 'provider_timeout' | 'provider_error' | 'fallback_used' | undefined;
   };

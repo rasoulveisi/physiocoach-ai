@@ -85,6 +85,10 @@ export interface WorkoutPlanView {
     authorName: string;
     planTitle?: string;
   };
+  generation?: {
+    modelUsed?: string;
+    errorCode?: string;
+  };
   plan: {
     name?: string;
     description?: string;
