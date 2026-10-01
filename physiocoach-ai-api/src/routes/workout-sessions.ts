@@ -804,6 +804,104 @@ export function createWorkoutSessionRoutes() {
     }
   });
 
+  route.post('/workout-logs', async (c) => {
+    try {
+      const { user, db } = getApiRouteContext(c);
+      const body = await c.req.json().catch(() => ({}));
+      const sessionId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const durationSeconds = typeof body.durationSeconds === 'number' ? body.durationSeconds : 0;
+      const startedAt = new Date(Date.now() - durationSeconds * 1000).toISOString();
+
+      if (db) {
+        const activePlanRows = await db
+          .select({ id: workoutPlans.id })
+          .from(workoutPlans)
+          .where(and(eq(workoutPlans.userId, user.id), eq(workoutPlans.status, 'active')))
+          .limit(1);
+        const planId = activePlanRows[0]?.id || 'custom-plan';
+
+        const dayNumber = typeof body.dayNumber === 'number' ? body.dayNumber : 1;
+
+        await db.insert(workoutSessions).values({
+          id: sessionId,
+          userId: user.id,
+          workoutPlanId: planId,
+          dayIndex: Math.max(0, dayNumber - 1),
+          status: 'completed',
+          scheduledDate: now.slice(0, 10),
+          startedAt,
+          completedAt: now,
+          notes: body.notes || null,
+        });
+
+        interface InputSetLog {
+          setType?: string;
+          weight?: number;
+          reps?: number;
+          rpe?: number | null;
+        }
+
+        interface InputExerciseLog {
+          masterExerciseId?: string | null;
+          name?: string;
+          movementPattern?: string;
+          muscleGroups?: string[];
+          sets?: InputSetLog[];
+        }
+
+        const exercisesList = (Array.isArray(body.exercises) ? body.exercises : []) as InputExerciseLog[];
+        const logsToInsert: Array<typeof exerciseLogs.$inferInsert> = [];
+
+        for (const ex of exercisesList) {
+          const setsList = Array.isArray(ex.sets) ? ex.sets : [];
+          setsList.forEach((set: InputSetLog, sIdx: number) => {
+            logsToInsert.push({
+              id: crypto.randomUUID(),
+              userId: user.id,
+              workoutSessionId: sessionId,
+              exerciseName: ex.name || 'Exercise',
+              masterExerciseId: ex.masterExerciseId || null,
+              movementPattern: ex.movementPattern || 'compound',
+              muscleGroupsJson: JSON.stringify(ex.muscleGroups || ['target']),
+              setIndex: sIdx + 1,
+              targetReps: set.reps ? String(set.reps) : null,
+              reps: typeof set.reps === 'number' ? set.reps : 0,
+              weight: typeof set.weight === 'number' ? set.weight : 0,
+              rpe: typeof set.rpe === 'number' ? set.rpe : null,
+              completed: true,
+              notes: null,
+              exerciseType: set.setType || 'working',
+            });
+          });
+        }
+
+        if (logsToInsert.length > 0) {
+          const BATCH_SIZE = 25;
+          for (let i = 0; i < logsToInsert.length; i += BATCH_SIZE) {
+            await db.insert(exerciseLogs).values(logsToInsert.slice(i, i + BATCH_SIZE));
+          }
+        }
+
+        if (body.painScore && body.painScore > 4) {
+          await triggerHighPriorityPainAlert({
+            userId: user.id,
+            userName: user.displayName,
+            painScore: body.painScore,
+            jointRegion: body.jointRegion,
+            notes: body.notes,
+            sessionId,
+            db,
+          });
+        }
+      }
+
+      return c.json({ data: { success: true, sessionId, completedAt: now } });
+    } catch (error) {
+      return handleRouteError(c, error, 'Failed to save workout log.');
+    }
+  });
+
   return route;
 }
 

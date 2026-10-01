@@ -27,6 +27,7 @@ interface PlanExercise {
 }
 
 interface PlanDay {
+  dayNumber?: number;
   name?: string;
   day?: string;
   title?: string;
@@ -211,9 +212,11 @@ export function DashboardPage() {
   const todayName = new Intl.DateTimeFormat('en', { weekday: 'long' }).format(new Date());
 
   const days = plan?.days || [];
-  const todayWorkout =
-    days.find((d) => (d.name || d.day || '').toLowerCase().includes(todayName.toLowerCase())) ||
-    days[0];
+  const todayWorkoutIndex = days.findIndex(
+    (d) => (d.name || d.day || '').toLowerCase().includes(todayName.toLowerCase()),
+  );
+  const todayWorkout = todayWorkoutIndex >= 0 ? days[todayWorkoutIndex] : days[0];
+  const targetDayNumber = todayWorkout?.dayNumber || (todayWorkoutIndex >= 0 ? todayWorkoutIndex + 1 : 1);
 
   // Clinical safeguard telemetry from the athlete's latest biomechanical assessment
   const painFlagCount =
@@ -413,7 +416,11 @@ export function DashboardPage() {
                   variant="volt"
                   size="lg"
                   pill={true}
-                  onClick={() => navigate('/session')}
+                  onClick={() => {
+                    navigate(`/session?day=${targetDayNumber}`, {
+                      state: { dayNumber: targetDayNumber },
+                    });
+                  }}
                   className="mt-5 w-full text-base font-black shadow-lg shadow-lime-400/20"
                 >
                   Start Workout Session <Play className="ml-1 h-4 w-4 fill-current" />

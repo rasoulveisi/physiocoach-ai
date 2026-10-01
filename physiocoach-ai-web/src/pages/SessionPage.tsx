@@ -2,22 +2,25 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   ArrowRight,
+  Calendar,
   Check,
   ChevronDown,
   ChevronUp,
   Dumbbell,
   Flame,
+  Info,
   PartyPopper,
   Pause,
   Play,
   Plus,
   RefreshCw,
   ShieldAlert,
+  Trash2,
   Trophy,
   WifiOff,
   Zap,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Toast } from '../components/ui/Toast';
@@ -39,7 +42,7 @@ import {
 
 export type SetType = 'warmup' | 'working' | 'drop' | 'failure';
 
-interface LoggedSet {
+export interface LoggedSet {
   id?: string;
   setIndex: number;
   setType: SetType;
@@ -50,7 +53,7 @@ interface LoggedSet {
   previousPerformance?: { weight: number; reps: number; rpe?: number | null; date?: string } | null;
 }
 
-interface SessionExercise {
+export interface SessionExercise {
   id?: string;
   masterExerciseId?: string | null;
   name: string;
@@ -61,11 +64,30 @@ interface SessionExercise {
   rpe?: number;
   restSeconds?: number;
   safetyLevel?: string;
+  notes?: string | null;
+}
+
+export interface WorkoutDayView {
+  dayNumber: number;
+  name: string;
+  focus?: string;
+  estimatedDurationMinutes?: number;
+  exercises: any[];
 }
 
 export function SessionPage() {
   const { unitSystem, formatWeight, autoStartRestTimer, hapticsEnabled } = usePreferences();
   const { isOnline, pendingSyncCount, isSyncing, syncNow } = useNetworkSyncStatus();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Multi-day & Active Plan State
+  const [plan, setPlan] = useState<any | null>(null);
+  const [planDays, setPlanDays] = useState<WorkoutDayView[]>([]);
+  const [planTitle, setPlanTitle] = useState<string>('Active Routine');
+  const [activeDayNumber, setActiveDayNumber] = useState<number>(1);
+  const [pendingDaySwitch, setPendingDaySwitch] = useState<number | null>(null);
 
   const [exercises, setExercises] = useState<SessionExercise[]>([]);
   const [logs, setLogs] = useState<Record<number, LoggedSet[]>>({});
@@ -78,6 +100,7 @@ export function SessionPage() {
   const [error, setError] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
   const [isFinishSurveyOpen, setIsFinishSurveyOpen] = useState(false);
   const [isPrehabOpen, setIsPrehabOpen] = useState(false);
@@ -103,41 +126,80 @@ export function SessionPage() {
   const [allCandidates, setAllCandidates] = useState<SwapCandidateItem[]>([]);
   const [limitations, setLimitations] = useState<string[]>([]);
 
-  const navigate = useNavigate();
+  // Function to load a specific day's exercises and initialize set logs
+  const loadDay = (targetDay: WorkoutDayView, showToast = false) => {
+    const dayNum = targetDay.dayNumber || 1;
+    setActiveDayNumber(dayNum);
+    const found = targetDay.exercises || [];
 
-  // Load Active Plan / Create Session Logs
+    const mapped: SessionExercise[] = found.map((ex: any) => ({
+      id: ex.id,
+      masterExerciseId: ex.masterExerciseId || ex.id,
+      name: ex.name,
+      movementPattern: ex.movementPattern,
+      muscleGroup: ex.muscleGroup,
+      sets: ex.sets || 3,
+      reps: ex.reps || 10,
+      rpe: ex.rpe || 7,
+      restSeconds: ex.restSeconds || 90,
+      safetyLevel: ex.safetyLevel || 'safe',
+      notes: ex.notes || null,
+    }));
+
+    setExercises(mapped);
+
+    // Seed logs table with initial data and previous performance records
+    const initialLogs: Record<number, LoggedSet[]> = {};
+    mapped.forEach((ex, exIdx) => {
+      const count = Math.max(1, ex.sets || 3);
+      const targetRepsNum = typeof ex.reps === 'number' ? ex.reps : Number(ex.reps) || 10;
+      initialLogs[exIdx] = Array.from({ length: count }, (_, sIdx) => ({
+        setIndex: sIdx + 1,
+        setType: (sIdx === 0 && count >= 4 ? 'warmup' : 'working') as SetType,
+        weight: 20,
+        reps: targetRepsNum,
+        rpe: ex.rpe || 7,
+        completed: false,
+        previousPerformance: { weight: 20, reps: targetRepsNum, rpe: 7.5 },
+      }));
+    });
+
+    setLogs(initialLogs);
+    setExpandedExIdx(0);
+    setActiveExIdx(0);
+    setSeconds(0);
+    setSessionState('idle');
+    setSearchParams({ day: String(dayNum) }, { replace: true });
+
+    if (showToast) {
+      const label = targetDay.name || targetDay.focus || `Day ${dayNum}`;
+      setToastMessage(`Switched to Day ${dayNum}: ${label}`);
+    }
+  };
+
+  // Load Active Plan & Determine Selected Day
   useEffect(() => {
+    setLoading(true);
     apiClient
       .get<any>('workout-plans/current')
       .then((res) => {
         const root = res?.data || res;
-        const plan = root?.plan || root;
-        const found = plan?.days?.[0]?.exercises || [];
+        const loadedPlan = root?.plan || root;
+        const days: WorkoutDayView[] = loadedPlan?.days || [];
 
-        const planLimitations = plan?.limitations || root?.limitations || [];
+        setPlan(loadedPlan);
+        setPlanDays(days);
+        setPlanTitle(loadedPlan?.name || root?.title || 'Active Workout Routine');
+
+        const planLimitations = loadedPlan?.limitations || root?.limitations || [];
         if (Array.isArray(planLimitations)) {
           setLimitations(planLimitations);
         }
 
-        const mapped: SessionExercise[] = found.map((ex: any) => ({
-          id: ex.id,
-          masterExerciseId: ex.masterExerciseId || ex.id,
-          name: ex.name,
-          movementPattern: ex.movementPattern,
-          muscleGroup: ex.muscleGroup,
-          sets: ex.sets || 3,
-          reps: ex.reps || 10,
-          rpe: ex.rpe || 7,
-          restSeconds: ex.restSeconds || 90,
-          safetyLevel: ex.safetyLevel || 'safe',
-        }));
-
-        setExercises(mapped);
-
-        // Populate Candidate list from other days of the plan
+        // Populate Candidate list from all days of the plan for swapping
         const candidatePool: SwapCandidateItem[] = [];
         const seen = new Set<string>();
-        for (const d of plan?.days || []) {
+        for (const d of days) {
           for (const ex of d.exercises || []) {
             const id = ex.masterExerciseId || ex.name;
             if (!seen.has(id)) {
@@ -155,25 +217,37 @@ export function SessionPage() {
         }
         setAllCandidates(candidatePool);
 
-        // Seed logs table with initial data and previous performance records
-        const initialLogs: Record<number, LoggedSet[]> = {};
-        mapped.forEach((ex, exIdx) => {
-          const count = ex.sets || 3;
-          const targetRepsNum = typeof ex.reps === 'number' ? ex.reps : Number(ex.reps) || 10;
-          initialLogs[exIdx] = Array.from({ length: count }, (_, sIdx) => ({
-            setIndex: sIdx + 1,
-            setType: (sIdx === 0 && count >= 4 ? 'warmup' : 'working') as SetType,
-            weight: 20,
-            reps: targetRepsNum,
-            rpe: ex.rpe || 7,
-            completed: false,
-            previousPerformance: { weight: 20, reps: targetRepsNum, rpe: 7.5 },
-          }));
-        });
-        setLogs(initialLogs);
+        // Determine target day based on URL search params, location state, or weekday match
+        const dayParam = searchParams.get('day');
+        const dayIdxParam = searchParams.get('dayIndex');
+        const stateDayNumber = (location.state as any)?.dayNumber;
+        const stateDayIndex = (location.state as any)?.dayIndex;
+
+        let targetDay: WorkoutDayView | undefined;
+        if (dayParam) {
+          targetDay = days.find((d) => String(d.dayNumber) === dayParam);
+        } else if (stateDayNumber) {
+          targetDay = days.find((d) => d.dayNumber === Number(stateDayNumber));
+        } else if (dayIdxParam !== null && dayIdxParam !== undefined && days[Number(dayIdxParam)]) {
+          targetDay = days[Number(dayIdxParam)];
+        } else if (stateDayIndex !== null && stateDayIndex !== undefined && days[Number(stateDayIndex)]) {
+          targetDay = days[Number(stateDayIndex)];
+        }
+
+        if (!targetDay && days.length > 0) {
+          const todayName = new Intl.DateTimeFormat('en', { weekday: 'long' }).format(new Date()).toLowerCase();
+          targetDay = days.find((d) => (d.name || d.focus || '').toLowerCase().includes(todayName)) || days[0];
+        }
+
+        if (targetDay) {
+          loadDay(targetDay, false);
+        }
       })
       .catch((cause) => {
         setError(cause instanceof Error ? cause.message : 'Could not initialize session.');
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
@@ -211,11 +285,85 @@ export function SessionPage() {
       .reduce((sum, s) => sum + s.weight * s.reps, 0);
   }, [logs]);
 
+  // Request to switch day: warns if active/logged, else switches instantly
+  const handleRequestSwitchDay = (dayNumber: number) => {
+    if (dayNumber === activeDayNumber) return;
+    const targetDay = planDays.find((d) => d.dayNumber === dayNumber) || planDays[dayNumber - 1];
+    if (!targetDay) return;
+
+    if (sessionState === 'active' || completedSets > 0) {
+      setPendingDaySwitch(dayNumber);
+    } else {
+      loadDay(targetDay, true);
+    }
+  };
+
+  const confirmSwitchDay = () => {
+    if (pendingDaySwitch !== null) {
+      const targetDay = planDays.find((d) => d.dayNumber === pendingDaySwitch) || planDays[pendingDaySwitch - 1];
+      if (targetDay) {
+        loadDay(targetDay, true);
+      }
+      setPendingDaySwitch(null);
+    }
+  };
+
   const updateSet = (exIdx: number, setIdx: number, updates: Partial<LoggedSet>) => {
     setLogs((prev) => ({
       ...prev,
       [exIdx]: (prev[exIdx] || []).map((s, i) => (i === setIdx ? { ...s, ...updates } : s)),
     }));
+  };
+
+  // Ergonomic Weight Stepper (+/- 2.5kg or 5lb)
+  const stepWeight = (exIdx: number, setIdx: number, delta: number) => {
+    const currentSet = logs[exIdx]?.[setIdx];
+    if (!currentSet) return;
+    const newWeight = Math.max(0, Math.round((currentSet.weight + delta) * 10) / 10);
+    updateSet(exIdx, setIdx, { weight: newWeight });
+    if (hapticsEnabled) {
+      soundCueService.triggerHaptic('light');
+    }
+  };
+
+  // Ergonomic Reps Stepper (+/- 1 rep)
+  const stepReps = (exIdx: number, setIdx: number, delta: number) => {
+    const currentSet = logs[exIdx]?.[setIdx];
+    if (!currentSet) return;
+    const newReps = Math.max(0, currentSet.reps + delta);
+    updateSet(exIdx, setIdx, { reps: newReps });
+    if (hapticsEnabled) {
+      soundCueService.triggerHaptic('light');
+    }
+  };
+
+  // Fast Set Type Cycling (Working -> Warmup -> Drop -> Failure)
+  const cycleSetType = (exIdx: number, setIdx: number) => {
+    const currentSet = logs[exIdx]?.[setIdx];
+    if (!currentSet) return;
+    const sequence: SetType[] = ['working', 'warmup', 'drop', 'failure'];
+    const nextIdx = (sequence.indexOf(currentSet.setType) + 1) % sequence.length;
+    updateSet(exIdx, setIdx, { setType: sequence[nextIdx] });
+    if (hapticsEnabled) {
+      soundCueService.triggerHaptic('light');
+    }
+  };
+
+  // 1-Tap Copy from Target or Previous Performance
+  const copyPreviousPerformance = (exIdx: number, setIdx: number) => {
+    const currentSet = logs[exIdx]?.[setIdx];
+    if (!currentSet || !currentSet.previousPerformance) return;
+    updateSet(exIdx, setIdx, {
+      weight: currentSet.previousPerformance.weight,
+      reps: currentSet.previousPerformance.reps,
+      rpe: currentSet.previousPerformance.rpe ?? currentSet.rpe,
+    });
+    if (hapticsEnabled) {
+      soundCueService.triggerHaptic('success');
+    }
+    setToastMessage(
+      `Copied target (${currentSet.previousPerformance.weight}${unitSystem === 'metric' ? 'kg' : 'lb'} × ${currentSet.previousPerformance.reps}) to Set ${setIdx + 1}`,
+    );
   };
 
   const toggleSetComplete = (exIdx: number, setIdx: number) => {
@@ -259,18 +407,37 @@ export function SessionPage() {
     }
   };
 
+  // Add Set: duplicates weight & reps from preceding set
   const handleAddSet = (exIdx: number) => {
     const currentSets = logs[exIdx] || [];
     const lastSet = currentSets[currentSets.length - 1];
     const newSet: LoggedSet = {
       setIndex: currentSets.length + 1,
       setType: 'working',
-      weight: lastSet?.weight || 20,
-      reps: lastSet?.reps || 10,
+      weight: lastSet ? lastSet.weight : 20,
+      reps: lastSet ? lastSet.reps : 10,
       rpe: lastSet?.rpe || 7,
       completed: false,
+      previousPerformance: lastSet?.previousPerformance,
     };
     setLogs((prev) => ({ ...prev, [exIdx]: [...currentSets, newSet] }));
+    if (hapticsEnabled) {
+      soundCueService.triggerHaptic('light');
+    }
+  };
+
+  // Delete Set: removes selected set and reindexes
+  const handleDeleteSet = (exIdx: number, setIdx: number) => {
+    setLogs((prev) => {
+      const currentSets = prev[exIdx] || [];
+      if (currentSets.length <= 1) return prev;
+      const filtered = currentSets.filter((_, i) => i !== setIdx);
+      const reindexed = filtered.map((s, i) => ({ ...s, setIndex: i + 1 }));
+      return { ...prev, [exIdx]: reindexed };
+    });
+    if (hapticsEnabled) {
+      soundCueService.triggerHaptic('light');
+    }
   };
 
   const handleApplyOverload = (exIdx: number, rec: OverloadRecommendation) => {
@@ -331,6 +498,7 @@ export function SessionPage() {
       painScore: sessionPainScore,
       jointRegion: sessionPainScore > 0 ? painJointRegion : undefined,
       notes: painNotes || undefined,
+      dayNumber: activeDayNumber,
       exercises: exercises.map((ex, exIdx) => ({
         masterExerciseId: ex.masterExerciseId,
         name: ex.name,
@@ -435,7 +603,7 @@ export function SessionPage() {
     }
   };
 
-  if (exercises.length === 0 && !error) {
+  if (loading && exercises.length === 0) {
     return <SessionSkeleton />;
   }
 
@@ -443,7 +611,7 @@ export function SessionPage() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-zinc-950 text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950">
-      <main className="flex-1 overflow-y-auto min-h-0 w-full max-w-4xl mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 pb-24">
+      <main className="flex-1 overflow-y-auto min-h-0 w-full max-w-4xl mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 pb-28">
         {error && <Toast type="error" message={error} onClose={() => setError('')} />}
         {toastMessage && (
           <Toast type="success" message={toastMessage} onClose={() => setToastMessage(null)} />
@@ -476,6 +644,64 @@ export function SessionPage() {
                 <RefreshCw className="h-3 w-3 mr-1" /> Sync
               </Button>
             )}
+          </div>
+        )}
+
+        {/* Active Plan & Easy Day Selection Ribbon */}
+        {planDays.length > 0 && (
+          <div className="rounded-2xl border border-zinc-800 bg-[#121722] p-3 sm:p-4 space-y-2.5 shadow-lg">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="size-2 rounded-full bg-[#10E760] shrink-0" />
+                <h2 className="text-xs sm:text-sm font-extrabold text-white truncate">
+                  {planTitle}
+                </h2>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-[#10E760] shrink-0 bg-[#10E760]/10 border border-[#10E760]/20 px-2 py-0.5 rounded-full">
+                Day {activeDayNumber} of {planDays.length}
+              </span>
+            </div>
+
+            {/* Scrollable Day Pills Bar */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none snap-x">
+              {planDays.map((d) => {
+                const isActive = d.dayNumber === activeDayNumber;
+                const shortName =
+                  d.name?.replace(/day\s*\d+[:\-–\s]*/i, '').trim() ||
+                  d.focus ||
+                  `Day ${d.dayNumber}`;
+                const exCount = d.exercises?.length || 0;
+
+                return (
+                  <button
+                    key={d.dayNumber}
+                    type="button"
+                    onClick={() => handleRequestSwitchDay(d.dayNumber)}
+                    className={`flex items-center gap-2.5 shrink-0 rounded-xl px-3 py-2 text-left transition-all snap-start cursor-pointer border ${
+                      isActive
+                        ? 'border-[#10E760] bg-[#10E760]/10 text-white shadow-md shadow-[#10E760]/15 ring-1 ring-[#10E760]/60'
+                        : 'border-zinc-800 bg-[#090D15] text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    }`}
+                  >
+                    <div
+                      className={`size-6 rounded-lg font-mono text-[11px] font-black grid place-items-center ${
+                        isActive ? 'bg-[#10E760] text-zinc-950' : 'bg-zinc-800 text-zinc-400'
+                      }`}
+                    >
+                      {d.dayNumber}
+                    </div>
+                    <div className="min-w-0 max-w-[120px] sm:max-w-[160px]">
+                      <div className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}>
+                        {shortName}
+                      </div>
+                      <div className="text-[9px] font-mono text-zinc-500">
+                        {exCount} {exCount === 1 ? 'exercise' : 'exercises'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -564,7 +790,7 @@ export function SessionPage() {
           <div className="space-y-1.5 pt-1">
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="text-zinc-400 font-bold">
-                {completedSets}/{totalSets} Sets
+                {completedSets}/{totalSets} Sets Completed
               </span>
               <span className="text-[#10E760] font-black">{progressPercent}%</span>
             </div>
@@ -636,9 +862,9 @@ export function SessionPage() {
               <Dumbbell className="size-8" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-white">No Active Workout Plan</h3>
+              <h3 className="text-base font-bold text-white">No Exercises Found</h3>
               <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-                Activate a workout plan from Explore or build a custom routine to start logging your session.
+                No exercises registered for Day {activeDayNumber}. Switch days above or explore routines.
               </p>
             </div>
             <div className="flex items-center justify-center gap-2 pt-2">
@@ -653,326 +879,394 @@ export function SessionPage() {
         ) : (
           <div className="space-y-3 sm:space-y-3.5">
             {exercises.map((exercise, exIdx) => {
-            const exerciseSets = logs[exIdx] || [];
-            const completedCount = exerciseSets.filter((s) => s.completed).length;
-            const isAllComplete = exerciseSets.length > 0 && completedCount === exerciseSets.length;
-            const isExpanded = expandedExIdx === exIdx;
+              const exerciseSets = logs[exIdx] || [];
+              const completedCount = exerciseSets.filter((s) => s.completed).length;
+              const isAllComplete = exerciseSets.length > 0 && completedCount === exerciseSets.length;
+              const isExpanded = expandedExIdx === exIdx;
 
-            // Calculate progressive overload recommendation for this exercise
-            const overloadRec = calculateProgressiveOverload({
-              exerciseName: exercise.name,
-              currentWeightKg: exerciseSets[0]?.weight || 20,
-              currentReps: exerciseSets[0]?.reps || 10,
-              targetReps: exercise.reps,
-              previousPerformance: exerciseSets[0]?.previousPerformance,
-              recentPainScore: sessionPainScore,
-              unitSystem,
-            });
+              // Calculate progressive overload recommendation for this exercise
+              const overloadRec = calculateProgressiveOverload({
+                exerciseName: exercise.name,
+                currentWeightKg: exerciseSets[0]?.weight || 20,
+                currentReps: exerciseSets[0]?.reps || 10,
+                targetReps: exercise.reps,
+                previousPerformance: exerciseSets[0]?.previousPerformance,
+                recentPainScore: sessionPainScore,
+                unitSystem,
+              });
 
-            return (
-              <div
-                key={exercise.id || exIdx}
-                className={`overflow-hidden rounded-2xl border transition-all ${
-                  isExpanded
-                    ? 'border-[#10E760]/40 bg-[#121722] shadow-lg shadow-black/40'
-                    : isAllComplete
-                    ? 'border-zinc-800 bg-[#0d121c] opacity-85 hover:opacity-100'
-                    : 'border-zinc-800/90 bg-[#121722] hover:border-zinc-700'
-                }`}
-              >
-                {/* Exercise Header Card (Tap to Expand / Collapse) */}
+              return (
                 <div
-                  onClick={() => setExpandedExIdx(isExpanded ? -1 : exIdx)}
-                  className="p-3 sm:p-4 cursor-pointer select-none transition-colors hover:bg-zinc-800/20"
+                  key={exercise.id || exIdx}
+                  className={`overflow-hidden rounded-2xl border transition-all ${
+                    isExpanded
+                      ? 'border-[#10E760]/40 bg-[#121722] shadow-lg shadow-black/40'
+                      : isAllComplete
+                      ? 'border-zinc-800 bg-[#0d121c] opacity-85 hover:opacity-100'
+                      : 'border-zinc-800/90 bg-[#121722] hover:border-zinc-700'
+                  }`}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {/* Exercise Visual Frame (Tap to expand full screen) */}
+                  {/* Exercise Header Card (Tap to Expand / Collapse) */}
+                  <div
+                    onClick={() => setExpandedExIdx(isExpanded ? -1 : exIdx)}
+                    className="p-3 sm:p-4 cursor-pointer select-none transition-colors hover:bg-zinc-800/20"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {/* Exercise Visual Frame */}
+                        <div
+                          className="size-14 sm:size-16 rounded-xl bg-white p-1 shrink-0 border border-zinc-700/60 flex items-center justify-center overflow-hidden shadow-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExerciseVisual
+                            name={exercise.name}
+                            masterExerciseId={exercise.masterExerciseId || exercise.id}
+                            movementPattern={exercise.movementPattern}
+                            muscleGroup={exercise.muscleGroup}
+                            compact={true}
+                          />
+                        </div>
+
+                        {/* Exercise Name & Metadata */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono text-xs font-black text-[#10E760]">
+                              #{exIdx + 1}
+                            </span>
+                            <h2 className="text-xs sm:text-sm font-extrabold text-white capitalize leading-tight truncate">
+                              {exercise.name}
+                            </h2>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {exercise.muscleGroup && (
+                              <span className="rounded bg-[#10E760]/10 border border-[#10E760]/20 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-[#10E760]">
+                                {exercise.muscleGroup}
+                              </span>
+                            )}
+                            {exercise.movementPattern && (
+                              <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-zinc-300">
+                                {exercise.movementPattern.replace(/_/g, ' ')}
+                              </span>
+                            )}
+
+                            {/* Target prescription badge */}
+                            <span className="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-400">
+                              Target: {exercise.sets || 3} × {exercise.reps || 10}
+                            </span>
+
+                            {/* Progress Status Pill */}
+                            {isAllComplete ? (
+                              <span className="rounded-md bg-[#10E760]/15 border border-[#10E760]/30 px-1.5 py-0.5 text-[9px] font-mono font-bold text-[#10E760]">
+                                ✓ Done ({completedCount}/{exerciseSets.length})
+                              </span>
+                            ) : (
+                              <span className="rounded-md bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-400">
+                                {completedCount}/{exerciseSets.length} Sets
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick Tools & Chevron */}
                       <div
-                        className="size-14 sm:size-16 rounded-xl bg-white p-1 shrink-0 border border-zinc-700/60 flex items-center justify-center overflow-hidden shadow-sm"
+                        className="flex items-center gap-1 shrink-0"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <ExerciseVisual
-                          name={exercise.name}
-                          masterExerciseId={exercise.masterExerciseId || exercise.id}
-                          movementPattern={exercise.movementPattern}
-                          muscleGroup={exercise.muscleGroup}
-                          compact={true}
-                        />
-                      </div>
-
-                      {/* Exercise Name & Metadata */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-mono text-xs font-black text-[#10E760]">
-                            #{exIdx + 1}
-                          </span>
-                          <h2 className="text-xs sm:text-sm font-extrabold text-white capitalize leading-tight truncate">
-                            {exercise.name}
-                          </h2>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          {exercise.muscleGroup && (
-                            <span className="rounded bg-[#10E760]/10 border border-[#10E760]/20 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-[#10E760]">
-                              {exercise.muscleGroup}
-                            </span>
-                          )}
-                          {exercise.movementPattern && (
-                            <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-zinc-300">
-                              {exercise.movementPattern.replace(/_/g, ' ')}
-                            </span>
-                          )}
-
-                          {/* Progress Status Pill */}
-                          {isAllComplete ? (
-                            <span className="rounded-md bg-[#10E760]/15 border border-[#10E760]/30 px-1.5 py-0.5 text-[9px] font-mono font-bold text-[#10E760]">
-                              ✓ Done ({completedCount}/{exerciseSets.length})
-                            </span>
-                          ) : (
-                            <span className="rounded-md bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-400">
-                              {completedCount}/{exerciseSets.length} Sets
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick Tools & Chevron */}
-                    <div
-                      className="flex items-center gap-1 shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Tooltip content="Barbell Plate Calculator">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPlateCalcTarget({
-                              exIdx,
-                              setIdx: 0,
-                              weight: exerciseSets[0]?.weight || 20,
-                              name: exercise.name,
-                            })
-                          }
-                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
-                        >
-                          <Dumbbell className="h-3.5 w-3.5" />
-                        </button>
-                      </Tooltip>
-
-                      <Tooltip content="Swap Exercise">
-                        <button
-                          type="button"
-                          onClick={() => setSwapTargetIndex(exIdx)}
-                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
-                        >
-                          <ArrowLeftRight className="h-3.5 w-3.5" />
-                        </button>
-                      </Tooltip>
-
-                      <button
-                        type="button"
-                        onClick={() => setExpandedExIdx(isExpanded ? -1 : exIdx)}
-                        className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
-                        title={isExpanded ? 'Collapse' : 'Expand'}
-                      >
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded Sets Workspace */}
-                {isExpanded && (
-                  <div className="border-t border-zinc-800/80 bg-[#090D15]/60 p-3 sm:p-4 space-y-3 animate-in fade-in duration-150">
-                    {/* Progressive Overload Recommendation Chip */}
-                    {overloadRec.isApplicable && (
-                      <div className="flex items-center justify-between gap-2 rounded-xl border border-zinc-800/90 bg-[#121722] px-3 py-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <Zap
-                            className={`h-3.5 w-3.5 shrink-0 ${
-                              overloadRec.badgeVariant === 'amber'
-                                ? 'text-amber-400'
-                                : overloadRec.badgeVariant === 'lime'
-                                ? 'text-[#10E760]'
-                                : 'text-cyan-400'
-                            }`}
-                          />
-                          <span className="font-mono text-xs font-bold text-zinc-200 truncate">
-                            {overloadRec.chipLabel}
-                          </span>
-                        </div>
-
-                        <Button
-                          type="button"
-                          size="xs"
-                          variant={overloadRec.type === 'deload' ? 'outline' : 'volt'}
-                          onClick={() => handleApplyOverload(exIdx, overloadRec)}
-                          className="font-bold text-xs h-7 px-3 shrink-0"
-                        >
-                          Apply
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Compact Single-Row Sets Table */}
-                    <div className="space-y-1.5">
-                      {/* Sets Table Header */}
-                      <div className="grid grid-cols-12 gap-1.5 sm:gap-2 px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 items-center">
-                        <div className="col-span-1 text-center">#</div>
-                        <div className="col-span-3 sm:col-span-2">Type</div>
-                        <div className="col-span-3 sm:col-span-3 text-center sm:text-left">Prev</div>
-                        <div className="col-span-2 sm:col-span-2 text-center">
-                          {unitSystem === 'metric' ? 'Kg' : 'Lb'}
-                        </div>
-                        <div className="col-span-2 sm:col-span-2 text-center">Reps</div>
-                        <div className="col-span-1 sm:col-span-3 text-center sm:text-right">✓</div>
-                      </div>
-
-                      {/* Sets Rows */}
-                      {exerciseSets.map((set, setIdx) => {
-                        const prevText = set.previousPerformance
-                          ? `${set.previousPerformance.weight}${unitSystem === 'metric' ? 'kg' : 'lb'} × ${set.previousPerformance.reps}`
-                          : '—';
-
-                        return (
-                          <div
-                            key={setIdx}
-                            className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center rounded-xl border p-1.5 sm:p-2 transition-all ${
-                              set.completed
-                                ? 'border-[#10E760]/40 bg-[#10E760]/[0.05]'
-                                : 'border-zinc-800/80 bg-[#121722] hover:border-zinc-700'
-                            }`}
+                        <Tooltip content="Barbell Plate Calculator">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPlateCalcTarget({
+                                exIdx,
+                                setIdx: 0,
+                                weight: exerciseSets[0]?.weight || 20,
+                                name: exercise.name,
+                              })
+                            }
+                            className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
                           >
-                            {/* Set # */}
-                            <div className="col-span-1 text-center font-mono text-xs font-bold text-zinc-400">
-                              {setIdx + 1}
-                            </div>
+                            <Dumbbell className="h-3.5 w-3.5" />
+                          </button>
+                        </Tooltip>
 
-                            {/* Set Type Dropdown */}
-                            <div className="col-span-3 sm:col-span-2">
-                              <select
-                                value={set.setType}
-                                onChange={(e) =>
-                                  updateSet(exIdx, setIdx, { setType: e.target.value as SetType })
-                                }
-                                className={`w-full rounded-lg border px-1 py-1 text-[10px] font-bold outline-none cursor-pointer ${
-                                  set.setType === 'warmup'
-                                    ? 'bg-amber-950/40 text-amber-400 border-amber-500/30'
-                                    : set.setType === 'drop'
-                                    ? 'bg-purple-950/40 text-purple-400 border-purple-500/30'
-                                    : set.setType === 'failure'
-                                    ? 'bg-rose-950/40 text-rose-400 border-rose-500/30'
-                                    : 'bg-zinc-900 text-zinc-300 border-zinc-800'
-                                }`}
-                              >
-                                <option value="working" className="bg-[#121722] text-zinc-200">
-                                  Work
-                                </option>
-                                <option value="warmup" className="bg-[#121722] text-amber-400">
-                                  Warm
-                                </option>
-                                <option value="drop" className="bg-[#121722] text-purple-400">
-                                  Drop
-                                </option>
-                                <option value="failure" className="bg-[#121722] text-rose-400">
-                                  Fail
-                                </option>
-                              </select>
-                            </div>
+                        <Tooltip content="Swap Exercise">
+                          <button
+                            type="button"
+                            onClick={() => setSwapTargetIndex(exIdx)}
+                            className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                          >
+                            <ArrowLeftRight className="h-3.5 w-3.5" />
+                          </button>
+                        </Tooltip>
 
-                            {/* Previous Performance */}
-                            <div
-                              className="col-span-3 sm:col-span-3 truncate text-center sm:text-left font-mono text-[10px] text-zinc-400"
-                              title={prevText}
-                            >
-                              {prevText}
-                            </div>
-
-                            {/* Weight Numeric Input */}
-                            <div className="col-span-2 sm:col-span-2">
-                              <input
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                value={set.weight}
-                                onChange={(e) =>
-                                  updateSet(exIdx, setIdx, { weight: Number(e.target.value) })
-                                }
-                                className="w-full rounded-lg border border-zinc-800 bg-[#090D15] px-1 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760]"
-                              />
-                            </div>
-
-                            {/* Reps Numeric Input */}
-                            <div className="col-span-2 sm:col-span-2">
-                              <input
-                                type="number"
-                                min="0"
-                                value={set.reps}
-                                onChange={(e) =>
-                                  updateSet(exIdx, setIdx, { reps: Number(e.target.value) })
-                                }
-                                className="w-full rounded-lg border border-zinc-800 bg-[#090D15] px-1 py-1 text-xs font-mono font-bold text-white text-center outline-none focus:border-[#10E760]"
-                              />
-                            </div>
-
-                            {/* Complete Check Button */}
-                            <div className="col-span-1 sm:col-span-3 flex justify-center sm:justify-end">
-                              <button
-                                type="button"
-                                onClick={() => toggleSetComplete(exIdx, setIdx)}
-                                className={`size-8 sm:size-9 grid place-items-center rounded-xl border transition-all active:scale-95 cursor-pointer ${
-                                  set.completed
-                                    ? 'bg-[#10E760] text-zinc-950 border-[#10E760] shadow-[0_0_12px_rgba(16,231,96,0.35)]'
-                                    : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700'
-                                }`}
-                                title={set.completed ? 'Set completed' : 'Mark set as completed'}
-                              >
-                                <Check className="h-4 w-4 stroke-[3]" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Action Bar: Add Set + Next Exercise */}
-                    <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => handleAddSet(exIdx)}
-                        className="border border-dashed border-zinc-800 text-zinc-400 hover:border-zinc-700 text-xs"
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Set
-                      </Button>
-
-                      {exIdx < exercises.length - 1 && (
-                        <Button
-                          size="xs"
-                          variant="secondary"
-                          onClick={() => {
-                            setExpandedExIdx(exIdx + 1);
-                            setActiveExIdx(exIdx + 1);
-                          }}
-                          className="text-xs font-bold"
-                          title={`Next: ${exercises[exIdx + 1]?.name}`}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedExIdx(isExpanded ? -1 : exIdx)}
+                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                          title={isExpanded ? 'Collapse' : 'Expand'}
                         >
-                          <span>Next Lift</span>
-                          <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                        </Button>
-                      )}
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+
+                  {/* Expanded Sets Workspace */}
+                  {isExpanded && (
+                    <div className="border-t border-zinc-800/80 bg-[#090D15]/60 p-3 sm:p-4 space-y-3 animate-in fade-in duration-150">
+                      {/* Progressive Overload Recommendation Chip */}
+                      {overloadRec.isApplicable && (
+                        <div className="flex items-center justify-between gap-2 rounded-xl border border-zinc-800/90 bg-[#121722] px-3 py-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Zap
+                              className={`h-3.5 w-3.5 shrink-0 ${
+                                overloadRec.badgeVariant === 'amber'
+                                  ? 'text-amber-400'
+                                  : overloadRec.badgeVariant === 'lime'
+                                  ? 'text-[#10E760]'
+                                  : 'text-cyan-400'
+                              }`}
+                            />
+                            <span className="font-mono text-xs font-bold text-zinc-200 truncate">
+                              {overloadRec.chipLabel}
+                            </span>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant={overloadRec.type === 'deload' ? 'outline' : 'volt'}
+                            onClick={() => handleApplyOverload(exIdx, overloadRec)}
+                            className="font-bold text-xs h-7 px-3 shrink-0"
+                          >
+                            Apply
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Exercise Notes / Biomechanical Cue if available */}
+                      {exercise.notes && (
+                        <div className="flex items-start gap-2 rounded-xl border border-zinc-800/70 bg-[#121722]/80 p-2.5 text-xs text-zinc-300">
+                          <Info className="h-4 w-4 text-[#10E760] shrink-0 mt-0.5" />
+                          <span>{exercise.notes}</span>
+                        </div>
+                      )}
+
+                      {/* Ergonomic Sets Table */}
+                      <div className="space-y-1.5">
+                        {/* Sets Table Header */}
+                        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 px-1 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 items-center">
+                          <div className="col-span-2 sm:col-span-1 text-center">Set</div>
+                          <div className="col-span-3 sm:col-span-3 text-center sm:text-left">Target</div>
+                          <div className="col-span-3 sm:col-span-3 text-center">
+                            {unitSystem === 'metric' ? 'Weight (kg)' : 'Weight (lb)'}
+                          </div>
+                          <div className="col-span-2 sm:col-span-2 text-center">Reps</div>
+                          <div className="col-span-2 sm:col-span-3 text-right pr-2">Done</div>
+                        </div>
+
+                        {/* Sets Rows */}
+                        {exerciseSets.map((set, setIdx) => {
+                          const prevText = set.previousPerformance
+                            ? `${set.previousPerformance.weight}${unitSystem === 'metric' ? 'kg' : 'lb'} × ${set.previousPerformance.reps}`
+                            : typeof exercise.reps !== 'undefined'
+                            ? `20${unitSystem === 'metric' ? 'kg' : 'lb'} × ${exercise.reps}`
+                            : '—';
+
+                          return (
+                            <div
+                              key={setIdx}
+                              className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center rounded-xl border p-1.5 sm:p-2 transition-all ${
+                                set.completed
+                                  ? 'border-[#10E760]/40 bg-[#10E760]/[0.06] shadow-sm shadow-[#10E760]/5'
+                                  : 'border-zinc-800/80 bg-[#121722] hover:border-zinc-700'
+                              }`}
+                            >
+                              {/* 1. Set # and Set Type Cycle Badge */}
+                              <div className="col-span-2 sm:col-span-1 flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => cycleSetType(exIdx, setIdx)}
+                                  title={`Set ${setIdx + 1} (${set.setType.toUpperCase()}) - Tap to toggle Type (Work / Warm / Drop / Fail)`}
+                                  className={`size-8 sm:size-9 rounded-lg font-mono text-xs font-black transition-all active:scale-90 flex items-center justify-center cursor-pointer ${
+                                    set.setType === 'warmup'
+                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                      : set.setType === 'drop'
+                                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                                      : set.setType === 'failure'
+                                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                      : 'bg-zinc-800/90 text-zinc-300 border border-zinc-700/60 hover:border-zinc-600'
+                                  }`}
+                                >
+                                  {set.setType === 'warmup' ? 'W' : set.setType === 'drop' ? 'D' : set.setType === 'failure' ? 'F' : setIdx + 1}
+                                </button>
+                              </div>
+
+                              {/* 2. Previous / Target Performance (Tap to Auto-fill) */}
+                              <div className="col-span-3 sm:col-span-3 truncate text-center sm:text-left">
+                                <button
+                                  type="button"
+                                  onClick={() => copyPreviousPerformance(exIdx, setIdx)}
+                                  title="Tap to autofill weight & reps with target"
+                                  className="w-full text-left truncate rounded-lg border border-zinc-800/80 bg-[#090D15] px-1.5 py-1 font-mono text-[10px] text-zinc-400 hover:text-white hover:border-[#10E760]/50 transition-colors cursor-pointer group"
+                                >
+                                  <span className="block truncate font-bold group-hover:text-[#10E760]">{prevText}</span>
+                                </button>
+                              </div>
+
+                              {/* 3. Weight Stepper Pill */}
+                              <div className="col-span-3 sm:col-span-3">
+                                <div className="flex items-center rounded-xl border border-zinc-800 bg-[#090D15] p-0.5 focus-within:border-[#10E760] transition-colors">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      stepWeight(
+                                        exIdx,
+                                        setIdx,
+                                        -(unitSystem === 'metric' ? (set.weight <= 10 ? 1 : 2.5) : 5),
+                                      )
+                                    }
+                                    className="size-7 sm:size-8 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none"
+                                    aria-label="Decrease weight"
+                                  >
+                                    −
+                                  </button>
+                                  <div className="flex-1 flex items-baseline justify-center min-w-0">
+                                    <input
+                                      type="number"
+                                      step="0.5"
+                                      min="0"
+                                      inputMode="decimal"
+                                      value={set.weight}
+                                      onFocus={(e) => e.target.select()}
+                                      onChange={(e) =>
+                                        updateSet(exIdx, setIdx, { weight: Number(e.target.value) })
+                                      }
+                                      className="w-full min-w-0 bg-transparent text-center font-mono text-xs sm:text-sm font-black text-white outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      stepWeight(
+                                        exIdx,
+                                        setIdx,
+                                        unitSystem === 'metric' ? (set.weight < 10 ? 1 : 2.5) : 5,
+                                      )
+                                    }
+                                    className="size-7 sm:size-8 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none"
+                                    aria-label="Increase weight"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* 4. Reps Stepper Pill */}
+                              <div className="col-span-2 sm:col-span-2">
+                                <div className="flex items-center rounded-xl border border-zinc-800 bg-[#090D15] p-0.5 focus-within:border-[#10E760] transition-colors">
+                                  <button
+                                    type="button"
+                                    onClick={() => stepReps(exIdx, setIdx, -1)}
+                                    className="size-7 sm:size-8 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none"
+                                    aria-label="Decrease reps"
+                                  >
+                                    −
+                                  </button>
+                                  <div className="flex-1 flex items-baseline justify-center min-w-0">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      inputMode="numeric"
+                                      value={set.reps}
+                                      onFocus={(e) => e.target.select()}
+                                      onChange={(e) =>
+                                        updateSet(exIdx, setIdx, { reps: Number(e.target.value) })
+                                      }
+                                      className="w-full min-w-0 bg-transparent text-center font-mono text-xs sm:text-sm font-black text-white outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => stepReps(exIdx, setIdx, 1)}
+                                    className="size-7 sm:size-8 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none"
+                                    aria-label="Increase reps"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* 5. Complete Button & Delete */}
+                              <div className="col-span-2 sm:col-span-3 flex items-center justify-end gap-1 sm:gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSetComplete(exIdx, setIdx)}
+                                  className={`size-8 sm:size-9 grid place-items-center rounded-xl border transition-all active:scale-95 cursor-pointer ${
+                                    set.completed
+                                      ? 'bg-[#10E760] text-zinc-950 border-[#10E760] shadow-[0_0_12px_rgba(16,231,96,0.35)]'
+                                      : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700'
+                                  }`}
+                                  title={set.completed ? 'Set completed (tap to uncheck)' : 'Mark set completed'}
+                                >
+                                  <Check className="h-4 w-4 stroke-[3]" />
+                                </button>
+
+                                {exerciseSets.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSet(exIdx, setIdx)}
+                                    title="Delete this set"
+                                    className="size-7 grid place-items-center rounded-lg text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Action Bar: Add Set + Next Exercise */}
+                      <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => handleAddSet(exIdx)}
+                          className="border border-dashed border-zinc-800 text-zinc-300 hover:border-[#10E760]/50 hover:text-[#10E760] text-xs font-bold"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Set
+                        </Button>
+
+                        {exIdx < exercises.length - 1 && (
+                          <Button
+                            size="xs"
+                            variant="secondary"
+                            onClick={() => {
+                              setExpandedExIdx(exIdx + 1);
+                              setActiveExIdx(exIdx + 1);
+                            }}
+                            className="text-xs font-bold"
+                            title={`Next: ${exercises[exIdx + 1]?.name}`}
+                          >
+                            <span>Next Lift</span>
+                            <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
 
         {/* Bottom Finish Workout Trigger */}
@@ -987,6 +1281,42 @@ export function SessionPage() {
             <PartyPopper className="h-5 w-5 mr-1.5" /> Finish Workout
           </Button>
         </div>
+
+        {/* Day Switch Confirmation Modal */}
+        <Modal
+          open={pendingDaySwitch !== null}
+          title="Switch Workout Day?"
+          onClose={() => setPendingDaySwitch(null)}
+          footer={
+            <div className="flex items-center justify-end gap-2 w-full">
+              <Button
+                variant="ghost"
+                size="md"
+                onClick={() => setPendingDaySwitch(null)}
+                className="text-zinc-400"
+              >
+                Keep Day {activeDayNumber}
+              </Button>
+              <Button
+                variant="volt"
+                size="md"
+                onClick={confirmSwitchDay}
+                className="font-black px-4"
+              >
+                Switch to Day {pendingDaySwitch}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3 py-2 text-zinc-300 text-sm">
+            <p>
+              You have an active session with <strong className="text-[#10E760] font-mono">{completedSets}</strong> completed sets on <strong className="text-white">Day {activeDayNumber}</strong>.
+            </p>
+            <p className="text-zinc-400 text-xs">
+              Switching will discard uncompleted sets for this day and load the routine for Day {pendingDaySwitch}.
+            </p>
+          </div>
+        </Modal>
 
         {/* Post-Workout Intensity & Pain Survey Modal */}
         <Modal

@@ -840,7 +840,10 @@ export function PlanPage() {
                                               variant="volt"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                navigate('/session');
+                                                const dayNum = day.dayNumber || currentDay?.dayNumber || (selectedDay + 1);
+                                                navigate(`/session?day=${dayNum}`, {
+                                                  state: { dayNumber: dayNum, dayIndex: dayIndex },
+                                                });
                                               }}
                                               className="h-6 text-[10px] font-black px-2.5 rounded-md"
                                             >
@@ -1089,7 +1092,12 @@ export function PlanPage() {
                     variant="volt"
                     size="lg"
                     pill={true}
-                    onClick={() => navigate('/session')}
+                    onClick={() => {
+                      const dayNum = currentDay?.dayNumber || (selectedDay + 1);
+                      navigate(`/session?day=${dayNum}`, {
+                        state: { dayNumber: dayNum, dayIndex: selectedDay },
+                      });
+                    }}
                     className="w-full text-base font-black shadow-lg shadow-lime-400/20"
                   >
                     <Play className="h-4 w-4 mr-2 fill-current" /> Start Session Now
