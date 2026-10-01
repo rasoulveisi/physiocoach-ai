@@ -1174,11 +1174,11 @@ export function SessionPage() {
                                 name: exercise.name,
                               })
                             }
-                            className="size-6 sm:size-7 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
+                            className="size-7 sm:size-8 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
                             title="Plate Calculator"
                             aria-label="Plate Calculator"
                           >
-                            <Dumbbell className="size-3 sm:size-3.5" />
+                            <Dumbbell className="size-3.5 sm:size-4" />
                           </button>
                         </Tooltip>
 
@@ -1186,11 +1186,11 @@ export function SessionPage() {
                           <button
                             type="button"
                             onClick={() => setSwapTargetIndex(exIdx)}
-                            className="size-6 sm:size-7 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
+                            className="size-7 sm:size-8 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
                             title="Swap Exercise"
                             aria-label="Swap Exercise"
                           >
-                            <ArrowLeftRight className="size-3 sm:size-3.5" />
+                            <ArrowLeftRight className="size-3.5 sm:size-4" />
                           </button>
                         </Tooltip>
 
@@ -1198,11 +1198,11 @@ export function SessionPage() {
                           <button
                             type="button"
                             onClick={() => setPrescriptionTargetExIdx(exIdx)}
-                            className="size-6 sm:size-7 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-[#10E760] hover:bg-[#10E760]/15 hover:border-[#10E760]/40 transition-colors cursor-pointer"
+                            className="size-7 sm:size-8 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-[#10E760] hover:bg-[#10E760]/15 hover:border-[#10E760]/40 transition-colors cursor-pointer"
                             title="Prescription & RIR Guide"
                             aria-label="Prescription & RIR Guide"
                           >
-                            <Info className="size-3 sm:size-3.5" />
+                            <Info className="size-3.5 sm:size-4" />
                           </button>
                         </Tooltip>
                       </div>
@@ -1409,30 +1409,16 @@ export function SessionPage() {
                         })}
                       </div>
 
-                      {/* Action Bar: Add Set + RIR Guide & Edit + Next Exercise */}
+                      {/* Action Bar: Add Set + Next Exercise */}
                       <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            onClick={() => handleAddSet(exIdx)}
-                            className="border border-dashed border-zinc-800 text-zinc-300 hover:border-[#10E760]/50 hover:text-[#10E760] text-xs font-bold"
-                          >
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Add Set
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="xs"
-                            variant="ghost"
-                            onClick={() => setPrescriptionTargetExIdx(exIdx)}
-                            className="border border-zinc-800/80 bg-zinc-900/60 text-zinc-400 hover:text-[#10E760] text-xs font-bold"
-                            title="Edit Target Reps and RIR"
-                          >
-                            <Info className="h-3.5 w-3.5 mr-1 text-[#10E760]" />
-                            <span>RIR Guide & Edit</span>
-                          </Button>
-                        </div>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => handleAddSet(exIdx)}
+                          className="border border-dashed border-zinc-800 text-zinc-300 hover:border-[#10E760]/50 hover:text-[#10E760] text-xs font-bold"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Set
+                        </Button>
 
                         {exIdx < exercises.length - 1 && (
                           <Button
