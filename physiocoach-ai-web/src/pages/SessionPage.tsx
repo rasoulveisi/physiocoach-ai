@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, type TouchEvent } from 'react';
 import {
   ArrowLeftRight,
   ArrowRight,
   Calendar,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Dumbbell,
   Flame,
@@ -28,6 +30,7 @@ import { Tooltip } from '../components/ui/Tooltip';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { RestTimerHUD } from '../components/ui/RestTimerHUD';
 import { PlateCalculatorModal } from '../components/ui/PlateCalculatorModal';
+import { PrescriptionActionSheet } from '../components/ui/PrescriptionActionSheet';
 import { ExerciseSwapModal, type SwapCandidateItem } from '../components/ui/ExerciseSwapModal';
 import { PrehabWarmupSection } from '../components/ui/PrehabWarmupSection';
 import { SessionSkeleton } from '../components/ui/Skeleton';
@@ -89,6 +92,11 @@ export function SessionPage() {
   const [activeDayNumber, setActiveDayNumber] = useState<number>(1);
   const [pendingDaySwitch, setPendingDaySwitch] = useState<number | null>(null);
 
+  // Day Swiper Touch Gestures & Ribbon Ref
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const dayRibbonRef = useRef<HTMLDivElement | null>(null);
+
   const [exercises, setExercises] = useState<SessionExercise[]>([]);
   const [logs, setLogs] = useState<Record<number, LoggedSet[]>>({});
   const [sessionState, setSessionState] = useState<'idle' | 'active' | 'paused'>('idle');
@@ -125,6 +133,9 @@ export function SessionPage() {
   const [swapTargetIndex, setSwapTargetIndex] = useState<number | null>(null);
   const [allCandidates, setAllCandidates] = useState<SwapCandidateItem[]>([]);
   const [limitations, setLimitations] = useState<string[]>([]);
+
+  // Prescription & RIR Action Sheet State
+  const [prescriptionTarget, setPrescriptionTarget] = useState<SessionExercise | null>(null);
 
   // Function to load a specific day's exercises and initialize set logs
   const loadDay = (targetDay: WorkoutDayView, showToast = false) => {
@@ -305,6 +316,53 @@ export function SessionPage() {
         loadDay(targetDay, true);
       }
       setPendingDaySwitch(null);
+    }
+  };
+
+  // Auto-scroll active day card into center of ribbon when changed
+  useEffect(() => {
+    if (!dayRibbonRef.current) return;
+    const activeEl = dayRibbonRef.current.querySelector<HTMLElement>('[data-active-day="true"]');
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [activeDayNumber]);
+
+  // Direction-Locked Touch Gesture Handler for Day Swiper
+  const handleTouchStart = (e: TouchEvent) => {
+    if (prescriptionTarget || plateCalcTarget || swapTargetIndex !== null || completeModalOpen) {
+      return;
+    }
+    const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+    if (targetTag === 'input' || targetTag === 'select' || targetTag === 'textarea') {
+      return;
+    }
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    if (prescriptionTarget || plateCalcTarget || swapTargetIndex !== null || completeModalOpen) {
+      return;
+    }
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const deltaX = touchStartX.current - endX;
+    const deltaY = touchStartY.current - endY;
+
+    // Direction-locked horizontal swipe: minimum 50px swipe, horizontal angle > 1.6x vertical
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.6) {
+      if (planDays.length <= 1) return;
+      const currentIdx = planDays.findIndex((d) => d.dayNumber === activeDayNumber);
+      if (currentIdx === -1) return;
+
+      if (deltaX > 0 && currentIdx < planDays.length - 1) {
+        // Swiped Left -> Advance to Next Day
+        handleRequestSwitchDay(planDays[currentIdx + 1].dayNumber);
+      } else if (deltaX < 0 && currentIdx > 0) {
+        // Swiped Right -> Go back to Previous Day
+        handleRequestSwitchDay(planDays[currentIdx - 1].dayNumber);
+      }
     }
   };
 
@@ -610,7 +668,11 @@ export function SessionPage() {
   const nextExercise = exercises[activeExIdx + 1]?.name || exercises[activeExIdx]?.name;
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-zinc-950 text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950">
+    <div
+      className="flex h-full w-full overflow-hidden bg-zinc-950 text-zinc-50 select-none selection:bg-lime-400 selection:text-zinc-950"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <main className="flex-1 overflow-y-auto min-h-0 w-full max-w-4xl mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 pb-28">
         {error && <Toast type="error" message={error} onClose={() => setError('')} />}
         {toastMessage && (
@@ -647,7 +709,7 @@ export function SessionPage() {
           </div>
         )}
 
-        {/* Active Plan & Easy Day Selection Ribbon */}
+        {/* Active Plan & Easy Day Selection Ribbon / Swiper */}
         {planDays.length > 0 && (
           <div className="rounded-2xl border border-zinc-800 bg-[#121722] p-3 sm:p-4 space-y-2.5 shadow-lg">
             <div className="flex items-center justify-between gap-2">
@@ -657,50 +719,100 @@ export function SessionPage() {
                   {planTitle}
                 </h2>
               </div>
-              <span className="text-[10px] font-mono font-bold text-[#10E760] shrink-0 bg-[#10E760]/10 border border-[#10E760]/20 px-2 py-0.5 rounded-full">
-                Day {activeDayNumber} of {planDays.length}
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-mono text-zinc-500 hidden sm:inline">
+                  Swipe ‹ › to change days
+                </span>
+                <span className="text-[10px] font-mono font-bold text-[#10E760] bg-[#10E760]/10 border border-[#10E760]/20 px-2 py-0.5 rounded-full">
+                  Day {activeDayNumber} of {planDays.length}
+                </span>
+              </div>
             </div>
 
-            {/* Scrollable Day Pills Bar */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none snap-x">
-              {planDays.map((d) => {
-                const isActive = d.dayNumber === activeDayNumber;
-                const shortName =
-                  d.name?.replace(/day\s*\d+[:\-–\s]*/i, '').trim() ||
-                  d.focus ||
-                  `Day ${d.dayNumber}`;
-                const exCount = d.exercises?.length || 0;
+            {/* Scrollable Day Pills Bar with Navigation Controls */}
+            <div className="flex items-center gap-1.5">
+              {/* Previous Day Chevron Arrow */}
+              {planDays.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentIdx = planDays.findIndex((d) => d.dayNumber === activeDayNumber);
+                    if (currentIdx > 0) {
+                      handleRequestSwitchDay(planDays[currentIdx - 1].dayNumber);
+                    }
+                  }}
+                  disabled={activeDayNumber === planDays[0]?.dayNumber}
+                  className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+                  title="Previous Day"
+                  aria-label="Previous Day"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+              )}
 
-                return (
-                  <button
-                    key={d.dayNumber}
-                    type="button"
-                    onClick={() => handleRequestSwitchDay(d.dayNumber)}
-                    className={`flex items-center gap-2.5 shrink-0 rounded-xl px-3 py-2 text-left transition-all snap-start cursor-pointer border ${
-                      isActive
-                        ? 'border-[#10E760] bg-[#10E760]/10 text-white shadow-md shadow-[#10E760]/15 ring-1 ring-[#10E760]/60'
-                        : 'border-zinc-800 bg-[#090D15] text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-                    }`}
-                  >
-                    <div
-                      className={`size-6 rounded-lg font-mono text-[11px] font-black grid place-items-center ${
-                        isActive ? 'bg-[#10E760] text-zinc-950' : 'bg-zinc-800 text-zinc-400'
+              {/* Day Swiper Track */}
+              <div
+                ref={dayRibbonRef}
+                className="flex-1 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none snap-x"
+              >
+                {planDays.map((d) => {
+                  const isActive = d.dayNumber === activeDayNumber;
+                  const shortName =
+                    d.name?.replace(/day\s*\d+[:\-–\s]*/i, '').trim() ||
+                    d.focus ||
+                    `Day ${d.dayNumber}`;
+                  const exCount = d.exercises?.length || 0;
+
+                  return (
+                    <button
+                      key={d.dayNumber}
+                      data-active-day={isActive ? 'true' : 'false'}
+                      type="button"
+                      onClick={() => handleRequestSwitchDay(d.dayNumber)}
+                      className={`flex items-center gap-2.5 shrink-0 rounded-xl px-3 py-2 text-left transition-all snap-start cursor-pointer border ${
+                        isActive
+                          ? 'border-[#10E760] bg-[#10E760]/10 text-white shadow-md shadow-[#10E760]/15 ring-1 ring-[#10E760]/60'
+                          : 'border-zinc-800 bg-[#090D15] text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                       }`}
                     >
-                      {d.dayNumber}
-                    </div>
-                    <div className="min-w-0 max-w-[120px] sm:max-w-[160px]">
-                      <div className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}>
-                        {shortName}
+                      <div
+                        className={`size-6 rounded-lg font-mono text-[11px] font-black grid place-items-center ${
+                          isActive ? 'bg-[#10E760] text-zinc-950' : 'bg-zinc-800 text-zinc-400'
+                        }`}
+                      >
+                        {d.dayNumber}
                       </div>
-                      <div className="text-[9px] font-mono text-zinc-500">
-                        {exCount} {exCount === 1 ? 'exercise' : 'exercises'}
+                      <div className="min-w-0 max-w-[120px] sm:max-w-[160px]">
+                        <div className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}>
+                          {shortName}
+                        </div>
+                        <div className="text-[9px] font-mono text-zinc-500">
+                          {exCount} {exCount === 1 ? 'exercise' : 'exercises'}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Next Day Chevron Arrow */}
+              {planDays.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentIdx = planDays.findIndex((d) => d.dayNumber === activeDayNumber);
+                    if (currentIdx !== -1 && currentIdx < planDays.length - 1) {
+                      handleRequestSwitchDay(planDays[currentIdx + 1].dayNumber);
+                    }
+                  }}
+                  disabled={activeDayNumber === planDays[planDays.length - 1]?.dayNumber}
+                  className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+                  title="Next Day"
+                  aria-label="Next Day"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -913,9 +1025,9 @@ export function SessionPage() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        {/* Exercise Visual Frame */}
+                        {/* Exercise Visual Frame - Enlarged with vertical tools */}
                         <div
-                          className="size-14 sm:size-16 rounded-xl bg-white p-1 shrink-0 border border-zinc-700/60 flex items-center justify-center overflow-hidden shadow-sm"
+                          className="size-16 sm:size-20 rounded-2xl bg-white p-1.5 shrink-0 border border-zinc-700/60 flex items-center justify-center overflow-hidden shadow-sm"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <ExerciseVisual
@@ -929,8 +1041,8 @@ export function SessionPage() {
 
                         {/* Exercise Name & Metadata */}
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-mono text-xs font-black text-[#10E760]">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs font-black text-[#10E760] shrink-0">
                               #{exIdx + 1}
                             </span>
                             <h2 className="text-xs sm:text-sm font-extrabold text-white capitalize leading-tight truncate">
@@ -938,19 +1050,19 @@ export function SessionPage() {
                             </h2>
                           </div>
 
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                             {exercise.muscleGroup && (
                               <span className="rounded bg-[#10E760]/10 border border-[#10E760]/20 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-[#10E760]">
                                 {exercise.muscleGroup}
                               </span>
                             )}
                             {exercise.movementPattern && (
-                              <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-zinc-300">
+                              <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase text-zinc-300 hidden sm:inline-flex">
                                 {exercise.movementPattern.replace(/_/g, ' ')}
                               </span>
                             )}
 
-                            {/* Target prescription badge */}
+                            {/* Single clean Target prescription badge */}
                             <span className="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-400">
                               Target: {exercise.sets || 3} × {exercise.reps || 10}
                             </span>
@@ -969,11 +1081,25 @@ export function SessionPage() {
                         </div>
                       </div>
 
-                      {/* Quick Tools & Chevron */}
+                      {/* Vertical Action Column: Frees horizontal space for larger image & inputs */}
                       <div
-                        className="flex items-center gap-1 shrink-0"
+                        className="flex flex-col items-center gap-1.5 shrink-0 self-center"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        <button
+                          type="button"
+                          onClick={() => setExpandedExIdx(isExpanded ? -1 : exIdx)}
+                          className="size-8 sm:size-9 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                          title={isExpanded ? 'Collapse' : 'Expand'}
+                          aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </button>
+
                         <Tooltip content="Barbell Plate Calculator">
                           <button
                             type="button"
@@ -985,7 +1111,9 @@ export function SessionPage() {
                                 name: exercise.name,
                               })
                             }
-                            className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                            className="size-8 sm:size-9 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
+                            title="Plate Calculator"
+                            aria-label="Plate Calculator"
                           >
                             <Dumbbell className="h-3.5 w-3.5" />
                           </button>
@@ -995,24 +1123,27 @@ export function SessionPage() {
                           <button
                             type="button"
                             onClick={() => setSwapTargetIndex(exIdx)}
-                            className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                            className="size-8 sm:size-9 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
+                            title="Swap Exercise"
+                            aria-label="Swap Exercise"
                           >
                             <ArrowLeftRight className="h-3.5 w-3.5" />
                           </button>
                         </Tooltip>
 
-                        <button
-                          type="button"
-                          onClick={() => setExpandedExIdx(isExpanded ? -1 : exIdx)}
-                          className="size-8 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
-                          title={isExpanded ? 'Collapse' : 'Expand'}
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </button>
+                        {exercise.notes && (
+                          <Tooltip content="Prescription & RIR Guide">
+                            <button
+                              type="button"
+                              onClick={() => setPrescriptionTarget(exercise)}
+                              className="size-8 sm:size-9 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-[#10E760] hover:bg-[#10E760]/15 hover:border-[#10E760]/40 transition-colors cursor-pointer"
+                              title="Prescription & RIR Guide"
+                              aria-label="Prescription & RIR Guide"
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </Tooltip>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1034,7 +1165,7 @@ export function SessionPage() {
                               }`}
                             />
                             <span className="font-mono text-xs font-bold text-zinc-200 truncate">
-                              {overloadRec.chipLabel}
+                              {overloadRec.chipLabel.replace(/^Target:\s*/i, 'Overload: ')}
                             </span>
                           </div>
 
@@ -1050,46 +1181,29 @@ export function SessionPage() {
                         </div>
                       )}
 
-                      {/* Exercise Notes / Biomechanical Cue if available */}
-                      {exercise.notes && (
-                        <div className="flex items-start gap-2 rounded-xl border border-zinc-800/70 bg-[#121722]/80 p-2.5 text-xs text-zinc-300">
-                          <Info className="h-4 w-4 text-[#10E760] shrink-0 mt-0.5" />
-                          <span>{exercise.notes}</span>
-                        </div>
-                      )}
-
                       {/* Ergonomic Sets Table */}
                       <div className="space-y-1.5">
-                        {/* Sets Table Header */}
-                        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 px-1 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 items-center">
-                          <div className="col-span-2 sm:col-span-1 text-center">Set</div>
-                          <div className="col-span-3 sm:col-span-3 text-center sm:text-left">Target</div>
-                          <div className="col-span-3 sm:col-span-3 text-center">
-                            {unitSystem === 'metric' ? 'Weight (kg)' : 'Weight (lb)'}
-                          </div>
-                          <div className="col-span-2 sm:col-span-2 text-center">Reps</div>
-                          <div className="col-span-2 sm:col-span-3 text-right pr-2">Done</div>
+                        {/* Sets Table Header: Clean 4 columns without redundant Target */}
+                        <div className="grid grid-cols-[36px_1fr_1fr_auto] gap-1.5 sm:gap-2 px-1.5 sm:px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 items-center">
+                          <div className="text-center">Set</div>
+                          <div className="text-center">{unitSystem === 'metric' ? 'Kg' : 'Lb'}</div>
+                          <div className="text-center">Reps</div>
+                          <div className="text-right pr-2 min-w-[70px]">Done</div>
                         </div>
 
                         {/* Sets Rows */}
                         {exerciseSets.map((set, setIdx) => {
-                          const prevText = set.previousPerformance
-                            ? `${set.previousPerformance.weight}${unitSystem === 'metric' ? 'kg' : 'lb'} × ${set.previousPerformance.reps}`
-                            : typeof exercise.reps !== 'undefined'
-                            ? `20${unitSystem === 'metric' ? 'kg' : 'lb'} × ${exercise.reps}`
-                            : '—';
-
                           return (
                             <div
                               key={setIdx}
-                              className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center rounded-xl border p-1.5 sm:p-2 transition-all ${
+                              className={`grid grid-cols-[36px_1fr_1fr_auto] gap-1.5 sm:gap-2 items-center rounded-xl border p-1.5 sm:p-2 transition-all ${
                                 set.completed
                                   ? 'border-[#10E760]/40 bg-[#10E760]/[0.06] shadow-sm shadow-[#10E760]/5'
                                   : 'border-zinc-800/80 bg-[#121722] hover:border-zinc-700'
                               }`}
                             >
                               {/* 1. Set # and Set Type Cycle Badge */}
-                              <div className="col-span-2 sm:col-span-1 flex items-center justify-center">
+                              <div className="flex items-center justify-center">
                                 <button
                                   type="button"
                                   onClick={() => cycleSetType(exIdx, setIdx)}
@@ -1104,24 +1218,18 @@ export function SessionPage() {
                                       : 'bg-zinc-800/90 text-zinc-300 border border-zinc-700/60 hover:border-zinc-600'
                                   }`}
                                 >
-                                  {set.setType === 'warmup' ? 'W' : set.setType === 'drop' ? 'D' : set.setType === 'failure' ? 'F' : setIdx + 1}
+                                  {set.setType === 'warmup'
+                                    ? 'W'
+                                    : set.setType === 'drop'
+                                    ? 'D'
+                                    : set.setType === 'failure'
+                                    ? 'F'
+                                    : setIdx + 1}
                                 </button>
                               </div>
 
-                              {/* 2. Previous / Target Performance (Tap to Auto-fill) */}
-                              <div className="col-span-3 sm:col-span-3 truncate text-center sm:text-left">
-                                <button
-                                  type="button"
-                                  onClick={() => copyPreviousPerformance(exIdx, setIdx)}
-                                  title="Tap to autofill weight & reps with target"
-                                  className="w-full text-left truncate rounded-lg border border-zinc-800/80 bg-[#090D15] px-1.5 py-1 font-mono text-[10px] text-zinc-400 hover:text-white hover:border-[#10E760]/50 transition-colors cursor-pointer group"
-                                >
-                                  <span className="block truncate font-bold group-hover:text-[#10E760]">{prevText}</span>
-                                </button>
-                              </div>
-
-                              {/* 3. Weight Stepper Pill */}
-                              <div className="col-span-3 sm:col-span-3">
+                              {/* 2. Weight Stepper Pill with wide input */}
+                              <div className="min-w-0">
                                 <div className="flex items-center rounded-xl border border-zinc-800 bg-[#090D15] p-0.5 focus-within:border-[#10E760] transition-colors">
                                   <button
                                     type="button"
@@ -1132,22 +1240,24 @@ export function SessionPage() {
                                         -(unitSystem === 'metric' ? (set.weight <= 10 ? 1 : 2.5) : 5),
                                       )
                                     }
-                                    className="size-7 sm:size-8 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none"
+                                    className="size-6 sm:size-7 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none shrink-0"
                                     aria-label="Decrease weight"
                                   >
                                     −
                                   </button>
-                                  <div className="flex-1 flex items-baseline justify-center min-w-0">
+                                  <div className="flex-1 flex items-center justify-center min-w-0 px-1">
                                     <input
                                       type="number"
                                       step="0.5"
                                       min="0"
                                       inputMode="decimal"
-                                      value={set.weight}
+                                      value={set.weight === 0 ? '' : set.weight}
+                                      placeholder={String(set.previousPerformance?.weight || 20)}
                                       onFocus={(e) => e.target.select()}
-                                      onChange={(e) =>
-                                        updateSet(exIdx, setIdx, { weight: Number(e.target.value) })
-                                      }
+                                      onChange={(e) => {
+                                        const val = e.target.value === '' ? 0 : Number(e.target.value);
+                                        updateSet(exIdx, setIdx, { weight: val });
+                                      }}
                                       className="w-full min-w-0 bg-transparent text-center font-mono text-xs sm:text-sm font-black text-white outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                   </div>
@@ -1160,7 +1270,7 @@ export function SessionPage() {
                                         unitSystem === 'metric' ? (set.weight < 10 ? 1 : 2.5) : 5,
                                       )
                                     }
-                                    className="size-7 sm:size-8 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none"
+                                    className="size-6 sm:size-7 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none shrink-0"
                                     aria-label="Increase weight"
                                   >
                                     +
@@ -1168,34 +1278,36 @@ export function SessionPage() {
                                 </div>
                               </div>
 
-                              {/* 4. Reps Stepper Pill */}
-                              <div className="col-span-2 sm:col-span-2">
+                              {/* 3. Reps Stepper Pill with wide input */}
+                              <div className="min-w-0">
                                 <div className="flex items-center rounded-xl border border-zinc-800 bg-[#090D15] p-0.5 focus-within:border-[#10E760] transition-colors">
                                   <button
                                     type="button"
                                     onClick={() => stepReps(exIdx, setIdx, -1)}
-                                    className="size-7 sm:size-8 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none"
+                                    className="size-6 sm:size-7 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none shrink-0"
                                     aria-label="Decrease reps"
                                   >
                                     −
                                   </button>
-                                  <div className="flex-1 flex items-baseline justify-center min-w-0">
+                                  <div className="flex-1 flex items-center justify-center min-w-0 px-1">
                                     <input
                                       type="number"
                                       min="0"
                                       inputMode="numeric"
-                                      value={set.reps}
+                                      value={set.reps === 0 ? '' : set.reps}
+                                      placeholder={String(set.previousPerformance?.reps || exercise.reps || 10)}
                                       onFocus={(e) => e.target.select()}
-                                      onChange={(e) =>
-                                        updateSet(exIdx, setIdx, { reps: Number(e.target.value) })
-                                      }
+                                      onChange={(e) => {
+                                        const val = e.target.value === '' ? 0 : Number(e.target.value);
+                                        updateSet(exIdx, setIdx, { reps: val });
+                                      }}
                                       className="w-full min-w-0 bg-transparent text-center font-mono text-xs sm:text-sm font-black text-white outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => stepReps(exIdx, setIdx, 1)}
-                                    className="size-7 sm:size-8 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none"
+                                    className="size-6 sm:size-7 grid place-items-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 active:scale-90 transition-all font-mono font-black text-sm select-none shrink-0"
                                     aria-label="Increase reps"
                                   >
                                     +
@@ -1203,8 +1315,8 @@ export function SessionPage() {
                                 </div>
                               </div>
 
-                              {/* 5. Complete Button & Delete */}
-                              <div className="col-span-2 sm:col-span-3 flex items-center justify-end gap-1 sm:gap-1.5">
+                              {/* 4. Complete Button & Delete */}
+                              <div className="flex items-center justify-end gap-1 sm:gap-1.5 shrink-0 min-w-[70px]">
                                 <button
                                   type="button"
                                   onClick={() => toggleSetComplete(exIdx, setIdx)}
@@ -1218,7 +1330,7 @@ export function SessionPage() {
                                   <Check className="h-4 w-4 stroke-[3]" />
                                 </button>
 
-                                {exerciseSets.length > 1 && (
+                                {exerciseSets.length > 1 ? (
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteSet(exIdx, setIdx)}
@@ -1227,6 +1339,8 @@ export function SessionPage() {
                                   >
                                     <Trash2 className="size-3.5" />
                                   </button>
+                                ) : (
+                                  <div className="size-7" />
                                 )}
                               </div>
                             </div>
@@ -1526,6 +1640,20 @@ export function SessionPage() {
             candidates={allCandidates}
             onClose={() => setSwapTargetIndex(null)}
             onConfirmSwap={handleConfirmSwap}
+          />
+        )}
+
+        {/* Prescription & RIR Guide Action Bottom Sheet */}
+        {prescriptionTarget && (
+          <PrescriptionActionSheet
+            open={true}
+            onClose={() => setPrescriptionTarget(null)}
+            exerciseName={prescriptionTarget.name}
+            notes={prescriptionTarget.notes}
+            targetSets={prescriptionTarget.sets}
+            targetReps={prescriptionTarget.reps}
+            muscleGroup={prescriptionTarget.muscleGroup}
+            movementPattern={prescriptionTarget.movementPattern}
           />
         )}
 

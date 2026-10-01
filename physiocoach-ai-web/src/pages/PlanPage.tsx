@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronUp,
   Globe,
+  Info,
   GitFork,
   Layers,
   Pencil,
@@ -29,6 +30,7 @@ import { Toast } from '../components/ui/Toast';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { ExercisePreviewModal, type ExercisePreviewItem } from '../components/ui/ExercisePreviewModal';
 import { RegeneratePlanModal } from '../components/ui/RegeneratePlanModal';
+import { PrescriptionActionSheet } from '../components/ui/PrescriptionActionSheet';
 import type { DirectAlternativeItem } from '../app/features/exercise-catalog/services/exercise-catalog-api';
 import { PlanSkeleton } from '../components/ui/Skeleton';
 import { Tooltip } from '../components/ui/Tooltip';
@@ -131,6 +133,7 @@ export function PlanPage() {
   const [previewExercise, setPreviewExercise] = useState<ExercisePreviewItem | null>(null);
   const [isSwapping, setIsSwapping] = useState(false);
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [prescriptionSheetTarget, setPrescriptionSheetTarget] = useState<WorkoutExerciseView | null>(null);
 
   // Star Rating & Review State
   const [ratingVal, setRatingVal] = useState<number>(5);
@@ -800,6 +803,20 @@ export function PlanPage() {
                                           </span>
 
                                           <div className="flex items-center gap-1.5">
+                                            {exercise.notes && (
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setPrescriptionSheetTarget(exercise);
+                                                }}
+                                                className="size-6 grid place-items-center rounded-md bg-[#10E760]/10 border border-[#10E760]/25 text-[#10E760] hover:bg-[#10E760]/20 transition-colors"
+                                                title="Prescription & RIR Guide"
+                                              >
+                                                <Info className="h-3 w-3" />
+                                              </button>
+                                            )}
+
                                             {(safetyNotes.length > 0 || overloadRec.isApplicable || exercise.notes) && (
                                               <button
                                                 type="button"
@@ -852,11 +869,24 @@ export function PlanPage() {
                                           </div>
                                         )}
 
-                                        {/* Exercise Notes / Warmup Instruction */}
+                                        {/* Exercise Prescription & RIR Guide Action Button */}
                                         {exercise.notes && (
-                                          <p className="text-[11px] text-zinc-400 italic bg-zinc-900/50 rounded-lg p-2 border border-zinc-800/40">
-                                            {exercise.notes}
-                                          </p>
+                                          <div className="pt-0.5">
+                                            <button
+                                              type="button"
+                                              onClick={() => setPrescriptionSheetTarget(exercise)}
+                                              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800/80 bg-zinc-900/90 hover:bg-zinc-800 hover:border-[#10E760]/40 px-2.5 py-1 text-xs text-zinc-300 transition-colors group"
+                                              title="View Prescription & RIR Guide"
+                                            >
+                                              <Info className="h-3.5 w-3.5 text-[#10E760] group-hover:scale-110 transition-transform" />
+                                              <span className="font-mono text-[11px] font-bold text-zinc-200 group-hover:text-white">
+                                                Prescription & RIR Guide
+                                              </span>
+                                              <span className="text-[10px] font-mono text-[#10E760] ml-1">
+                                                View details →
+                                              </span>
+                                            </button>
+                                          </div>
                                         )}
 
                                         {/* Biomechanical Form Safeguards */}
@@ -1346,6 +1376,20 @@ export function PlanPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Prescription & RIR Guide Action Bottom Sheet */}
+      {prescriptionSheetTarget && (
+        <PrescriptionActionSheet
+          open={true}
+          onClose={() => setPrescriptionSheetTarget(null)}
+          exerciseName={prescriptionSheetTarget.name}
+          notes={prescriptionSheetTarget.notes}
+          targetSets={prescriptionSheetTarget.sets}
+          targetReps={prescriptionSheetTarget.reps}
+          muscleGroup={prescriptionSheetTarget.muscleGroup}
+          movementPattern={prescriptionSheetTarget.movementPattern}
+        />
       )}
 
       {/* Toast Notifications */}
