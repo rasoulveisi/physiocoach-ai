@@ -30,7 +30,7 @@ import { Tooltip } from '../components/ui/Tooltip';
 import { ExerciseVisual } from '../components/ui/ExerciseVisual';
 import { RestTimerHUD } from '../components/ui/RestTimerHUD';
 import { PlateCalculatorModal } from '../components/ui/PlateCalculatorModal';
-import { PrescriptionActionSheet } from '../components/ui/PrescriptionActionSheet';
+import { PrescriptionActionSheet, type ParsedPrescriptionSet } from '../components/ui/PrescriptionActionSheet';
 import { ExerciseSwapModal, type SwapCandidateItem } from '../components/ui/ExerciseSwapModal';
 import { PrehabWarmupSection } from '../components/ui/PrehabWarmupSection';
 import { SessionSkeleton } from '../components/ui/Skeleton';
@@ -135,7 +135,8 @@ export function SessionPage() {
   const [limitations, setLimitations] = useState<string[]>([]);
 
   // Prescription & RIR Action Sheet State
-  const [prescriptionTarget, setPrescriptionTarget] = useState<SessionExercise | null>(null);
+  const [prescriptionTargetExIdx, setPrescriptionTargetExIdx] = useState<number | null>(null);
+  const prescriptionTarget = prescriptionTargetExIdx !== null ? exercises[prescriptionTargetExIdx] : null;
 
   // Function to load a specific day's exercises and initialize set logs
   const loadDay = (targetDay: WorkoutDayView, showToast = false) => {
@@ -405,6 +406,64 @@ export function SessionPage() {
     if (hapticsEnabled) {
       soundCueService.triggerHaptic('light');
     }
+  };
+
+  // Fast Set RIR Cycling (RIR 2 -> RIR 1 -> RIR 0 -> RIR 3)
+  const cycleSetRir = (exIdx: number, setIdx: number) => {
+    const currentSet = logs[exIdx]?.[setIdx];
+    if (!currentSet) return;
+    const currentRir = Math.max(0, Math.min(4, Math.round(10 - (currentSet.rpe || 8))));
+    const cycleMap: Record<number, number> = { 3: 2, 2: 1, 1: 0, 0: 3 };
+    const nextRir = cycleMap[currentRir] !== undefined ? cycleMap[currentRir] : 2;
+    const nextRpe = 10 - nextRir;
+
+    updateSet(exIdx, setIdx, { rpe: nextRpe });
+    if (hapticsEnabled) {
+      soundCueService.triggerHaptic('light');
+    }
+  };
+
+  // Handle Prescription & RIR Sheet Updates
+  const handleUpdatePrescription = (
+    exIdx: number,
+    updatedNotes: string,
+    updatedSets: ParsedPrescriptionSet[],
+  ) => {
+    // 1. Update exercise notes
+    setExercises((prev) => {
+      const next = [...prev];
+      if (next[exIdx]) {
+        next[exIdx] = {
+          ...next[exIdx],
+          notes: updatedNotes,
+        };
+      }
+      return next;
+    });
+
+    // 2. Update sets logs with target RPE (RPE = 10 - RIR)
+    setLogs((prev) => {
+      const current = prev[exIdx] || [];
+      const updated = current.map((s, idx) => {
+        const matchPresc = updatedSets[idx] || updatedSets[updatedSets.length - 1];
+        if (!matchPresc?.rir) return s;
+        const numMatch = matchPresc.rir.match(/([0-9.]+)/);
+        const rirVal = numMatch ? parseFloat(numMatch[1]) : 2;
+        const newRpe = Math.max(5, Math.min(10, 10 - rirVal));
+        return {
+          ...s,
+          rpe: newRpe,
+        };
+      });
+
+      return {
+        ...prev,
+        [exIdx]: updated,
+      };
+    });
+
+    setPrescriptionTargetExIdx(null);
+    setToastMessage(`Prescription & RIR updated for ${exercises[exIdx]?.name}`);
   };
 
   // 1-Tap Copy from Target or Previous Performance
@@ -1041,13 +1100,22 @@ export function SessionPage() {
 
                         {/* Exercise Name & Metadata */}
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <span className="font-mono text-xs font-black text-[#10E760] shrink-0">
                               #{exIdx + 1}
                             </span>
                             <h2 className="text-xs sm:text-sm font-extrabold text-white capitalize leading-tight truncate">
                               {exercise.name}
                             </h2>
+                            <span
+                              className={`inline-flex items-center justify-center size-5 rounded-md text-zinc-400 hover:text-white transition-all duration-200 shrink-0 ${
+                                isExpanded ? 'rotate-180 text-[#10E760]' : ''
+                              }`}
+                              title={isExpanded ? 'Collapse exercise' : 'Expand exercise'}
+                              aria-label={isExpanded ? 'Collapse exercise' : 'Expand exercise'}
+                            >
+                              <ChevronDown className="size-3.5" />
+                            </span>
                           </div>
 
                           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -1062,10 +1130,19 @@ export function SessionPage() {
                               </span>
                             )}
 
-                            {/* Single clean Target prescription badge */}
-                            <span className="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-400">
-                              Target: {exercise.sets || 3} × {exercise.reps || 10}
-                            </span>
+                            {/* Single clean Target prescription badge - Clickable to open & edit RIR */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPrescriptionTargetExIdx(exIdx);
+                              }}
+                              className="rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-1.5 py-0.5 text-[9px] font-mono font-bold text-zinc-300 hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1"
+                              title="Click to view & edit Target Prescription & RIR"
+                            >
+                              <span>Target: {exercise.sets || 3} × {exercise.reps || 10}</span>
+                              <span className="text-[#10E760]">@ RIR {Math.max(0, Math.min(5, 10 - (exerciseSets[0]?.rpe || exercise.rpe || 8)))}</span>
+                            </button>
 
                             {/* Progress Status Pill */}
                             {isAllComplete ? (
@@ -1081,25 +1158,11 @@ export function SessionPage() {
                         </div>
                       </div>
 
-                      {/* Vertical Action Column: Frees horizontal space for larger image & inputs */}
+                      {/* Vertical Action Column: Exactly scaled to match thumbnail & text height */}
                       <div
-                        className="flex flex-col items-center gap-1.5 shrink-0 self-center"
+                        className="flex flex-col items-center justify-center gap-1 shrink-0 self-center"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setExpandedExIdx(isExpanded ? -1 : exIdx)}
-                          className="size-8 sm:size-9 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                          title={isExpanded ? 'Collapse' : 'Expand'}
-                          aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </button>
-
                         <Tooltip content="Barbell Plate Calculator">
                           <button
                             type="button"
@@ -1111,11 +1174,11 @@ export function SessionPage() {
                                 name: exercise.name,
                               })
                             }
-                            className="size-8 sm:size-9 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
+                            className="size-6 sm:size-7 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
                             title="Plate Calculator"
                             aria-label="Plate Calculator"
                           >
-                            <Dumbbell className="h-3.5 w-3.5" />
+                            <Dumbbell className="size-3 sm:size-3.5" />
                           </button>
                         </Tooltip>
 
@@ -1123,27 +1186,25 @@ export function SessionPage() {
                           <button
                             type="button"
                             onClick={() => setSwapTargetIndex(exIdx)}
-                            className="size-8 sm:size-9 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
+                            className="size-6 sm:size-7 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
                             title="Swap Exercise"
                             aria-label="Swap Exercise"
                           >
-                            <ArrowLeftRight className="h-3.5 w-3.5" />
+                            <ArrowLeftRight className="size-3 sm:size-3.5" />
                           </button>
                         </Tooltip>
 
-                        {exercise.notes && (
-                          <Tooltip content="Prescription & RIR Guide">
-                            <button
-                              type="button"
-                              onClick={() => setPrescriptionTarget(exercise)}
-                              className="size-8 sm:size-9 grid place-items-center rounded-xl bg-zinc-900 border border-zinc-800 text-[#10E760] hover:bg-[#10E760]/15 hover:border-[#10E760]/40 transition-colors cursor-pointer"
-                              title="Prescription & RIR Guide"
-                              aria-label="Prescription & RIR Guide"
-                            >
-                              <Info className="h-3.5 w-3.5" />
-                            </button>
-                          </Tooltip>
-                        )}
+                        <Tooltip content="Prescription & RIR Guide">
+                          <button
+                            type="button"
+                            onClick={() => setPrescriptionTargetExIdx(exIdx)}
+                            className="size-6 sm:size-7 grid place-items-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-[#10E760] hover:bg-[#10E760]/15 hover:border-[#10E760]/40 transition-colors cursor-pointer"
+                            title="Prescription & RIR Guide"
+                            aria-label="Prescription & RIR Guide"
+                          >
+                            <Info className="size-3 sm:size-3.5" />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>
@@ -1348,16 +1409,30 @@ export function SessionPage() {
                         })}
                       </div>
 
-                      {/* Action Bar: Add Set + Next Exercise */}
+                      {/* Action Bar: Add Set + RIR Guide & Edit + Next Exercise */}
                       <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => handleAddSet(exIdx)}
-                          className="border border-dashed border-zinc-800 text-zinc-300 hover:border-[#10E760]/50 hover:text-[#10E760] text-xs font-bold"
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Set
-                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => handleAddSet(exIdx)}
+                            className="border border-dashed border-zinc-800 text-zinc-300 hover:border-[#10E760]/50 hover:text-[#10E760] text-xs font-bold"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add Set
+                          </Button>
+
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => setPrescriptionTargetExIdx(exIdx)}
+                            className="border border-zinc-800/80 bg-zinc-900/60 text-zinc-400 hover:text-[#10E760] text-xs font-bold"
+                            title="Edit Target Reps and RIR"
+                          >
+                            <Info className="h-3.5 w-3.5 mr-1 text-[#10E760]" />
+                            <span>RIR Guide & Edit</span>
+                          </Button>
+                        </div>
 
                         {exIdx < exercises.length - 1 && (
                           <Button
@@ -1647,13 +1722,18 @@ export function SessionPage() {
         {prescriptionTarget && (
           <PrescriptionActionSheet
             open={true}
-            onClose={() => setPrescriptionTarget(null)}
+            onClose={() => setPrescriptionTargetExIdx(null)}
             exerciseName={prescriptionTarget.name}
             notes={prescriptionTarget.notes}
             targetSets={prescriptionTarget.sets}
             targetReps={prescriptionTarget.reps}
             muscleGroup={prescriptionTarget.muscleGroup}
             movementPattern={prescriptionTarget.movementPattern}
+            onUpdatePrescription={(updatedNotes, updatedSets) => {
+              if (prescriptionTargetExIdx !== null) {
+                handleUpdatePrescription(prescriptionTargetExIdx, updatedNotes, updatedSets);
+              }
+            }}
           />
         )}
 
