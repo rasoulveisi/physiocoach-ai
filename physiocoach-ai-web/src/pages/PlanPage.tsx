@@ -20,6 +20,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  WifiOff,
   X,
   Zap,
 } from 'lucide-react';
@@ -39,6 +40,7 @@ import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import { resolveExerciseSafetyNotes } from '../services/exercise-safety-notes';
 import { apiClient } from '../services/api-client';
 import { usePreferences } from '../context/PreferencesContext';
+import { useNetworkSyncStatus, offlineSyncService } from '../services/offline-sync';
 import { calculateProgressiveOverload } from '../services/progressive-overload';
 import { calculateWorkoutDayDurationMinutes } from '../services/workout-duration';
 
@@ -122,6 +124,7 @@ export interface UserSavedPlanItem {
 
 export function PlanPage() {
   const { unitSystem } = usePreferences();
+  const { isOnline } = useNetworkSyncStatus();
   const [planView, setPlanView] = useState<WorkoutPlanView | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -163,7 +166,13 @@ export function PlanPage() {
     setError('');
     try {
       const res = await apiClient.get<any>('workout-plans/current');
-      const payload = res?.data || res;
+      let payload = res?.data || res;
+      if (!payload || !payload.plan || !Array.isArray(payload.plan.days)) {
+        const cached = offlineSyncService.getCachedCurrentPlan();
+        if (cached && (cached.plan || cached.days)) {
+          payload = cached;
+        }
+      }
       if (payload && payload.plan && Array.isArray(payload.plan.days)) {
         setPlanView(payload);
         if (typeof payload.rating === 'number') {
@@ -179,7 +188,12 @@ export function PlanPage() {
       }
     } catch (cause) {
       console.warn('Could not fetch active plan:', cause);
-      setPlanView(null);
+      const cached = offlineSyncService.getCachedCurrentPlan();
+      if (cached && (cached.plan || cached.days)) {
+        setPlanView(cached);
+      } else {
+        setPlanView(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -402,6 +416,13 @@ export function PlanPage() {
   }, [fetchCurrentPlan]);
 
   const generateNewPlan = async () => {
+    if (!isOnline) {
+      setToast({
+        message: 'AI routine synthesis requires an active internet connection. Your current plan is available offline.',
+        type: 'error',
+      });
+      return;
+    }
     setGenerating(true);
     setError('');
     setToast({ message: 'Synthesizing personalized workout plan with AI...', type: 'info' });
@@ -547,10 +568,15 @@ export function PlanPage() {
             {/* 1. Compact Top Bar: Title & Action Controls */}
             <div className="flex items-center justify-between gap-3 shrink-0">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-base sm:text-lg font-black tracking-tight text-white truncate">
                     {planView?.plan.name || 'Workout Schedule'}
                   </h1>
+                  {!isOnline && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+                      <WifiOff className="h-3 w-3" /> Offline (Cached)
+                    </span>
+                  )}
                   {planView?.forkedFrom && (
                     <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full">
                       <GitFork className="h-3 w-3" /> Forked
@@ -1141,14 +1167,29 @@ export function PlanPage() {
           !error && (
             <Card className="mt-10 border-zinc-800 bg-zinc-900">
               <CardContent className="py-20 text-center">
-                <RefreshCw className="mx-auto h-12 w-12 animate-pulse text-zinc-600" />
-                <h2 className="mt-4 text-2xl font-black text-white">No active workout plan</h2>
-                <p className="mt-2 text-sm text-zinc-400">
-                  Generate an intelligent, posture-aware training plan tailored to your profile.
-                </p>
-                <Button onClick={() => setShowRegenerateModal(true)} loading={generating} variant="volt" size="md" className="mt-6">
-                  <BrainCircuit className="h-4 w-4" /> Generate Plan Now
-                </Button>
+                {!isOnline ? (
+                  <>
+                    <WifiOff className="mx-auto h-12 w-12 text-amber-400/80" />
+                    <h2 className="mt-4 text-2xl font-black text-white">Offline Mode</h2>
+                    <p className="mt-2 text-sm text-zinc-400">
+                      No cached workout plan found on this device. Connect to the internet to load or generate your personalized routine.
+                    </p>
+                    <Button onClick={fetchCurrentPlan} variant="volt" size="md" className="mt-6">
+                      <RefreshCw className="h-4 w-4 mr-2" /> Retry Connection
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mx-auto h-12 w-12 animate-pulse text-zinc-600" />
+                    <h2 className="mt-4 text-2xl font-black text-white">No active workout plan</h2>
+                    <p className="mt-2 text-sm text-zinc-400">
+                      Generate an intelligent, posture-aware training plan tailored to your profile.
+                    </p>
+                    <Button onClick={() => setShowRegenerateModal(true)} loading={generating} variant="volt" size="md" className="mt-6">
+                      <BrainCircuit className="h-4 w-4 mr-2" /> Generate Plan Now
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           )

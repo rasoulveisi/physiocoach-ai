@@ -131,6 +131,10 @@ async function performSilentRefresh(): Promise<string | null> {
     const data: RefreshResponse =
       typeof attempt.payload === 'object' && attempt.payload !== null ? attempt.payload : {};
     if (!attempt.response.ok || !data.accessToken) {
+      if (attempt.response.status === 401 || attempt.response.status === 400) {
+        clearStoredTokens();
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      }
       throw new Error(
         toProblem(attempt.payload, attempt.response).detail || 'Silent refresh failed.',
       );
@@ -143,9 +147,17 @@ async function performSilentRefresh(): Promise<string | null> {
     }
     window.dispatchEvent(new CustomEvent('auth:session-updated', { detail: data }));
     return data.accessToken;
-  } catch {
-    clearStoredTokens();
-    window.dispatchEvent(new CustomEvent('auth:session-expired'));
+  } catch (err) {
+    const isNetworkError =
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      (err instanceof Error &&
+        (err.message.includes('fetch') ||
+          err.message.includes('Network') ||
+          err.name === 'TypeError'));
+    if (!isNetworkError) {
+      clearStoredTokens();
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+    }
     return null;
   } finally {
     refreshPromise = null;
@@ -162,6 +174,42 @@ function requestSilentRefresh(): Promise<string | null> {
 // In-flight GET request deduplicator
 const inFlightGets = new Map<string, Promise<unknown>>();
 
+const CACHEABLE_PREFIXES = [
+  'workout-plans/current',
+  'workout-plans/active',
+  'workout-plans/my-plans',
+  'workout-sessions',
+  'profile',
+  'assessments/latest',
+  'exercise-catalog',
+];
+
+function isCacheableGet(path: string, method: string): boolean {
+  if (method !== 'GET') return false;
+  const clean = path.replace(/^\/+/, '').split('?')[0];
+  return CACHEABLE_PREFIXES.some((prefix) => clean.startsWith(prefix));
+}
+
+function getLocalCache<T>(path: string): T | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const clean = path.replace(/^\/+/, '').split('?')[0].replace(/\/+$/, '');
+    const raw = localStorage.getItem(`physiocoach_cache_${clean}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function setLocalCache<T>(path: string, data: T): void {
+  if (typeof localStorage === 'undefined' || data === undefined || data === null) return;
+  try {
+    const clean = path.replace(/^\/+/, '').split('?')[0].replace(/\/+$/, '');
+    localStorage.setItem(`physiocoach_cache_${clean}`, JSON.stringify(data));
+  } catch {}
+}
+
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const method = (options.method || 'GET').toUpperCase();
   const allowRefresh = !isSessionPath(path);
@@ -173,6 +221,17 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   const promise = (async () => {
+    const cacheable = isCacheableGet(path, method);
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    // Fast-path: If navigator is offline and resource is cached, return cache immediately
+    if (cacheable && isOffline) {
+      const cached = getLocalCache<T>(path);
+      if (cached !== null) {
+        return cached;
+      }
+    }
+
     try {
       let attempt = await sendRequest(path, method, options, token);
 
@@ -184,10 +243,30 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       }
 
       if (!attempt.response.ok) {
+        // Fallback to cache for GET requests on server error (e.g. 502/503/504)
+        if (cacheable) {
+          const cached = getLocalCache<T>(path);
+          if (cached !== null) {
+            return cached;
+          }
+        }
         throw new ApiError(toProblem(attempt.payload, attempt.response));
       }
 
+      if (cacheable) {
+        setLocalCache(path, attempt.payload);
+      }
+
       return attempt.payload as T;
+    } catch (err) {
+      // Fallback to cache on network drop / fetch failure
+      if (cacheable) {
+        const cached = getLocalCache<T>(path);
+        if (cached !== null) {
+          return cached;
+        }
+      }
+      throw err;
     } finally {
       if (cacheKey) {
         inFlightGets.delete(cacheKey);

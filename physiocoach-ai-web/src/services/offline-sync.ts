@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from './api-client';
 
-type SyncItemType =
+export type SyncItemType =
   | 'workout-session-complete'
   | 'workout-log'
   | 'pain-alert'
   | 'exercise-log'
   | 'generic-post';
 
-interface SyncQueueItem {
+export interface SyncQueueItem {
   id: string;
   type: SyncItemType;
   endpoint: string;
@@ -19,8 +19,31 @@ interface SyncQueueItem {
   lastError?: string;
 }
 
-const OFFLINE_QUEUE_KEY = 'physiocoach_offline_sync_queue';
-const SYNC_EVENT_NAME = 'physiocoach:sync-queue-updated';
+export interface ActiveSessionDraft {
+  planId?: string;
+  planTitle?: string;
+  dayNumber: number;
+  dayName?: string;
+  seconds: number;
+  sessionState: 'idle' | 'active' | 'paused';
+  logs: Record<number, any[]>;
+  exercises: any[];
+  sessionRpe?: number;
+  sessionPainScore?: number;
+  painJointRegion?: string;
+  painNotes?: string;
+  updatedAt: string;
+}
+
+export const OFFLINE_QUEUE_KEY = 'physiocoach_offline_sync_queue';
+export const CACHE_KEY_PREFIX = 'physiocoach_cache_';
+export const ACTIVE_SESSION_DRAFT_KEY = 'physiocoach_active_session_draft';
+export const LAST_SYNC_TIME_KEY = 'physiocoach_last_sync_time';
+export const SYNC_EVENT_NAME = 'physiocoach:sync-queue-updated';
+
+function normalizeEndpointKey(endpoint: string): string {
+  return endpoint.replace(/^\/+/, '').split('?')[0].replace(/\/+$/, '');
+}
 
 class OfflineSyncService {
   private isSyncing = false;
@@ -31,8 +54,151 @@ class OfflineSyncService {
       window.addEventListener('online', () => {
         void this.syncPendingQueue();
       });
+
+      // Attempt background sync when user re-focuses or tabs back into app
+      window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.isOnline() && this.getPendingCount() > 0) {
+          void this.syncPendingQueue();
+        }
+      });
+      window.addEventListener('focus', () => {
+        if (this.isOnline() && this.getPendingCount() > 0) {
+          void this.syncPendingQueue();
+        }
+      });
     }
   }
+
+  // --- Offline Data Caching (Read Path) ---
+
+  public getCachedData<T>(endpoint: string): T | null {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const key = `${CACHE_KEY_PREFIX}${normalizeEndpointKey(endpoint)}`;
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  public setCachedData<T>(endpoint: string, data: T): void {
+    if (typeof localStorage === 'undefined' || data === undefined || data === null) return;
+    try {
+      const key = `${CACHE_KEY_PREFIX}${normalizeEndpointKey(endpoint)}`;
+      localStorage.setItem(key, JSON.stringify(data));
+      this.notifyListeners();
+    } catch {
+      // Storage quota or disabled storage handled safely
+    }
+  }
+
+  public clearCachedData(endpoint?: string): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      if (endpoint) {
+        const key = `${CACHE_KEY_PREFIX}${normalizeEndpointKey(endpoint)}`;
+        localStorage.removeItem(key);
+      } else {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(CACHE_KEY_PREFIX)) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+      }
+      this.notifyListeners();
+    } catch {}
+  }
+
+  public getCachedCurrentPlan(): any | null {
+    return (
+      this.getCachedData<any>('workout-plans/current') ||
+      this.getCachedData<any>('workout-plans/active')
+    );
+  }
+
+  public setCachedCurrentPlan(plan: any): void {
+    this.setCachedData('workout-plans/current', plan);
+    this.setCachedData('workout-plans/active', plan);
+  }
+
+  public getCachedSessions(): any[] {
+    const data = this.getCachedData<any>('workout-sessions');
+    const list = data?.data || data;
+    return Array.isArray(list) ? list : [];
+  }
+
+  public recordLocalCompletedSession(sessionPayload: any): void {
+    try {
+      const currentList = this.getCachedSessions();
+      const localId = `offline-session-${Date.now()}`;
+      const now = new Date().toISOString();
+
+      const newLocalSession = {
+        id: localId,
+        workoutName:
+          sessionPayload.dayName ||
+          (sessionPayload.dayNumber ? `Day ${sessionPayload.dayNumber} Workout` : 'Completed Workout'),
+        completedAt: now,
+        startedAt: new Date(Date.now() - (sessionPayload.durationSeconds || 0) * 1000).toISOString(),
+        durationSeconds: sessionPayload.durationSeconds || 0,
+        dayNumber: sessionPayload.dayNumber || 1,
+        notes: sessionPayload.notes || null,
+        isOfflinePending: true,
+        progress: {
+          completedSets: (sessionPayload.exercises || []).reduce(
+            (sum: number, ex: any) => sum + (ex.sets?.length || 0),
+            0,
+          ),
+          totalSets: (sessionPayload.exercises || []).reduce(
+            (sum: number, ex: any) => sum + (ex.sets?.length || 0),
+            0,
+          ),
+        },
+      };
+
+      const updated = [newLocalSession, ...currentList.filter((s: any) => s.id !== localId)];
+      this.setCachedData('workout-sessions', updated);
+    } catch (e) {
+      console.warn('Could not record local completed session to offline cache:', e);
+    }
+  }
+
+  // --- In-Progress Session Draft Persistence ---
+
+  public getActiveSessionDraft(): ActiveSessionDraft | null {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(ACTIVE_SESSION_DRAFT_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as ActiveSessionDraft;
+    } catch {
+      return null;
+    }
+  }
+
+  public saveActiveSessionDraft(draft: ActiveSessionDraft): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(ACTIVE_SESSION_DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // Best-effort storage
+    }
+  }
+
+  public clearActiveSessionDraft(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem(ACTIVE_SESSION_DRAFT_KEY);
+      this.notifyListeners();
+    } catch {}
+  }
+
+  // --- Pending Sync Queue (Write Path) ---
 
   public getPendingQueue(): SyncQueueItem[] {
     try {
@@ -52,6 +218,11 @@ class OfflineSyncService {
   public isOnline(): boolean {
     if (typeof navigator === 'undefined') return true;
     return navigator.onLine;
+  }
+
+  public getLastSyncTime(): string | null {
+    if (typeof localStorage === 'undefined') return null;
+    return localStorage.getItem(LAST_SYNC_TIME_KEY);
   }
 
   public enqueueSyncItem(item: {
@@ -112,8 +283,25 @@ class OfflineSyncService {
           await apiClient.post(item.endpoint, item.payload);
         }
         synced++;
+
+        // If completed session synced successfully, update local pending session status
+        if (item.type === 'workout-session-complete') {
+          try {
+            const sessions = this.getCachedSessions();
+            let changed = false;
+            const updated = sessions.map((s: any) => {
+              if (s.isOfflinePending) {
+                changed = true;
+                return { ...s, isOfflinePending: false };
+              }
+              return s;
+            });
+            if (changed) {
+              this.setCachedData('workout-sessions', updated);
+            }
+          } catch {}
+        }
       } catch (err) {
-        // If network error occurred, stop processing queue and keep remaining items
         const isNetworkError =
           !this.isOnline() ||
           (err instanceof Error &&
@@ -127,13 +315,11 @@ class OfflineSyncService {
           lastError: err instanceof Error ? err.message : 'Sync failed',
         };
 
-        // If it's a 4xx client logic error with too many retries, discard or mark error
         if (!isNetworkError && item.retryCount >= 3) {
           failed++;
         } else {
           remainingQueue.push(updatedItem);
           if (isNetworkError) {
-            // Re-append the rest and pause
             const currIdx = queue.indexOf(item);
             remainingQueue.push(...queue.slice(currIdx + 1));
             break;
@@ -143,6 +329,11 @@ class OfflineSyncService {
     }
 
     this.saveQueue(remainingQueue);
+    if (synced > 0) {
+      try {
+        localStorage.setItem(LAST_SYNC_TIME_KEY, new Date().toISOString());
+      } catch {}
+    }
     this.isSyncing = false;
     this.notifyListeners();
 
@@ -189,6 +380,8 @@ export interface NetworkSyncStatus {
   isOnline: boolean;
   pendingSyncCount: number;
   isSyncing: boolean;
+  lastSyncTime: string | null;
+  activeDraft: ActiveSessionDraft | null;
   syncNow: () => Promise<{ synced: number; failed: number }>;
 }
 
@@ -198,11 +391,19 @@ export function useNetworkSyncStatus(): NetworkSyncStatus {
     offlineSyncService.getPendingCount(),
   );
   const [isSyncing, setIsSyncing] = useState<boolean>(() => offlineSyncService.getIsSyncing());
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() =>
+    offlineSyncService.getLastSyncTime(),
+  );
+  const [activeDraft, setActiveDraft] = useState<ActiveSessionDraft | null>(() =>
+    offlineSyncService.getActiveSessionDraft(),
+  );
 
   const updateState = useCallback(() => {
     setIsOnline(offlineSyncService.isOnline());
     setPendingSyncCount(offlineSyncService.getPendingCount());
     setIsSyncing(offlineSyncService.getIsSyncing());
+    setLastSyncTime(offlineSyncService.getLastSyncTime());
+    setActiveDraft(offlineSyncService.getActiveSessionDraft());
   }, []);
 
   useEffect(() => {
@@ -239,6 +440,8 @@ export function useNetworkSyncStatus(): NetworkSyncStatus {
     isOnline,
     pendingSyncCount,
     isSyncing,
+    lastSyncTime,
+    activeDraft,
     syncNow,
   };
 }

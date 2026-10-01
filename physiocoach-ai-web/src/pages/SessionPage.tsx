@@ -176,16 +176,38 @@ export function SessionPage() {
       }));
     });
 
-    setLogs(initialLogs);
-    setExpandedExIdx(0);
-    setActiveExIdx(0);
-    setSeconds(0);
-    setSessionState('idle');
-    setSearchParams({ day: String(dayNum) }, { replace: true });
+    // Check if an in-progress draft exists for this dayNumber
+    const draft = offlineSyncService.getActiveSessionDraft();
+    const isMatchingDraft =
+      draft &&
+      draft.dayNumber === dayNum &&
+      draft.logs &&
+      Object.keys(draft.logs).length > 0;
 
-    if (showToast) {
-      const label = targetDay.name || targetDay.focus || `Day ${dayNum}`;
-      setToastMessage(`Switched to Day ${dayNum}: ${label}`);
+    if (isMatchingDraft) {
+      setLogs(draft.logs);
+      setSeconds(draft.seconds || 0);
+      setSessionState(draft.sessionState || 'idle');
+      if (typeof draft.sessionRpe === 'number') setSessionRpe(draft.sessionRpe);
+      if (typeof draft.sessionPainScore === 'number') setSessionPainScore(draft.sessionPainScore);
+      if (draft.painJointRegion) setPainJointRegion(draft.painJointRegion);
+      if (draft.painNotes) setPainNotes(draft.painNotes);
+      setSearchParams({ day: String(dayNum) }, { replace: true });
+      if (showToast) {
+        setToastMessage(`Resumed in-progress draft for Day ${dayNum}.`);
+      }
+    } else {
+      setLogs(initialLogs);
+      setExpandedExIdx(0);
+      setActiveExIdx(0);
+      setSeconds(0);
+      setSessionState('idle');
+      setSearchParams({ day: String(dayNum) }, { replace: true });
+
+      if (showToast) {
+        const label = targetDay.name || targetDay.focus || `Day ${dayNum}`;
+        setToastMessage(`Switched to Day ${dayNum}: ${label}`);
+      }
     }
   };
 
@@ -196,7 +218,13 @@ export function SessionPage() {
       .get<any>('workout-plans/current')
       .then((res) => {
         const root = res?.data || res;
-        const loadedPlan = root?.plan || root;
+        let loadedPlan = root?.plan || root;
+        if (!loadedPlan || !Array.isArray(loadedPlan?.days) || loadedPlan.days.length === 0) {
+          const fallbackCached = offlineSyncService.getCachedCurrentPlan();
+          if (fallbackCached) {
+            loadedPlan = fallbackCached?.plan || fallbackCached;
+          }
+        }
         const days: WorkoutDayView[] = loadedPlan?.days || [];
 
         setPlan(loadedPlan);
@@ -256,6 +284,18 @@ export function SessionPage() {
         }
       })
       .catch((cause) => {
+        const fallbackCached = offlineSyncService.getCachedCurrentPlan();
+        if (fallbackCached) {
+          const loadedPlan = fallbackCached?.plan || fallbackCached;
+          const days: WorkoutDayView[] = loadedPlan?.days || [];
+          if (days.length > 0) {
+            setPlan(loadedPlan);
+            setPlanDays(days);
+            setPlanTitle(loadedPlan?.name || fallbackCached?.title || 'Active Workout Routine');
+            loadDay(days[0], false);
+            return;
+          }
+        }
         setError(cause instanceof Error ? cause.message : 'Could not initialize session.');
       })
       .finally(() => {
@@ -269,6 +309,46 @@ export function SessionPage() {
     const interval = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(interval);
   }, [sessionState]);
+
+  // Auto-save active workout draft for crash-proofing and offline session tracking
+  useEffect(() => {
+    if (loading || exercises.length === 0) return;
+    const hasAnyProgress =
+      sessionState !== 'idle' ||
+      Object.values(logs).some((sets) => sets.some((s) => s.completed || s.weight > 20));
+
+    if (hasAnyProgress) {
+      offlineSyncService.saveActiveSessionDraft({
+        planId: plan?.id,
+        planTitle,
+        dayNumber: activeDayNumber,
+        dayName: planDays.find((d) => d.dayNumber === activeDayNumber)?.name,
+        seconds,
+        sessionState,
+        logs,
+        exercises,
+        sessionRpe,
+        sessionPainScore,
+        painJointRegion,
+        painNotes,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  }, [
+    logs,
+    seconds,
+    sessionState,
+    activeDayNumber,
+    exercises,
+    plan?.id,
+    planTitle,
+    planDays,
+    sessionRpe,
+    sessionPainScore,
+    painJointRegion,
+    painNotes,
+    loading,
+  ]);
 
   const handleStartSession = () => {
     setSessionState('active');
@@ -652,6 +732,12 @@ export function SessionPage() {
         payload,
       });
 
+      offlineSyncService.recordLocalCompletedSession({
+        ...payload,
+        dayName: planDays.find((d) => d.dayNumber === activeDayNumber)?.name || `Day ${activeDayNumber}`,
+      });
+      offlineSyncService.clearActiveSessionDraft();
+
       setIsFinishSurveyOpen(false);
       setCompleteModalOpen(true);
       soundCueService.playTimerCompleteChime();
@@ -686,6 +772,12 @@ export function SessionPage() {
       }
 
       await apiClient.post('workout-logs', payload);
+      offlineSyncService.recordLocalCompletedSession({
+        ...payload,
+        dayName: planDays.find((d) => d.dayNumber === activeDayNumber)?.name || `Day ${activeDayNumber}`,
+      });
+      offlineSyncService.clearActiveSessionDraft();
+
       setIsFinishSurveyOpen(false);
       setCompleteModalOpen(true);
       soundCueService.playTimerCompleteChime();
@@ -706,6 +798,12 @@ export function SessionPage() {
           method: 'POST',
           payload,
         });
+        offlineSyncService.recordLocalCompletedSession({
+          ...payload,
+          dayName: planDays.find((d) => d.dayNumber === activeDayNumber)?.name || `Day ${activeDayNumber}`,
+        });
+        offlineSyncService.clearActiveSessionDraft();
+
         setIsFinishSurveyOpen(false);
         setCompleteModalOpen(true);
         soundCueService.playTimerCompleteChime();

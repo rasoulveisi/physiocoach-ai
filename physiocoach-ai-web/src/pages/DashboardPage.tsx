@@ -7,6 +7,7 @@ import {
   Dumbbell,
   Play,
   ShieldCheck,
+  WifiOff,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
@@ -15,6 +16,7 @@ import { CalendarStrip, generateCalendarDays } from '../components/ui/CalendarSt
 import { Toast } from '../components/ui/Toast';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { apiClient } from '../services/api-client';
+import { useNetworkSyncStatus, offlineSyncService } from '../services/offline-sync';
 
 interface PlanExercise {
   id?: string;
@@ -172,6 +174,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
 
+  const { isOnline } = useNetworkSyncStatus();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -183,22 +186,35 @@ export function DashboardPage() {
     ])
       .then(([planRes, userRes, sessionsRes, assessmentRes]) => {
         const rootPlan = planRes?.data || planRes;
-        const actualPlan = rootPlan?.plan || rootPlan;
+        let actualPlan = rootPlan?.plan || rootPlan;
+        if (!actualPlan || !Array.isArray(actualPlan.days) || actualPlan.days.length === 0) {
+          const cachedPlan = offlineSyncService.getCachedCurrentPlan();
+          if (cachedPlan && (cachedPlan.plan || cachedPlan.days)) {
+            actualPlan = cachedPlan.plan || cachedPlan;
+          }
+        }
         setPlan(actualPlan || null);
 
         const rootUser = userRes?.data || userRes;
         setProfile(rootUser || null);
 
-        const rootSessions = sessionsRes?.data || sessionsRes;
+        let rootSessions = sessionsRes?.data || sessionsRes;
+        if (!Array.isArray(rootSessions) || rootSessions.length === 0) {
+          const cachedSessions = offlineSyncService.getCachedSessions();
+          if (cachedSessions.length > 0) {
+            rootSessions = cachedSessions;
+          }
+        }
         setSessions(Array.isArray(rootSessions) ? rootSessions : []);
 
         const rootAssessment = assessmentRes?.data || assessmentRes;
         setAssessment(rootAssessment || null);
 
-        // If athlete is a first-time user with no active plan and incomplete profile, redirect to onboarding
+        // If athlete is a first-time user with no active plan and incomplete profile, redirect to onboarding ONLY when online
         const hasPlan = Boolean(actualPlan && Array.isArray(actualPlan.days) && actualPlan.days.length > 0);
         const hasProfile = Boolean(rootUser?.age || rootAssessment);
-        if (!hasPlan && !hasProfile) {
+        const currentlyOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+        if (currentlyOnline && !hasPlan && !hasProfile) {
           navigate('/onboarding', { replace: true });
           return;
         }
@@ -324,6 +340,27 @@ export function DashboardPage() {
         </header>
 
         {error && <Toast type="error" message={error} onClose={() => setError('')} />}
+
+        {/* Offline Mode Status Banner */}
+        {!isOnline && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
+            <div className="flex items-center gap-2">
+              <WifiOff className="h-4 w-4 text-amber-400 shrink-0" />
+              <span className="font-bold">Offline Mode Active</span>
+              <span className="hidden sm:inline text-amber-300/80">
+                — Your routine is cached and ready. Workout sessions will save locally and sync upon reconnecting.
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/session')}
+              className="h-7 border-amber-400/40 bg-amber-950/40 text-[11px] font-black text-amber-200 hover:border-amber-400"
+            >
+              Start Session
+            </Button>
+          </div>
+        )}
 
         {/* Balanced 2-Column Desktop Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

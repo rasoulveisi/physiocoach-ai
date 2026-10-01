@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import { DesktopNavbar, MobileNavbar } from './components/ui/Navbar';
+import { OfflineStatusBar } from './components/ui/OfflineStatusBar';
 import { PageLoadingFallback } from './components/ui/PageLoadingFallback';
 import { useAuth } from './context/AuthContext';
 
@@ -12,6 +13,9 @@ export function App() {
       <div className="hidden md:block shrink-0 z-30">
         <DesktopNavbar user={user} />
       </div>
+
+      {/* Global Offline / Connectivity Sync Status Bar */}
+      <OfflineStatusBar />
 
       {/* Main Page Viewport Container */}
       <main className="flex-1 flex flex-col min-h-0 w-full overflow-hidden relative">

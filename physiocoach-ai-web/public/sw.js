@@ -1,4 +1,4 @@
-const CACHE_NAME = 'physiocoach-v6';
+const CACHE_NAME = 'physiocoach-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,6 +6,7 @@ const STATIC_ASSETS = [
   '/favicon.ico',
   '/favicon.svg',
   '/favicon-32x32.png',
+  '/apple-touch-icon.png',
   '/logo.svg',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
@@ -78,6 +79,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.css') ||
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.webp') ||
     url.pathname.endsWith('.woff2')
   ) {
     event.respondWith(
@@ -102,7 +104,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        if (response && response.status === 200 && response.type === 'basic') {
+        if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
         }
