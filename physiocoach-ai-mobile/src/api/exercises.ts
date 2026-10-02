@@ -18,6 +18,8 @@ export interface ExerciseCatalogItem {
   mediaUrl?: string;
   mediaType?: string;
   excludedLimitations?: string[];
+  equipment?: string | string[];
+  instructions?: string[] | string;
 }
 
 export interface ExerciseCatalogResponse {
@@ -77,3 +79,46 @@ export async function getExerciseById(id: string): Promise<{ data: ExerciseCatal
     return { data: null };
   }
 }
+
+/**
+ * GET /exercises/:id/alternatives (fallback: /exercise-catalog/exercises/:id/alternatives)
+ * Direct exercise alternatives query supporting limitations and biomechanical pattern filters.
+ */
+export async function getDirectExerciseAlternatives(
+  exerciseId: string,
+  limitations?: string[],
+  movementPattern?: string,
+  primaryMuscle?: string,
+): Promise<{ data: ExerciseCatalogItem[] }> {
+  const query = new URLSearchParams();
+  if (limitations && limitations.length > 0) {
+    query.set('limitations', limitations.join(','));
+  }
+  if (movementPattern?.trim()) {
+    query.set('movementPattern', movementPattern.trim());
+  }
+  if (primaryMuscle?.trim()) {
+    query.set('primaryMuscle', primaryMuscle.trim());
+  }
+  const queryString = query.toString();
+  const querySuffix = queryString ? `?${queryString}` : '';
+
+  try {
+    const res = await request<{ data: ExerciseCatalogItem[] }>(
+      `/exercises/${encodeURIComponent(exerciseId)}/alternatives${querySuffix}`,
+      { method: 'GET' },
+    );
+    return { data: Array.isArray(res?.data) ? res.data : [] };
+  } catch {
+    try {
+      const fallback = await request<{ data: ExerciseCatalogItem[] }>(
+        `/exercise-catalog/exercises/${encodeURIComponent(exerciseId)}/alternatives${querySuffix}`,
+        { method: 'GET' },
+      );
+      return { data: Array.isArray(fallback?.data) ? fallback.data : [] };
+    } catch {
+      return { data: [] };
+    }
+  }
+}
+

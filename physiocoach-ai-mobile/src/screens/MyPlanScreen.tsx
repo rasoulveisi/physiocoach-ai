@@ -15,12 +15,10 @@ import {
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  CalendarDays,
+  ArrowLeftRight,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ChevronUp,
-  Library,
+  Sparkles,
   Star,
   X,
   Zap,
@@ -28,12 +26,27 @@ import {
 import { ScreenContainer, Header, Card, Badge, Button } from '../components/ui';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight } from '../theme/typography';
-import { activatePlan, getCurrentPlan, getMyPlans, ratePlan } from '../api/plans';
+import {
+  activatePlan,
+  getCurrentPlan,
+  getMyPlans,
+  normalizePlanRecord,
+  ratePlan,
+  updatePlan,
+} from '../api/plans';
 import type { Exercise, PlanSet, WorkoutDay, WorkoutPlan } from '../api/plans';
+import type { ExerciseCatalogItem } from '../api/exercises';
 import type { RootStackParamList } from '../navigation/types';
 import { useSync } from '../context/SyncContext';
-import { isNetworkError } from '../services/offlineSync';
+import {
+  getCachedCurrentPlan,
+  isNetworkError,
+  setCachedCurrentPlan,
+} from '../services/offlineSync';
 import { getExerciseMediaUrl, getPlanCoverImage } from '../utils/mediaUtils';
+import { PlansLibraryModal } from '../components/plan/PlansLibraryModal';
+import { RegeneratePlanModal } from '../components/plan/RegeneratePlanModal';
+import { ExerciseSwapModal } from '../components/plan/ExerciseSwapModal';
 
 type MyPlanNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -73,7 +86,7 @@ export default function MyPlanScreen() {
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
   const [selectedDetailExercise, setSelectedDetailExercise] = useState<Exercise | null>(null);
 
-  // 1-click "Apply Target" state (consumed by the live session in phase 4).
+  // 1-click "Apply Target" state (consumed by the live session).
   const [appliedTarget, setAppliedTarget] = useState<{
     exerciseId: string;
     set: PlanSet;
@@ -86,6 +99,12 @@ export default function MyPlanScreen() {
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [activatingPlanId, setActivatingPlanId] = useState<string | null>(null);
 
+  // Regenerate plan modal state.
+  const [regenerateVisible, setRegenerateVisible] = useState(false);
+
+  // Exercise swap modal state.
+  const [swapTargetExercise, setSwapTargetExercise] = useState<Exercise | null>(null);
+
   // Rating modal state.
   const [ratingVisible, setRatingVisible] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
@@ -94,7 +113,6 @@ export default function MyPlanScreen() {
   const [ratingDone, setRatingDone] = useState(false);
   const [ratingError, setRatingError] = useState<string | null>(null);
 
-  const dayScrollerRef = useRef<ScrollView | null>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
@@ -102,9 +120,25 @@ export default function MyPlanScreen() {
     setError(null);
     try {
       const result = await getCurrentPlan();
-      setPlan(result.plan);
+      if (result.plan) {
+        setPlan(result.plan);
+        await setCachedCurrentPlan(result.plan);
+      } else {
+        const cached = await getCachedCurrentPlan();
+        if (cached) {
+          setPlan(normalizePlanRecord(cached) ?? (cached as WorkoutPlan));
+        } else {
+          setPlan(null);
+        }
+      }
     } catch {
-      setError('Could not load your plan. Pull to retry.');
+      // Offline fallback: load from cached storage
+      const cached = await getCachedCurrentPlan();
+      if (cached) {
+        setPlan(normalizePlanRecord(cached) ?? (cached as WorkoutPlan));
+      } else {
+        setError('Could not load your plan. Pull to retry.');
+      }
     }
   }, []);
 
@@ -125,25 +159,28 @@ export default function MyPlanScreen() {
     touchStartY.current = e.nativeEvent.pageY;
   }, []);
 
-  const handleTouchEnd = useCallback((e: GestureResponderEvent) => {
-    const deltaX = e.nativeEvent.pageX - touchStartX.current;
-    const deltaY = e.nativeEvent.pageY - touchStartY.current;
-    // Horizontal swipe threshold: > 40px and predominantly horizontal
-    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
-      const currentIndex = days.findIndex((d) => d.id === selectedDay?.id);
-      if (currentIndex !== -1) {
-        if (deltaX < 0 && currentIndex < days.length - 1) {
-          // Swipe left -> Next day
-          setSelectedDayId(days[currentIndex + 1].id);
-          setExpandedExerciseId(null);
-        } else if (deltaX > 0 && currentIndex > 0) {
-          // Swipe right -> Previous day
-          setSelectedDayId(days[currentIndex - 1].id);
-          setExpandedExerciseId(null);
+  const handleTouchEnd = useCallback(
+    (e: GestureResponderEvent) => {
+      const deltaX = e.nativeEvent.pageX - touchStartX.current;
+      const deltaY = e.nativeEvent.pageY - touchStartY.current;
+      // Horizontal swipe threshold: > 40px and predominantly horizontal
+      if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+        const currentIndex = days.findIndex((d) => d.id === selectedDay?.id);
+        if (currentIndex !== -1) {
+          if (deltaX < 0 && currentIndex < days.length - 1) {
+            // Swipe left -> Next day
+            setSelectedDayId(days[currentIndex + 1].id);
+            setExpandedExerciseId(null);
+          } else if (deltaX > 0 && currentIndex > 0) {
+            // Swipe right -> Previous day
+            setSelectedDayId(days[currentIndex - 1].id);
+            setExpandedExerciseId(null);
+          }
         }
       }
-    }
-  }, [days, selectedDay]);
+    },
+    [days, selectedDay],
+  );
 
   // Keep the selected day valid whenever the plan refreshes.
   useEffect(() => {
@@ -155,7 +192,7 @@ export default function MyPlanScreen() {
 
   const openLibrary = useCallback(async () => {
     setLibraryVisible(true);
-    if (libraryPlans) return; // cached
+    if (libraryPlans) return;
     setLibraryLoading(true);
     try {
       const result = await getMyPlans();
@@ -167,11 +204,24 @@ export default function MyPlanScreen() {
     }
   }, [libraryPlans]);
 
+  const refreshLibrary = useCallback(async () => {
+    setLibraryLoading(true);
+    try {
+      const result = await getMyPlans();
+      setLibraryPlans(result.plans ?? []);
+    } catch {
+      setLibraryPlans([]);
+    } finally {
+      setLibraryLoading(false);
+    }
+  }, []);
+
   const handleActivate = useCallback(async (planId: string) => {
     setActivatingPlanId(planId);
     try {
       const result = await activatePlan(planId);
       setPlan(result.plan);
+      await setCachedCurrentPlan(result.plan);
       setLibraryPlans((prev) => (prev ?? []).map((p) => ({ ...p, isActive: p.id === planId })));
       setLibraryVisible(false);
     } catch {
@@ -180,6 +230,48 @@ export default function MyPlanScreen() {
       setActivatingPlanId(null);
     }
   }, []);
+
+  const handleDeleteSavedPlan = useCallback((deletedPlanId: string) => {
+    setLibraryPlans((prev) => (prev ?? []).filter((p) => p.id !== deletedPlanId));
+  }, []);
+
+  // Exercise Swap execution
+  const handleConfirmSwap = useCallback(
+    async (targetEx: Exercise, alt: ExerciseCatalogItem) => {
+      if (!plan || !selectedDay) return;
+      const updatedDays = plan.days.map((day) => {
+        if (day.id !== selectedDay.id) return day;
+        return {
+          ...day,
+          exercises: day.exercises.map((ex) => {
+            if (ex.id !== targetEx.id) return ex;
+            return {
+              ...ex,
+              id: alt.id || ex.id,
+              name: alt.name,
+              muscleGroup: alt.primaryMuscle ?? ex.muscleGroup,
+              notes: alt.target ? `Focus: ${alt.target}` : ex.notes,
+            };
+          }),
+        };
+      });
+
+      const updatedPlan: WorkoutPlan = {
+        ...plan,
+        days: updatedDays,
+      };
+
+      setPlan(updatedPlan);
+      await setCachedCurrentPlan(updatedPlan);
+
+      try {
+        await updatePlan(plan.id, { days: updatedDays });
+      } catch (err) {
+        console.warn('Could not sync swapped exercise to server:', err);
+      }
+    },
+    [plan, selectedDay],
+  );
 
   const openRating = useCallback(() => {
     setRatingValue(plan ? Math.round(plan.averageRating ?? 0) : 0);
@@ -196,8 +288,8 @@ export default function MyPlanScreen() {
     try {
       await ratePlan(plan.id, ratingValue, reviewText || undefined);
       setRatingDone(true);
-    } catch (error) {
-      if (isNetworkError(error)) {
+    } catch (err) {
+      if (isNetworkError(err)) {
         // Queue the rating for replay — feedback is never lost offline.
         await enqueueAction('RATE_PLAN', {
           planId: plan.id,
@@ -227,7 +319,18 @@ export default function MyPlanScreen() {
       <Header
         title="My Plan"
         subtitle="Your weekly training block"
-        rightAction={<CalendarDays size={22} color={colors.accentVolt} />}
+        rightAction={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Regenerate routine"
+            hitSlop={8}
+            onPress={() => setRegenerateVisible(true)}
+            style={styles.headerRegenBtn}
+          >
+            <Sparkles size={16} color={colors.accentVolt} strokeWidth={2.2} />
+            <Text style={styles.headerRegenText}>Regen</Text>
+          </Pressable>
+        }
       />
 
       {loading ? (
@@ -262,13 +365,24 @@ export default function MyPlanScreen() {
               </View>
               {plan?.split ? <Badge label={plan.split} variant="volt" /> : null}
             </View>
-            <View style={styles.gapTop}>
-              <Button
-                label="My Plans Library"
-                variant="outline"
-                fullWidth
-                onPress={() => void openLibrary()}
-              />
+
+            <View style={styles.planActionsRow}>
+              <View style={styles.flex}>
+                <Button
+                  label="My Plans Library"
+                  variant="outline"
+                  fullWidth
+                  onPress={() => void openLibrary()}
+                />
+              </View>
+              <View style={styles.flex}>
+                <Button
+                  label="Regenerate"
+                  variant="secondary"
+                  fullWidth
+                  onPress={() => setRegenerateVisible(true)}
+                />
+              </View>
             </View>
           </Card>
 
@@ -332,7 +446,10 @@ export default function MyPlanScreen() {
                   const overload = findOverload(exercise);
                   const firstSet = exercise.sets?.[0];
                   return (
-                    <View key={exercise.id} style={[styles.exerciseCard, index > 0 && styles.exerciseGap]}>
+                    <View
+                      key={exercise.id}
+                      style={[styles.exerciseCard, index > 0 && styles.exerciseGap]}
+                    >
                       <View style={styles.exerciseHeader}>
                         {/* Tapping left side opens the Exercise Detail Modal */}
                         <Pressable
@@ -349,9 +466,23 @@ export default function MyPlanScreen() {
                           <View style={styles.flex}>
                             <Text style={styles.exerciseName}>{exercise.name}</Text>
                             <Text style={styles.exerciseSummary}>
-                              {`${exercise.sets?.length ?? DEFAULT_SETS} sets · ${formatReps(firstSet?.targetRepsMin, firstSet?.targetRepsMax)} reps`}
+                              {`${exercise.sets?.length ?? DEFAULT_SETS} sets · ${formatReps(
+                                firstSet?.targetRepsMin,
+                                firstSet?.targetRepsMax,
+                              )} reps`}
                             </Text>
                           </View>
+                        </Pressable>
+
+                        {/* Swap exercise button */}
+                        <Pressable
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Swap ${exercise.name}`}
+                          onPress={() => setSwapTargetExercise(exercise)}
+                          style={styles.swapBtn}
+                        >
+                          <ArrowLeftRight size={17} color={colors.accentCyan} strokeWidth={2.2} />
                         </Pressable>
 
                         {/* Chevron button toggles the set drawer */}
@@ -403,7 +534,12 @@ export default function MyPlanScreen() {
                             <View key={set.id} style={styles.setRow}>
                               <Text style={styles.setNumber}>{`Set ${set.setNumber}`}</Text>
                               <Text style={styles.setDetail}>
-                                {`${set.targetWeightKg != null ? `${set.targetWeightKg} kg` : 'BW'} × ${formatReps(set.targetRepsMin, set.targetRepsMax)} @ RIR ${set.targetRir ?? '—'} · ${set.tempo ?? DEFAULT_TEMPO} · ${set.restSeconds ?? DEFAULT_REST}s rest`}
+                                {`${set.targetWeightKg != null ? `${set.targetWeightKg} kg` : 'BW'} × ${formatReps(
+                                  set.targetRepsMin,
+                                  set.targetRepsMax,
+                                )} @ RIR ${set.targetRir ?? '—'} · ${set.tempo ?? DEFAULT_TEMPO} · ${
+                                  set.restSeconds ?? DEFAULT_REST
+                                }s rest`}
                               </Text>
                             </View>
                           ))}
@@ -427,69 +563,39 @@ export default function MyPlanScreen() {
             <Button label="Rate This Plan ★" variant="secondary" fullWidth onPress={openRating} />
           </View>
 
-          {/* ============================== My Plans Library modal */}
-          <Modal
+          {/* ============================== Plans Library Modal */}
+          <PlansLibraryModal
             visible={libraryVisible}
-            animationType="slide"
-            presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'}
-            onRequestClose={() => setLibraryVisible(false)}
-          >
-            <View style={styles.modalRoot}>
-              <View style={styles.modalHeader}>
-                <View style={styles.modalTitleRow}>
-                  <Library size={20} color={colors.accentVolt} strokeWidth={2} />
-                  <Text style={styles.modalTitle}>My Plans Library</Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Close plans library"
-                  hitSlop={8}
-                  onPress={() => setLibraryVisible(false)}
-                >
-                  <Text style={styles.modalClose}>Done</Text>
-                </Pressable>
-              </View>
+            plans={libraryPlans}
+            loading={libraryLoading}
+            activatingPlanId={activatingPlanId}
+            onClose={() => setLibraryVisible(false)}
+            onActivate={handleActivate}
+            onDelete={handleDeleteSavedPlan}
+            onRefresh={refreshLibrary}
+          />
 
-              {libraryLoading ? (
-                <View style={styles.modalBody}>
-                  <ActivityIndicator size="large" color={colors.accentVolt} />
-                </View>
-              ) : (
-                <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalBody}>
-                  {(libraryPlans ?? []).map((item) => (
-                    <View key={item.id} style={styles.libraryRow}>
-                      <View style={styles.flex}>
-                        <Text style={styles.libraryTitle} numberOfLines={1}>
-                          {item.title}
-                        </Text>
-                        <Text style={styles.libraryMeta}>
-                          {`${item.split} · ${item.days?.length ?? 0} days${
-                            item.averageRating != null ? ` · ★ ${item.averageRating.toFixed(1)}` : ''
-                          }`}
-                        </Text>
-                      </View>
-                      {item.isActive ? (
-                        <Badge label="Active" variant="volt" />
-                      ) : (
-                        <Button
-                          label={activatingPlanId === item.id ? 'Activating…' : 'Activate'}
-                          variant="outline"
-                          size="sm"
-                          loading={activatingPlanId === item.id}
-                          onPress={() => void handleActivate(item.id)}
-                        />
-                      )}
-                    </View>
-                  ))}
-                  {(libraryPlans ?? []).length === 0 ? (
-                    <Text style={styles.emptyText}>
-                      No saved plans yet. Your routines will appear here.
-                    </Text>
-                  ) : null}
-                </ScrollView>
-              )}
-            </View>
-          </Modal>
+          {/* ============================== Regenerate Plan Modal */}
+          <RegeneratePlanModal
+            visible={regenerateVisible}
+            currentPlan={plan}
+            onClose={() => setRegenerateVisible(false)}
+            onRetakeAssessment={() => navigation.navigate('Assessment')}
+            onPlanRegenerated={(newPlan) => {
+              setPlan(newPlan);
+              if (newPlan.days?.[0]) {
+                setSelectedDayId(newPlan.days[0].id);
+              }
+            }}
+          />
+
+          {/* ============================== Exercise Swap Modal */}
+          <ExerciseSwapModal
+            visible={swapTargetExercise !== null}
+            exercise={swapTargetExercise}
+            onClose={() => setSwapTargetExercise(null)}
+            onSelectAlternative={handleConfirmSwap}
+          />
 
           {/* ================================================ Rating modal */}
           <Modal
@@ -543,7 +649,11 @@ export default function MyPlanScreen() {
                     {ratingError ? <Text style={styles.ratingError}>{ratingError}</Text> : null}
                     <View style={styles.ratingActions}>
                       <View style={styles.ratingActionFlex}>
-                        <Button label="Cancel" variant="ghost" onPress={() => setRatingVisible(false)} />
+                        <Button
+                          label="Cancel"
+                          variant="ghost"
+                          onPress={() => setRatingVisible(false)}
+                        />
                       </View>
                       <View style={styles.ratingActionFlex}>
                         <Button
@@ -593,7 +703,10 @@ export default function MyPlanScreen() {
                         <Text style={styles.detailSectionLabel}>TARGET & PATTERN</Text>
                         <View style={styles.tagWrap}>
                           {selectedDetailExercise.muscleGroup ? (
-                            <Badge label={selectedDetailExercise.muscleGroup.toUpperCase()} variant="volt" />
+                            <Badge
+                              label={selectedDetailExercise.muscleGroup.toUpperCase()}
+                              variant="volt"
+                            />
                           ) : null}
                           <Badge
                             label={`${selectedDetailExercise.sets?.length ?? 3} Prescribed Sets`}
@@ -612,9 +725,9 @@ export default function MyPlanScreen() {
                       <View style={styles.detailSection}>
                         <Text style={styles.detailSectionLabel}>PHYSIOCOACH CLINICAL CUES</Text>
                         <Text style={styles.detailCues}>
-                          • Maintain a neutral, braced spine throughout the entire range of motion.{"\n"}
-                          • Execute with controlled eccentric tempo (3-0-1-0).{"\n"}
-                          • Deload or stop immediately if sharp joint pinching is felt.
+                          • Maintain a neutral, braced spine throughout the entire range of motion.
+                          {'\n'}• Execute with controlled eccentric tempo (3-0-1-0).{'\n'}• Deload
+                          or stop immediately if sharp joint pinching is felt.
                         </Text>
                       </View>
                     </ScrollView>
@@ -678,6 +791,27 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  planActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  headerRegenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(16, 231, 96, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 231, 96, 0.3)',
+  },
+  headerRegenText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.accentVolt,
   },
   dayScroller: {
     marginTop: 16,
@@ -751,76 +885,204 @@ const styles = StyleSheet.create({
   exerciseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   exerciseHeaderLeft: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  chevronButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
   exerciseName: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
   exerciseSummary: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
     marginTop: 2,
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
+  },
+  swapBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(6, 182, 212, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  chevronButton: {
+    padding: 6,
   },
   overloadChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
     backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    gap: 6,
+    marginTop: 10,
+  },
+  overloadText: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    color: colors.accentAmber,
+    fontWeight: fontWeight.medium,
+  },
+  applyBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  applyBtnText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: colors.accentAmber,
+  },
+  exerciseDetail: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    gap: 6,
+  },
+  setRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  setNumber: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
+  },
+  setDetail: {
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
+  },
+  exerciseNotes: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  errorText: {
+    fontSize: fontSize.sm,
+    color: colors.accentRed,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 18,
+  },
+  ratingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  ratingCard: {
+    width: '100%',
+    backgroundColor: colors.bgSurface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    padding: 20,
+    alignItems: 'center',
+  },
+  ratingTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  ratingSubtitle: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  ratingThanks: {
+    fontSize: fontSize.sm,
+    color: colors.accentVolt,
+    fontWeight: fontWeight.semibold,
+    marginVertical: 14,
+  },
+  ratingInput: {
+    width: '100%',
+    minHeight: 80,
+    backgroundColor: colors.bgPrimary,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    padding: 12,
+    color: colors.textPrimary,
+    fontSize: fontSize.sm,
+    marginTop: 6,
+  },
+  ratingError: {
+    fontSize: fontSize.xs,
+    color: colors.accentRed,
+    marginTop: 8,
+  },
+  ratingActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    width: '100%',
+  },
+  ratingActionFlex: {
+    flex: 1,
   },
   detailOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   detailSheet: {
     backgroundColor: colors.bgSurface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    borderTopWidth: 1,
-    borderColor: colors.borderSubtle,
-    maxHeight: '85%',
+    maxHeight: '80%',
     padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
   },
   detailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
   detailTitle: {
-    flex: 1,
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-    marginRight: 10,
+    flex: 1,
+    marginRight: 12,
   },
   detailBody: {
-    marginBottom: 14,
+    paddingVertical: 16,
   },
   detailImage: {
     width: '100%',
-    height: 180,
+    height: 160,
     borderRadius: 12,
     backgroundColor: colors.bgElevated,
     marginBottom: 16,
   },
   detailSection: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   detailSectionLabel: {
     fontSize: fontSize.xs,
@@ -830,191 +1092,17 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   detailCues: {
-    fontSize: fontSize.xs,
+    fontSize: fontSize.sm,
     color: colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   tagWrap: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  detailFooter: {
-    paddingTop: 8,
-  },
-  overloadText: {
-    flex: 1,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.accentAmber,
-  },
-  applyBtn: {
-    backgroundColor: colors.accentAmber,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  applyBtnText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: colors.bgPrimary,
-    textTransform: 'uppercase',
-  },
-  exerciseDetail: {
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-    paddingTop: 10,
-  },
-  setRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingVertical: 4,
-  },
-  setNumber: {
-    width: 52,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.accentCyan,
-  },
-  setDetail: {
-    flex: 1,
-    fontSize: fontSize.sm,
-    lineHeight: 19,
-    color: colors.textSecondary,
-  },
-  exerciseNotes: {
-    marginTop: 8,
-    fontStyle: 'italic',
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-  },
-  errorText: {
-    fontSize: fontSize.sm,
-    color: colors.accentAmber,
-    lineHeight: 20,
-  },
-  modalRoot: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  modalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
-  modalTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+  detailFooter: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
   },
-  modalClose: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-    color: colors.accentVolt,
-  },
-  modalScroll: { flex: 1 },
-  modalBody: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  libraryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  libraryTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-  },
-  libraryMeta: {
-    marginTop: 2,
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-  },
-  emptyText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    textAlign: 'center',
-    marginTop: 24,
-  },
-  ratingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  ratingCard: {
-    width: '100%',
-    backgroundColor: colors.bgElevated,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    padding: 20,
-  },
-  ratingTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  ratingSubtitle: {
-    marginTop: 4,
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  starsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    marginVertical: 16,
-  },
-  ratingInput: {
-    backgroundColor: colors.bgSurface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    color: colors.textPrimary,
-    fontSize: fontSize.sm,
-    padding: 12,
-    minHeight: 72,
-  },
-  ratingError: {
-    marginTop: 8,
-    fontSize: fontSize.xs,
-    color: colors.accentRed,
-  },
-  ratingThanks: {
-    marginTop: 8,
-    marginBottom: 8,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-    color: colors.accentVolt,
-    textAlign: 'center',
-  },
-  ratingActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-  ratingActionFlex: { flex: 1 },
 });
-
-export { MyPlanScreen };

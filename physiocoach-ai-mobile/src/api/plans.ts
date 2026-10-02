@@ -260,3 +260,63 @@ export async function ratePlan(
     body: payload,
   });
 }
+
+/** DELETE /workout-plans/:id — delete a saved routine. */
+export async function deletePlan(planId: string): Promise<{ success: boolean }> {
+  const result = await request<{ success?: boolean }>(
+    `/workout-plans/${encodeURIComponent(planId)}`,
+    { method: 'DELETE' },
+  );
+  return { success: result?.success ?? true };
+}
+
+/** POST /workout-plans/generate — generate a tailored routine with AI. */
+export async function generatePlan(input: {
+  split?: string;
+  limitations?: string[];
+  daysPerWeek?: number;
+  goal?: string;
+  sessionMinutes?: number;
+}): Promise<{ success: boolean; plan: WorkoutPlan }> {
+  const body = {
+    assessment: {
+      goals: input.goal ? [input.goal] : ['strength', 'muscle_gain'],
+      frequencyDays: input.daysPerWeek ?? 3,
+      sessionMinutes: input.sessionMinutes ?? 60,
+      split: input.split,
+      limitations: input.limitations ?? [],
+    },
+  };
+  const result = await request<unknown>('/workout-plans/generate', {
+    method: 'POST',
+    body,
+  });
+  const plan = normalizePlanRecord(result);
+  if (!plan) {
+    throw new Error('Failed to parse generated workout plan.');
+  }
+  return { success: true, plan };
+}
+
+/** PUT /workout-plans/:id — update a workout routine in-place. */
+export async function updatePlan(
+  planId: string,
+  update: Partial<WorkoutPlan>,
+): Promise<{ success: boolean; plan: WorkoutPlan }> {
+  const result = await request<unknown>(
+    `/workout-plans/${encodeURIComponent(planId)}`,
+    {
+      method: 'PUT',
+      body: update,
+    },
+  );
+  const plan = normalizePlanRecord(result) ?? {
+    id: planId,
+    title: update.title ?? 'Updated Plan',
+    split: update.split ?? 'Custom',
+    days: update.days ?? [],
+    isActive: update.isActive ?? true,
+  };
+  return { success: true, plan };
+}
+

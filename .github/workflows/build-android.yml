@@ -1,10 +1,14 @@
-name: Build Android APK
+name: Build and Release Android APK
 
 on:
   push:
     branches:
       - main
       - prod
+      - 'feat/**'
+    tags:
+      - 'v*'
+      - 'mobile-v*'
     paths:
       - 'physiocoach-ai-mobile/**'
       - '.github/workflows/build-android.yml'
@@ -22,6 +26,9 @@ on:
         options:
           - release
           - debug
+
+permissions:
+  contents: write
 
 jobs:
   build-android:
@@ -56,6 +63,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: TypeScript Check
+        run: npx tsc --noEmit
 
       - name: Prebuild Native Android Project
         run: npx expo prebuild --platform android --clean
@@ -100,3 +110,16 @@ jobs:
           path: physiocoach-ai-mobile/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Create or Update GitHub Release
+        if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && github.event.inputs.build_type != 'debug'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'android-latest' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'PhysioCoach AI Android Latest' }}
+          files: physiocoach-ai-mobile/android/app/build/outputs/apk/**/*.apk
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -14,23 +14,38 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { isNetworkError } from '../../services/offlineSync';
+import {
+  isNetworkError,
+  getActiveSessionDraft,
+  saveActiveSessionDraft,
+  clearActiveSessionDraft,
+} from '../../services/offlineSync';
 import {
   AlertTriangle,
+  ArrowLeftRight,
   ChevronDown,
   ChevronUp,
   Dumbbell,
   Flag,
   Flame,
+  Info,
   Minus,
   Plus,
+  Sparkles,
+  X,
   Zap,
 } from 'lucide-react-native';
 import { ScreenContainer, Button, Badge, OfflineBanner } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { fontSize, fontWeight } from '../../theme/typography';
-import { createSession, completeSession, sendPainAlert } from '../../api/sessions';
+import {
+  createSession,
+  completeSession,
+  sendPainAlert,
+  swapSessionExercise,
+} from '../../api/sessions';
 import type { LoggedSet, SetType, WorkoutSession } from '../../api/sessions';
+import type { ExerciseCatalogItem } from '../../api/exercises';
 import type { Exercise, PlanSet, WorkoutDay, WorkoutPlan } from '../../api/plans';
 import type { RootStackParamList } from '../../navigation/types';
 import { useSettings } from '../../context/SettingsContext';
@@ -39,6 +54,8 @@ import { useRestTimer } from './useRestTimer';
 import { RestTimerHud } from './RestTimerHud';
 import { PainAlertModal } from './PainAlertModal';
 import { FinishSummaryModal } from './FinishSummaryModal';
+import { PrescriptionActionSheet } from '../../components/session/PrescriptionActionSheet';
+import { ExerciseSwapModal } from '../../components/session/ExerciseSwapModal';
 import PrehabSection from '../../components/workout/PrehabSection';
 import type {
   SessionExerciseState,
@@ -65,15 +82,23 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   const { settings } = useSettings();
   const { enqueueAction, isConnected } = useSync();
 
-  // ------------------------------------------------------------- Session state
-  const [plan] = useState<WorkoutPlan | null>(() => (planParam as WorkoutPlan | undefined) ?? null);
-  const [day] = useState<WorkoutDay | null>(() => {
-    if (planParam && Array.isArray((planParam as WorkoutPlan).days)) {
-      const days = (planParam as WorkoutPlan).days;
+  // ------------------------------------------------------------- Plan & Day state
+  const plan = useMemo<WorkoutPlan | null>(
+    () => (planParam as WorkoutPlan | undefined) ?? null,
+    [planParam],
+  );
+
+  const planDays = useMemo<WorkoutDay[]>(
+    () => (plan && Array.isArray(plan.days) ? plan.days : []),
+    [plan],
+  );
+
+  const [activeDay, setActiveDay] = useState<WorkoutDay | null>(() => {
+    if (plan && planDays.length > 0) {
       return (
-        days.find((d) => d.dayIndex === dayIndexParam) ??
-        days.find((d) => d.dayIndex === (planParam as WorkoutPlan).currentDayIndex) ??
-        days[0] ??
+        planDays.find((d) => d.dayIndex === dayIndexParam) ??
+        planDays.find((d) => d.dayIndex === plan.currentDayIndex) ??
+        planDays[0] ??
         null
       );
     }
@@ -88,10 +113,8 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     return null;
   });
 
-  const exercises: Exercise[] = day?.exercises ?? [];
-
   const [exerciseStates, setExerciseStates] = useState<SessionExerciseState[]>(() =>
-    exercises.map((exercise) => ({
+    (activeDay?.exercises ?? []).map((exercise) => ({
       exercise,
       logged: [],
       appliedTargetKg: null,
@@ -99,33 +122,38 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   );
 
   // Active exercise accordion + log-entry draft.
-  const [activeExerciseId, setActiveExerciseId] = useState<string | null>(exercises[0]?.id ?? null);
+  const [activeExerciseId, setActiveExerciseId] = useState<string | null>(
+    activeDay?.exercises?.[0]?.id ?? null,
+  );
   const [draft, setDraft] = useState<SetDraft>({ setType: 'NORMAL', weightKg: 60, reps: 8 });
 
+  // Notice for resumed draft
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
+
   // Display unit for the weight stepper (stored internally in kg).
-  // Defaults to the athlete's preferred unit from Settings.
   const [unit, setUnit] = useState<'kg' | 'lbs'>(settings.weightUnit);
   useEffect(() => {
     setUnit(settings.weightUnit);
   }, [settings.weightUnit]);
+
   const weightStep = unit === 'kg' ? 2.5 : LB_STEP_KG;
   const displayWeight = useCallback(
     (kg: number) => (unit === 'kg' ? kg : Math.round((kg / KG_PER_LB) * 10) / 10),
     [unit],
   );
 
-  // Remote session handle (created on mount; optional if the API is unreachable).
+  // Remote session handle
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const sessionStartRef = useRef<number>(Date.now());
 
-  // Finish flow.
+  // Finish flow
   const [finishing, setFinishing] = useState(false);
   const [summary, setSummary] = useState<SessionFinishSummary | null>(null);
-  /** True when the session was queued offline instead of synced live. */
   const [offlineSaved, setOfflineSaved] = useState(false);
 
-  // Pain alert flow.
+  // Pain alert modal state
   const [painVisible, setPainVisible] = useState(false);
+  const [painExerciseName, setPainExerciseName] = useState<string | null>(null);
   const [painLevel, setPainLevel] = useState(3);
   const [painBodyPart, setPainBodyPart] = useState<string | null>(null);
   const [painSubmitting, setPainSubmitting] = useState(false);
@@ -133,11 +161,82 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   const [painDeload, setPainDeload] = useState<boolean | null>(null);
   const [painError, setPainError] = useState<string | null>(null);
 
-  // Smart warm-up / prehab flow (rendered before lifting).
+  // Prescription action sheet modal state
+  const [prescriptionVisible, setPrescriptionVisible] = useState(false);
+  const [prescriptionExercise, setPrescriptionExercise] = useState<Exercise | null>(null);
+
+  // Exercise swap modal state
+  const [swapVisible, setSwapVisible] = useState(false);
+  const [swapExercise, setSwapExercise] = useState<Exercise | null>(null);
+
+  // Prehab section
   const [prehabVisible, setPrehabVisible] = useState(false);
 
+  // ---------------------------------------------------------------- Draft persistence
+  const persistDraft = useCallback(
+    async (currentStates: SessionExerciseState[]) => {
+      const logsRecord: Record<string, LoggedSet[]> = {};
+      for (const s of currentStates) {
+        logsRecord[s.exercise.id] = s.logged;
+      }
+      const elapsedSec = Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000));
+      await saveActiveSessionDraft({
+        planId: plan?.id,
+        planTitle: plan?.title,
+        dayNumber: activeDay?.dayIndex ?? 1,
+        dayName: activeDay?.name,
+        seconds: elapsedSec,
+        sessionState: 'active',
+        logs: logsRecord,
+        exercises: currentStates,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    [plan, activeDay],
+  );
+
+  // Check and restore saved draft on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const savedDraft = await getActiveSessionDraft();
+        if (cancelled || !savedDraft) return;
+
+        const hasSavedExercises =
+          Array.isArray(savedDraft.exercises) && savedDraft.exercises.length > 0;
+        const hasSavedLogs =
+          hasSavedExercises &&
+          savedDraft.exercises.some((e: SessionExerciseState) => e.logged && e.logged.length > 0);
+
+        if (hasSavedLogs) {
+          const isMatchingDay =
+            activeDay == null || savedDraft.dayNumber === activeDay.dayIndex;
+          const isMatchingPlan =
+            plan == null || !savedDraft.planId || savedDraft.planId === plan.id;
+
+          if (isMatchingDay && isMatchingPlan) {
+            setExerciseStates(savedDraft.exercises);
+            if (savedDraft.exercises[0]?.exercise?.id) {
+              setActiveExerciseId(savedDraft.exercises[0].exercise.id);
+            }
+            if (typeof savedDraft.seconds === 'number' && savedDraft.seconds > 0) {
+              sessionStartRef.current = Date.now() - savedDraft.seconds * 1000;
+            }
+            setDraftNotice('Resumed in-progress draft.');
+          }
+        }
+      } catch {
+        // Tolerant to storage parse failure
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []); // Run once on mount
+
   // ---------------------------------------------------------------- Keep-awake
-  // Only keep the screen awake when the athlete has keep-awake enabled.
   useEffect(() => {
     if (!settings.keepAwakeEnabled) {
       deactivateKeepAwake();
@@ -149,7 +248,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     };
   }, [settings.keepAwakeEnabled]);
 
-  // Always stop any in-flight speech on unmount.
+  // Voice speech cleanup
   useEffect(
     () => () => {
       Speech.stop();
@@ -157,27 +256,26 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     [],
   );
 
-  // ---------------------------------------------------------------- API sync
+  // ---------------------------------------------------------------- API session sync
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const result = await createSession({
           planId: plan?.id,
-          dayIndex: day?.dayIndex,
+          dayIndex: activeDay?.dayIndex,
         });
         if (!cancelled && result?.session) setSession(result.session);
       } catch {
-        // Offline-tolerant: local logging continues; finish still works.
+        // Offline-tolerant
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [plan, day]);
+  }, [plan, activeDay]);
 
   // ---------------------------------------------------------------- Rest timer
-  // Voice cues + haptics fire only when the athlete has them enabled.
   const restTimer = useRestTimer(
     useCallback(() => {
       if (settings.hapticsEnabled) {
@@ -189,7 +287,51 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     }, [settings.hapticsEnabled, settings.voiceCuesEnabled]),
   );
 
-  // ---------------------------------------------------------------- Derived
+  // ---------------------------------------------------------------- Multi-day switch
+  const switchActiveDay = useCallback(
+    (targetDay: WorkoutDay) => {
+      setActiveDay(targetDay);
+      const newStates: SessionExerciseState[] = (targetDay.exercises ?? []).map((exercise) => ({
+        exercise,
+        logged: [],
+        appliedTargetKg: null,
+      }));
+      setExerciseStates(newStates);
+      setActiveExerciseId(targetDay.exercises?.[0]?.id ?? null);
+      void persistDraft(newStates);
+      if (settings.hapticsEnabled) {
+        void Haptics.selectionAsync();
+      }
+    },
+    [persistDraft, settings.hapticsEnabled],
+  );
+
+  const handleDaySelect = useCallback(
+    (targetDay: WorkoutDay) => {
+      if (targetDay.dayIndex === activeDay?.dayIndex) return;
+
+      const hasLogged = exerciseStates.some((s) => s.logged.length > 0);
+      if (hasLogged) {
+        Alert.alert(
+          'Switch Workout Day?',
+          'You already have logged sets for this day. Switching days will reset current exercise logs.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Switch Day',
+              style: 'destructive',
+              onPress: () => switchActiveDay(targetDay),
+            },
+          ],
+        );
+      } else {
+        switchActiveDay(targetDay);
+      }
+    },
+    [activeDay, exerciseStates, switchActiveDay],
+  );
+
+  // ---------------------------------------------------------------- Derived totals
   const totals = useMemo(() => {
     let totalSets = 0;
     let totalReps = 0;
@@ -209,14 +351,19 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     [exerciseStates],
   );
 
-  // ---------------------------------------------------------------- Actions
+  // ---------------------------------------------------------------- Exercise patching
   const patchExercise = useCallback(
     (exerciseId: string, patch: (state: SessionExerciseState) => SessionExerciseState) => {
-      setExerciseStates((prev) => prev.map((s) => (s.exercise.id === exerciseId ? patch(s) : s)));
+      setExerciseStates((prev) => {
+        const next = prev.map((s) => (s.exercise.id === exerciseId ? patch(s) : s));
+        void persistDraft(next);
+        return next;
+      });
     },
-    [],
+    [persistDraft],
   );
 
+  // ---------------------------------------------------------------- Complete set
   const completeSet = useCallback(
     (exerciseId: string) => {
       if (settings.hapticsEnabled) {
@@ -241,12 +388,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
         logged: [...state.logged, loggedSet],
       }));
 
-      // Durable offline capture: queue a LOG_SET replay so every set survives
-      // a dead zone even if the session never completes online. When a real
-      // session exists, its pre-created placeholder row (per exercise, in set
-      // order) is matched so the replay PATCHes the prescribed row —
-      // preserving the AI previous-performance pipeline — instead of
-      // inserting a duplicate row.
+      // Offline capture queue
       const placeholderRow = (() => {
         if (!session || !exerciseState) return null;
         const rows = session.loggedSets.filter(
@@ -268,19 +410,20 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
         reps: draft.reps,
         completedAt: loggedSet.completedAt,
         planId: plan?.id ?? null,
-        planDayId: day?.id ?? null,
+        planDayId: activeDay?.id ?? null,
       }).catch(() => undefined);
 
-      // Rest HUD: prescribed rest first, then the user's default from Settings.
+      // Start rest timer
       const lastSet: PlanSet | undefined =
         exerciseState?.exercise.sets?.[
           Math.min(nextSetNumber, exerciseState.exercise.sets?.length ?? 1) - 1
         ];
       restTimer.start(lastSet?.restSeconds ?? settings.defaultRestSeconds);
     },
-    [draft, enqueueAction, exerciseStates, patchExercise, restTimer, session, settings, plan, day],
+    [draft, enqueueAction, exerciseStates, patchExercise, restTimer, session, settings, plan, activeDay],
   );
 
+  // Apply overload target
   const applyOverloadTarget = useCallback(
     (exerciseId: string, targetSet: PlanSet) => {
       const target = targetSet.targetWeightKg ?? null;
@@ -296,6 +439,105 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     [patchExercise, settings.hapticsEnabled],
   );
 
+  // ---------------------------------------------------------------- Exercise Swap
+  const handleConfirmSwap = useCallback(
+    async (candidate: ExerciseCatalogItem) => {
+      if (!swapExercise) return;
+      const original = swapExercise;
+
+      // Remote session sync
+      if (session?.id) {
+        try {
+          await swapSessionExercise(session.id, {
+            originalExerciseName: original.name,
+            replacementExerciseId: candidate.id,
+            replacementExerciseName: candidate.name,
+            movementPattern: candidate.movementPattern,
+            muscleGroups: candidate.primaryMuscle ? [candidate.primaryMuscle] : undefined,
+          });
+        } catch {
+          // Graceful fallback
+        }
+      }
+
+      const replacement: Exercise = {
+        id: candidate.id || `swap_${Date.now()}`,
+        name: candidate.name,
+        orderIndex: original.orderIndex,
+        notes: original.notes,
+        muscleGroup: candidate.primaryMuscle || candidate.target || original.muscleGroup,
+        sets: (original.sets ?? []).map((s) => ({
+          ...s,
+          id: `set_${candidate.id}_${s.setNumber}`,
+        })),
+      };
+
+      setExerciseStates((prev) => {
+        const next = prev.map((s) => {
+          if (s.exercise.id === original.id) {
+            return {
+              exercise: replacement,
+              logged: s.logged.map((log) => ({
+                ...log,
+                exerciseId: replacement.id,
+                exerciseName: replacement.name,
+              })),
+              appliedTargetKg: s.appliedTargetKg,
+            };
+          }
+          return s;
+        });
+        void persistDraft(next);
+        return next;
+      });
+
+      if (activeExerciseId === original.id) {
+        setActiveExerciseId(replacement.id);
+      }
+
+      if (settings.hapticsEnabled) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    },
+    [activeExerciseId, persistDraft, session, settings.hapticsEnabled, swapExercise],
+  );
+
+  // ---------------------------------------------------------------- Prescription Save
+  const handleSavePrescription = useCallback(
+    (updatedRir?: number, updatedRestSeconds?: number) => {
+      if (!prescriptionExercise) return;
+      const targetId = prescriptionExercise.id;
+
+      setExerciseStates((prev) => {
+        const next = prev.map((s) => {
+          if (s.exercise.id === targetId) {
+            const updatedSets = (s.exercise.sets ?? []).map((set) => ({
+              ...set,
+              targetRir: updatedRir !== undefined ? updatedRir : set.targetRir,
+              restSeconds: updatedRestSeconds !== undefined ? updatedRestSeconds : set.restSeconds,
+            }));
+            return {
+              ...s,
+              exercise: {
+                ...s.exercise,
+                sets: updatedSets,
+              },
+            };
+          }
+          return s;
+        });
+        void persistDraft(next);
+        return next;
+      });
+
+      if (settings.hapticsEnabled) {
+        void Haptics.selectionAsync();
+      }
+    },
+    [persistDraft, prescriptionExercise, settings.hapticsEnabled],
+  );
+
+  // ---------------------------------------------------------------- Pain Alert
   const submitPainAlert = useCallback(async () => {
     if (!painBodyPart) return;
     setPainSubmitting(true);
@@ -303,7 +545,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     const painPayload = {
       bodyPart: painBodyPart,
       painLevel,
-      exerciseName: exercises.find((e) => e.id === activeExerciseId)?.name,
+      exerciseName: painExerciseName ?? (exerciseStates.find((e) => e.exercise.id === activeExerciseId)?.exercise.name),
     };
     try {
       const response = await sendPainAlert(session?.id ?? 'local', painPayload);
@@ -314,8 +556,6 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
       }
     } catch (error) {
       if (isNetworkError(error)) {
-        // Clinical safety data must never be lost: queue the alert for replay
-        // and reassure the athlete it is captured locally.
         await enqueueAction('PAIN_ALERT', painPayload);
         setPainAdvice(
           'Your pain report is saved on this device and will reach your coach as soon as you are back online. Until then: stop the set, keep the range of motion pain-free, and do not push through sharp pain.',
@@ -330,13 +570,15 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
   }, [
     activeExerciseId,
     enqueueAction,
-    exercises,
+    exerciseStates,
     painBodyPart,
+    painExerciseName,
     painLevel,
     session,
     settings.hapticsEnabled,
   ]);
 
+  // ---------------------------------------------------------------- Finish workout
   const finishWorkout = useCallback(async () => {
     if (totals.totalSets === 0) {
       Alert.alert('Nothing logged yet', 'Complete at least one set before finishing the workout.');
@@ -352,13 +594,10 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
         durationSeconds,
         completedExercises,
       };
-      const allLoggedSets: LoggedSet[] = exerciseStates.flatMap((state) => state.logged);
 
       const result = await completeSession(session?.id ?? 'local', { durationSeconds });
 
       if (result.networkError) {
-        // 100% resilient completion: the workout is durably queued on-device
-        // and replayed on reconnect. The celebration still happens.
         await enqueueAction('COMPLETE_SESSION', {
           sessionId: session?.id ?? null,
           durationSeconds,
@@ -376,6 +615,9 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
+      // Clear draft on completed session
+      await clearActiveSessionDraft();
+
       setSummary(localSummary);
       setOfflineSaved(result.networkError === true);
     } finally {
@@ -383,9 +625,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     }
   }, [
     completedExercises,
-    day,
     enqueueAction,
-    exerciseStates,
     plan,
     session,
     settings.hapticsEnabled,
@@ -397,8 +637,25 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
     navigation.popToTop();
   }, [navigation]);
 
-  // ---------------------------------------------------------------- Render
-  const activeExercise = exerciseStates.find((s) => s.exercise.id === activeExerciseId) ?? null;
+  const handleDiscard = useCallback(() => {
+    Alert.alert(
+      'Discard Workout?',
+      'Are you sure you want to discard this workout? Any unsynced sets will be removed.',
+      [
+        { text: 'Keep Lifting', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: async () => {
+            await clearActiveSessionDraft();
+            navigation.goBack();
+          },
+        },
+      ],
+    );
+  }, [navigation]);
+
+  const activeExercises = activeDay?.exercises ?? [];
 
   return (
     <View style={styles.root}>
@@ -412,29 +669,99 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
             <View style={styles.flex}>
               <Text style={styles.headerLabel}>LIVE SESSION</Text>
               <Text style={styles.headerTitle} numberOfLines={1}>
-                {day ? `Day ${day.dayIndex} — ${day.name}` : 'Freestyle Session'}
+                {activeDay ? `Day ${activeDay.dayIndex} — ${activeDay.name}` : 'Freestyle Session'}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Report joint pain"
-              hitSlop={8}
-              onPress={() => {
-                setPainAdvice(null);
-                setPainDeload(null);
-                setPainError(null);
-                setPainVisible(true);
-              }}
-              style={styles.painButton}
-            >
-              <AlertTriangle size={20} color={colors.accentRed} strokeWidth={2.2} />
-            </Pressable>
+
+            <View style={styles.headerRightActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Report general joint pain"
+                hitSlop={8}
+                onPress={() => {
+                  setPainExerciseName(null);
+                  setPainAdvice(null);
+                  setPainDeload(null);
+                  setPainError(null);
+                  setPainVisible(true);
+                }}
+                style={styles.painButton}
+              >
+                <AlertTriangle size={20} color={colors.accentRed} strokeWidth={2.2} />
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Discard workout"
+                hitSlop={8}
+                onPress={handleDiscard}
+                style={styles.discardButton}
+              >
+                <X size={18} color={colors.textMuted} strokeWidth={2.2} />
+              </Pressable>
+            </View>
           </View>
 
-          {/* Smart warm-up launcher — priming routine before lifting */}
+          {/* Resumed In-Progress Draft Banner */}
+          {draftNotice ? (
+            <View style={styles.draftNoticeBanner}>
+              <View style={styles.draftNoticeLeft}>
+                <Sparkles size={14} color={colors.accentVolt} strokeWidth={2.4} />
+                <Text style={styles.draftNoticeText}>{draftNotice}</Text>
+              </View>
+              <Pressable
+                hitSlop={8}
+                onPress={() => setDraftNotice(null)}
+                accessibilityLabel="Dismiss notice"
+              >
+                <X size={14} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          {/* Multi-Day Selection Ribbon */}
+          {planDays.length > 1 ? (
+            <View style={styles.ribbonContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.ribbonScroll}
+              >
+                {planDays.map((d) => {
+                  const isCurrent = activeDay?.dayIndex === d.dayIndex;
+                  return (
+                    <Pressable
+                      key={d.id || d.dayIndex}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select Day ${d.dayIndex}: ${d.name}`}
+                      onPress={() => handleDaySelect(d)}
+                      style={[styles.dayTab, isCurrent && styles.dayTabActive]}
+                    >
+                      <View style={styles.dayTabHeader}>
+                        <Text style={[styles.dayTabNumber, isCurrent && styles.dayTabNumberActive]}>
+                          {`DAY ${d.dayIndex}`}
+                        </Text>
+                        {isCurrent ? (
+                          <View style={styles.activeDot} />
+                        ) : null}
+                      </View>
+                      <Text
+                        style={[styles.dayTabName, isCurrent && styles.dayTabNameActive]}
+                        numberOfLines={1}
+                      >
+                        {d.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {/* Smart Warm-up / Prehab launcher */}
           {prehabVisible ? (
             <View style={styles.prehabWrap}>
-              <PrehabSection exercises={exercises} compact />
+              <PrehabSection exercises={activeExercises} compact />
             </View>
           ) : (
             <Pressable
@@ -449,8 +776,8 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
             </Pressable>
           )}
 
+          {/* Exercise List */}
           <View style={styles.body}>
-            {/* Exercise accordion */}
             {exerciseStates.map((state, index) => {
               const expanded = state.exercise.id === activeExerciseId;
               const firstSet = state.exercise.sets?.[0];
@@ -460,30 +787,100 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
                   : firstSet?.targetWeightKg != null
                     ? `${firstSet.targetWeightKg} kg`
                     : 'BW';
+
               return (
                 <View key={state.exercise.id} style={[styles.exerciseCard, index > 0 && styles.gapSm]}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Select ${state.exercise.name}`}
-                    onPress={() => setActiveExerciseId(expanded ? null : state.exercise.id)}
-                    style={styles.exerciseHeader}
-                  >
-                    <View style={styles.flex}>
-                      <Text style={styles.exerciseName}>{state.exercise.name}</Text>
-                      <Text style={styles.exerciseMeta}>
-                        {`${state.logged.length}/${state.exercise.sets?.length ?? 0} sets · target ${targetLabel}`}
-                      </Text>
-                    </View>
-                    {state.appliedTargetKg != null ? (
-                      <Badge label="AI" variant="amber" />
-                    ) : null}
-                    {expanded ? (
-                      <ChevronUp size={18} color={colors.textSecondary} strokeWidth={2} />
-                    ) : (
-                      <ChevronDown size={18} color={colors.textSecondary} strokeWidth={2} />
-                    )}
-                  </Pressable>
+                  {/* Card Header with Compact Actions */}
+                  <View style={styles.cardHeaderRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select ${state.exercise.name}`}
+                      onPress={() => setActiveExerciseId(expanded ? null : state.exercise.id)}
+                      style={styles.cardTitlePressable}
+                    >
+                      <View style={styles.flex}>
+                        <Text style={styles.exerciseName}>{state.exercise.name}</Text>
+                        <Text style={styles.exerciseMeta}>
+                          {`${state.logged.length}/${state.exercise.sets?.length ?? 0} sets · target ${targetLabel}`}
+                        </Text>
+                      </View>
+                      {state.appliedTargetKg != null ? (
+                        <Badge label="AI" variant="amber" />
+                      ) : null}
+                      {expanded ? (
+                        <ChevronUp size={18} color={colors.textSecondary} strokeWidth={2} />
+                      ) : (
+                        <ChevronDown size={18} color={colors.textSecondary} strokeWidth={2} />
+                      )}
+                    </Pressable>
 
+                    {/* Compact Action Icons */}
+                    <View style={styles.compactActions}>
+                      {/* Info / Cues */}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`View coaching cues for ${state.exercise.name}`}
+                        hitSlop={6}
+                        onPress={() => {
+                          Alert.alert(
+                            state.exercise.name,
+                            `${state.exercise.muscleGroup ? `Focus: ${state.exercise.muscleGroup}\n\n` : ''}${state.exercise.notes || 'Maintain controlled eccentric tempo, full range of motion, and braced core.'}`,
+                          );
+                        }}
+                        style={styles.compactBtn}
+                      >
+                        <Info size={15} color={colors.textSecondary} strokeWidth={2.2} />
+                      </Pressable>
+
+                      {/* Swap Exercise */}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Swap ${state.exercise.name}`}
+                        hitSlop={6}
+                        onPress={() => {
+                          setSwapExercise(state.exercise);
+                          setSwapVisible(true);
+                        }}
+                        style={styles.compactBtn}
+                      >
+                        <ArrowLeftRight size={15} color={colors.accentCyan} strokeWidth={2.2} />
+                      </Pressable>
+
+                      {/* Prescription / RIR Button */}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open prescription for ${state.exercise.name}`}
+                        hitSlop={6}
+                        onPress={() => {
+                          setPrescriptionExercise(state.exercise);
+                          setPrescriptionVisible(true);
+                        }}
+                        style={[styles.compactBtn, styles.compactBtnRx]}
+                      >
+                        <Sparkles size={13} color={colors.accentVolt} strokeWidth={2.4} />
+                        <Text style={styles.compactRxText}>RIR</Text>
+                      </Pressable>
+
+                      {/* Targeted Pain Alert */}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Report joint pain during ${state.exercise.name}`}
+                        hitSlop={6}
+                        onPress={() => {
+                          setPainExerciseName(state.exercise.name);
+                          setPainAdvice(null);
+                          setPainDeload(null);
+                          setPainError(null);
+                          setPainVisible(true);
+                        }}
+                        style={[styles.compactBtn, styles.compactBtnPain]}
+                      >
+                        <AlertTriangle size={14} color={colors.accentRed} strokeWidth={2.2} />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {/* Expanded Exercise Body */}
                   {expanded ? (
                     <View style={styles.exerciseBody}>
                       {/* AI overload chip */}
@@ -527,7 +924,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
                         </View>
                       ) : null}
 
-                      {/* Log-entry form (only for the active exercise) */}
+                      {/* Ergonomic Log-entry Stepper Form */}
                       {state.exercise.id === activeExerciseId ? (
                         <View style={styles.logForm}>
                           {/* Set type pills */}
@@ -550,8 +947,9 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
                             })}
                           </View>
 
-                          {/* Weight + reps steppers */}
+                          {/* Ergonomic Steppers: Weight & Reps */}
                           <View style={styles.stepperRow}>
+                            {/* Weight Stepper */}
                             <View style={styles.stepper}>
                               <View style={styles.stepperHeader}>
                                 <Text style={styles.stepperLabel}>{`WEIGHT (${unit.toUpperCase()})`}</Text>
@@ -564,10 +962,12 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
                                   <Text style={styles.unitToggleText}>{unit === 'kg' ? '→ lbs' : '→ kg'}</Text>
                                 </Pressable>
                               </View>
+
                               <View style={styles.stepperControls}>
                                 <Pressable
                                   accessibilityRole="button"
                                   accessibilityLabel="Decrease weight"
+                                  hitSlop={6}
                                   onPress={() =>
                                     setDraft((prev) => ({
                                       ...prev,
@@ -576,8 +976,9 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
                                   }
                                   style={styles.stepperBtn}
                                 >
-                                  <Minus size={18} color={colors.textPrimary} strokeWidth={2.4} />
+                                  <Minus size={22} color={colors.textPrimary} strokeWidth={2.6} />
                                 </Pressable>
+
                                 <TextInput
                                   style={styles.stepperValue}
                                   value={String(displayWeight(draft.weightKg))}
@@ -589,9 +990,11 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
                                   }}
                                   keyboardType="decimal-pad"
                                 />
+
                                 <Pressable
                                   accessibilityRole="button"
                                   accessibilityLabel="Increase weight"
+                                  hitSlop={6}
                                   onPress={() =>
                                     setDraft((prev) => ({
                                       ...prev,
@@ -600,24 +1003,57 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
                                   }
                                   style={styles.stepperBtn}
                                 >
-                                  <Plus size={18} color={colors.textPrimary} strokeWidth={2.4} />
+                                  <Plus size={22} color={colors.textPrimary} strokeWidth={2.6} />
+                                </Pressable>
+                              </View>
+
+                              {/* Quick step micro-chips */}
+                              <View style={styles.quickStepRow}>
+                                <Pressable
+                                  onPress={() =>
+                                    setDraft((prev) => ({
+                                      ...prev,
+                                      weightKg: Math.max(0, Math.round((prev.weightKg - weightStep * 2) * 100) / 100),
+                                    }))
+                                  }
+                                  style={styles.quickChip}
+                                >
+                                  <Text style={styles.quickChipText}>
+                                    {unit === 'kg' ? '-5kg' : '-10lb'}
+                                  </Text>
+                                </Pressable>
+                                <Pressable
+                                  onPress={() =>
+                                    setDraft((prev) => ({
+                                      ...prev,
+                                      weightKg: Math.round((prev.weightKg + weightStep * 2) * 100) / 100,
+                                    }))
+                                  }
+                                  style={styles.quickChip}
+                                >
+                                  <Text style={styles.quickChipText}>
+                                    {unit === 'kg' ? '+5kg' : '+10lb'}
+                                  </Text>
                                 </Pressable>
                               </View>
                             </View>
 
+                            {/* Reps Stepper */}
                             <View style={styles.stepper}>
                               <Text style={styles.stepperLabel}>REPS</Text>
                               <View style={styles.stepperControls}>
                                 <Pressable
                                   accessibilityRole="button"
                                   accessibilityLabel="Decrease reps"
+                                  hitSlop={6}
                                   onPress={() =>
                                     setDraft((prev) => ({ ...prev, reps: Math.max(0, prev.reps - 1) }))
                                   }
                                   style={styles.stepperBtn}
                                 >
-                                  <Minus size={18} color={colors.textPrimary} strokeWidth={2.4} />
+                                  <Minus size={22} color={colors.textPrimary} strokeWidth={2.6} />
                                 </Pressable>
+
                                 <TextInput
                                   style={styles.stepperValue}
                                   value={String(draft.reps)}
@@ -630,15 +1066,43 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
                                   }}
                                   keyboardType="number-pad"
                                 />
+
                                 <Pressable
                                   accessibilityRole="button"
                                   accessibilityLabel="Increase reps"
+                                  hitSlop={6}
                                   onPress={() =>
                                     setDraft((prev) => ({ ...prev, reps: prev.reps + 1 }))
                                   }
                                   style={styles.stepperBtn}
                                 >
-                                  <Plus size={18} color={colors.textPrimary} strokeWidth={2.4} />
+                                  <Plus size={22} color={colors.textPrimary} strokeWidth={2.6} />
+                                </Pressable>
+                              </View>
+
+                              {/* Quick rep micro-chips */}
+                              <View style={styles.quickStepRow}>
+                                <Pressable
+                                  onPress={() =>
+                                    setDraft((prev) => ({
+                                      ...prev,
+                                      reps: Math.max(0, prev.reps - 2),
+                                    }))
+                                  }
+                                  style={styles.quickChip}
+                                >
+                                  <Text style={styles.quickChipText}>-2</Text>
+                                </Pressable>
+                                <Pressable
+                                  onPress={() =>
+                                    setDraft((prev) => ({
+                                      ...prev,
+                                      reps: prev.reps + 2,
+                                    }))
+                                  }
+                                  style={styles.quickChip}
+                                >
+                                  <Text style={styles.quickChipText}>+2</Text>
                                 </Pressable>
                               </View>
                             </View>
@@ -669,7 +1133,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
               </View>
             ) : null}
 
-            {/* Finish workout */}
+            {/* Finish workout button */}
             <View style={styles.finishWrap}>
               <Button
                 label={`Finish Workout · ${totals.totalSets} sets`}
@@ -683,7 +1147,7 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
           </View>
         </ScreenContainer>
 
-        {/* Offline / pending-sync ribbon */}
+        {/* Offline / pending-sync banner */}
         <View style={styles.bannerWrap}>
           <OfflineBanner />
         </View>
@@ -715,11 +1179,35 @@ export default function LiveSessionScreen({ route, navigation }: LiveSessionProp
           onSubmit={() => void submitPainAlert()}
         />
 
+        {/* Prescription Action Sheet */}
+        <PrescriptionActionSheet
+          visible={prescriptionVisible}
+          onClose={() => {
+            setPrescriptionVisible(false);
+            setPrescriptionExercise(null);
+          }}
+          exercise={prescriptionExercise}
+          currentWeightKg={draft.weightKg}
+          weightUnit={unit}
+          onSave={handleSavePrescription}
+        />
+
+        {/* Exercise Swap Modal */}
+        <ExerciseSwapModal
+          visible={swapVisible}
+          onClose={() => {
+            setSwapVisible(false);
+            setSwapExercise(null);
+          }}
+          currentExercise={swapExercise}
+          onConfirmSwap={handleConfirmSwap}
+        />
+
         {/* Celebration summary modal */}
         <FinishSummaryModal
           visible={summary !== null || finishing}
           summary={summary}
-          dayName={day?.name ?? 'Workout'}
+          dayName={activeDay?.name ?? 'Workout'}
           finishing={finishing}
           offlineSaved={offlineSaved}
           onClose={closeSummary}
@@ -739,7 +1227,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 132, // sits just above the floating rest HUD
+    bottom: 132,
   },
   header: {
     flexDirection: 'row',
@@ -747,7 +1235,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 14,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   headerLabel: {
     fontSize: fontSize.xs,
@@ -760,6 +1248,105 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  painButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  discardButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgSurface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  draftNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(16, 231, 96, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 231, 96, 0.3)',
+    borderRadius: 10,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  draftNoticeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  draftNoticeText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.accentVolt,
+  },
+  ribbonContainer: {
+    marginBottom: 10,
+  },
+  ribbonScroll: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  dayTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgSurface,
+    minWidth: 90,
+  },
+  dayTabActive: {
+    borderColor: colors.accentVolt,
+    backgroundColor: 'rgba(16, 231, 96, 0.1)',
+  },
+  dayTabHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  dayTabNumber: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.8,
+    color: colors.textMuted,
+  },
+  dayTabNumberActive: {
+    color: colors.accentVolt,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accentVolt,
+  },
+  dayTabName: {
+    marginTop: 2,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  dayTabNameActive: {
     color: colors.textPrimary,
   },
   prehabLauncher: {
@@ -792,17 +1379,7 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 20,
-    paddingBottom: 120, // clearance for the floating rest HUD
-  },
-  painButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.35)',
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingBottom: 130,
   },
   exerciseCard: {
     backgroundColor: colors.bgSurface,
@@ -812,7 +1389,10 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   gapSm: { marginTop: 10 },
-  exerciseHeader: {
+  cardHeaderRow: {
+    gap: 10,
+  },
+  cardTitlePressable: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -826,6 +1406,41 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: fontSize.xs,
     color: colors.textMuted,
+  },
+  compactActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  compactBtn: {
+    height: 32,
+    minWidth: 32,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  compactBtnRx: {
+    borderColor: 'rgba(16, 231, 96, 0.3)',
+    backgroundColor: 'rgba(16, 231, 96, 0.08)',
+  },
+  compactRxText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: colors.accentVolt,
+    letterSpacing: 0.5,
+  },
+  compactBtnPain: {
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
   exerciseBody: {
     marginTop: 12,
@@ -930,10 +1545,10 @@ const styles = StyleSheet.create({
   stepper: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    padding: 10,
+    padding: 12,
   },
   stepperLabel: {
     fontSize: fontSize.xs,
@@ -948,15 +1563,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   unitToggle: {
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.bgSurface,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   unitToggleText: {
-    fontSize: fontSize.xs,
+    fontSize: 10,
     fontWeight: fontWeight.bold,
     color: colors.accentCyan,
   },
@@ -967,9 +1582,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   stepperBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.bgSurface,
@@ -979,10 +1594,29 @@ const styles = StyleSheet.create({
   stepperValue: {
     flex: 1,
     textAlign: 'center',
-    fontSize: fontSize.lg,
+    fontSize: 22,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-    paddingVertical: 4,
+    paddingVertical: 6,
+  },
+  quickStepRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  quickChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: colors.bgSurface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  quickChipText: {
+    fontSize: 10,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
   },
   emptyCard: {
     alignItems: 'center',

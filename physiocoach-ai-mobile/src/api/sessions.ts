@@ -280,3 +280,78 @@ export async function completeSession(
     };
   }
 }
+
+function inferMovementPatternFromName(
+  name: string,
+): 'squat' | 'hinge' | 'push' | 'pull' | 'lunge' | 'carry' | 'core' | 'mobility' {
+  const label = name.toLowerCase();
+  if (/(squat)/.test(label)) return 'squat';
+  if (/(hinge|deadlift|rdl|hip)/.test(label)) return 'hinge';
+  if (/(press|push|bench|dip)/.test(label)) return 'push';
+  if (/(row|pull|chin|curl|lat)/.test(label)) return 'pull';
+  if (/(lunge|split)/.test(label)) return 'lunge';
+  if (/(carry|walk)/.test(label)) return 'carry';
+  if (/(core|ab|plank|crunch)/.test(label)) return 'core';
+  if (/(mobility|stretch)/.test(label)) return 'mobility';
+  return 'push';
+}
+
+/**
+ * POST /workout-sessions/:sessionId/swap-exercise — swap an exercise within a session.
+ */
+export async function swapSessionExercise(
+  sessionId: string,
+  payload: {
+    originalExerciseName: string;
+    replacementExerciseId: string;
+    replacementExerciseName: string;
+    movementPattern?: string;
+    muscleGroups?: string[];
+  },
+): Promise<{ success: boolean }> {
+  if (sessionId === 'local') {
+    return { success: true };
+  }
+
+  const validPatterns = [
+    'squat',
+    'hinge',
+    'push',
+    'pull',
+    'lunge',
+    'carry',
+    'core',
+    'mobility',
+  ] as const;
+  const pattern =
+    payload.movementPattern && (validPatterns as readonly string[]).includes(payload.movementPattern)
+      ? (payload.movementPattern as (typeof validPatterns)[number])
+      : inferMovementPatternFromName(payload.replacementExerciseName);
+
+  const muscleGroups =
+    payload.muscleGroups && payload.muscleGroups.length > 0
+      ? payload.muscleGroups
+      : ['general'];
+
+  const body = {
+    logGroupKey: payload.originalExerciseName,
+    newMasterExerciseId: payload.replacementExerciseId,
+    newExerciseName: payload.replacementExerciseName,
+    newMovementPattern: pattern,
+    newMuscleGroups: muscleGroups,
+  };
+
+  try {
+    const result = await request<{ success?: boolean }>(
+      `/workout-sessions/${encodeURIComponent(sessionId)}/swap-exercise`,
+      {
+        method: 'POST',
+        body,
+      },
+    );
+    return { success: result?.success ?? true };
+  } catch {
+    return { success: false };
+  }
+}
+

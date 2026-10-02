@@ -2,28 +2,36 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Activity, Flame, Footprints, ShieldCheck, Dumbbell } from 'lucide-react-native';
+import {
+  Activity,
+  ChevronRight,
+  Dumbbell,
+  Flame,
+  Footprints,
+  Play,
+  ShieldCheck,
+} from 'lucide-react-native';
 import { ScreenContainer, Header, Card, Badge, Button } from '../components/ui';
 import { colors } from '../theme/colors';
 import { fontSize, fontWeight } from '../theme/typography';
-import { getCurrentPlan } from '../api/plans';
+import { getCurrentPlan, normalizePlanRecord } from '../api/plans';
 import type { WorkoutPlan } from '../api/plans';
 import { getRecentSessions } from '../api/sessions';
 import type { WorkoutSession } from '../api/sessions';
 import type { RootStackParamList } from '../navigation/types';
+import {
+  getActiveSessionDraft,
+  getCachedCurrentPlan,
+  type ActiveSessionDraft,
+} from '../services/offlineSync';
 
 type DashboardNavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-/** Safeguards preset until the injury-tracking phase lands. */
-const PLACEHOLDER_SAFEGUARDS = 0;
 
 /** "Mon, Aug 30 · 14:05" style timestamp for history rows. */
 function formatSessionDate(iso: string): string {
@@ -96,6 +104,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeDraft, setActiveDraft] = useState<ActiveSessionDraft | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoadError(null);
@@ -103,19 +112,58 @@ export default function DashboardScreen() {
       getCurrentPlan(),
       getRecentSessions(),
     ]);
-    if (planResult.status === 'fulfilled') {
+
+    if (planResult.status === 'fulfilled' && planResult.value.plan) {
       setPlan(planResult.value.plan);
+    } else {
+      // If network fails or returns null plan, fall back to cached current plan
+      try {
+        const cached = await getCachedCurrentPlan();
+        if (cached) {
+          setPlan(normalizePlanRecord(cached) ?? (cached as WorkoutPlan));
+        }
+      } catch {
+        // Best-effort
+      }
     }
+
     if (sessionsResult.status === 'fulfilled') {
       setSessions(sessionsResult.value.sessions ?? []);
     }
+
     if (planResult.status === 'rejected' && sessionsResult.status === 'rejected') {
-      setLoadError('Could not sync your training data. Pull to retry.');
+      try {
+        const cached = await getCachedCurrentPlan();
+        if (cached) {
+          setPlan(normalizePlanRecord(cached) ?? (cached as WorkoutPlan));
+        } else {
+          setLoadError('Could not sync your training data. Pull to retry.');
+        }
+      } catch {
+        setLoadError('Could not sync your training data. Pull to retry.');
+      }
     }
   }, []);
 
   useEffect(() => {
     if (isFocused) {
+      // Check active session draft on focus
+      getActiveSessionDraft()
+        .then((draft) => {
+          if (
+            draft &&
+            (draft.sessionState === 'active' ||
+              draft.sessionState === 'paused' ||
+              (draft.seconds ?? 0) > 0 ||
+              (draft.logs && Object.keys(draft.logs).length > 0))
+          ) {
+            setActiveDraft(draft);
+          } else {
+            setActiveDraft(null);
+          }
+        })
+        .catch(() => setActiveDraft(null));
+
       fetchData().finally(() => setLoading(false));
     }
   }, [fetchData, isFocused]);
@@ -124,12 +172,25 @@ export default function DashboardScreen() {
     setRefreshing(true);
     try {
       await fetchData();
+      const draft = await getActiveSessionDraft();
+      if (
+        draft &&
+        (draft.sessionState === 'active' ||
+          draft.sessionState === 'paused' ||
+          (draft.seconds ?? 0) > 0 ||
+          (draft.logs && Object.keys(draft.logs).length > 0))
+      ) {
+        setActiveDraft(draft);
+      } else {
+        setActiveDraft(null);
+      }
     } finally {
       setRefreshing(false);
     }
   }, [fetchData]);
 
-  const todayDay = plan?.days?.find((day) => day.dayIndex === plan.currentDayIndex) ?? plan?.days?.[0] ?? null;
+  const todayDay =
+    plan?.days?.find((day) => day.dayIndex === plan.currentDayIndex) ?? plan?.days?.[0] ?? null;
 
   const weeklySets = useMemo(() => computeWeeklySets(sessions), [sessions]);
   const streakDays = useMemo(() => computeStreakDays(sessions), [sessions]);
@@ -143,6 +204,15 @@ export default function DashboardScreen() {
       dayName: todayDay?.name,
     });
   }, [navigation, plan, todayDay]);
+
+  const resumeWorkout = useCallback(() => {
+    if (!activeDraft) return;
+    navigation.navigate('LiveSession', {
+      plan,
+      dayIndex: activeDraft.dayNumber,
+      dayName: activeDraft.dayName,
+    });
+  }, [activeDraft, navigation, plan]);
 
   return (
     <ScreenContainer scrollable onRefresh={handleRefresh} refreshing={refreshing}>
@@ -158,7 +228,39 @@ export default function DashboardScreen() {
         </Card>
       ) : (
         <>
-          {/* -------------------------------------------------- Hero Card */}
+          {/* ----------------- Prominent Resume Workout CTA Banner (when draft exists) */}
+          {activeDraft ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Resume Workout Day ${activeDraft.dayNumber}`}
+              onPress={resumeWorkout}
+              style={({ pressed }) => [styles.resumeBanner, pressed && styles.resumeBannerPressed]}
+            >
+              <View style={styles.resumeBannerLeft}>
+                <View style={styles.resumePulseBox}>
+                  <Play size={18} color={colors.bgPrimary} fill={colors.bgPrimary} />
+                </View>
+                <View style={styles.flex}>
+                  <View style={styles.resumeHeaderRow}>
+                    <Text style={styles.resumeBannerTitle}>
+                      {`RESUME WORKOUT (DAY ${activeDraft.dayNumber})`}
+                    </Text>
+                    <Badge label="IN PROGRESS" variant="volt" />
+                  </View>
+                  <Text style={styles.resumeBannerSubtitle} numberOfLines={1}>
+                    {activeDraft.dayName ? `${activeDraft.dayName} · ` : ''}
+                    {activeDraft.seconds > 0
+                      ? `${formatDuration(activeDraft.seconds)} elapsed · `
+                      : ''}
+                    Tap to resume session
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight size={22} color={colors.accentVolt} strokeWidth={2.5} />
+            </Pressable>
+          ) : null}
+
+          {/* -------------------------------------------------- Hero Card (Routine Card) */}
           <Card elevated>
             <View style={styles.rowBetween}>
               <View style={styles.flex}>
@@ -173,14 +275,22 @@ export default function DashboardScreen() {
             <View style={styles.todayRow}>
               <Dumbbell size={16} color={colors.accentCyan} strokeWidth={2} />
               <Text style={styles.todayText}>
-                {todayDay ? `Today: Day ${todayDay.dayIndex} — ${todayDay.name}` : 'Rest day — no session scheduled'}
+                {todayDay
+                  ? `Today: Day ${todayDay.dayIndex} — ${todayDay.name}`
+                  : 'Rest day — no session scheduled'}
               </Text>
             </View>
 
             {plan?.goal ? <Text style={styles.goalText}>{plan.goal}</Text> : null}
 
             <View style={styles.gapTop}>
-              <Button label="Start Today's Workout" variant="volt" size="lg" fullWidth onPress={startWorkout} />
+              <Button
+                label="Start Today's Workout"
+                variant="volt"
+                size="lg"
+                fullWidth
+                onPress={startWorkout}
+              />
             </View>
           </Card>
 
@@ -198,10 +308,7 @@ export default function DashboardScreen() {
               <Text style={styles.statValue}>{streakDays}</Text>
               <Text style={styles.statLabel}>Streak Days</Text>
             </View>
-            <Pressable
-              onPress={() => navigation.navigate('Assessment')}
-              style={styles.statCard}
-            >
+            <Pressable onPress={() => navigation.navigate('Assessment')} style={styles.statCard}>
               <ShieldCheck size={18} color={colors.accentVolt} strokeWidth={2} />
               <Text style={styles.statValue}>Safeguards</Text>
               <Text style={styles.statLabel}>Assessment ›</Text>
@@ -215,7 +322,8 @@ export default function DashboardScreen() {
                 <Text style={styles.cardLabel}>MOVEMENT & INJURY SAFEGUARDS</Text>
                 <Text style={styles.sessionTitle}>Physio Assessment</Text>
                 <Text style={styles.emptyText}>
-                  Customize injury safeguards (Knee-friendly, Shoulder-safe, Low-spine shear) to tailor all AI routines.
+                  Customize injury safeguards (Knee-friendly, Shoulder-safe, Low-spine shear) to
+                  tailor all AI routines.
                 </Text>
               </View>
             </View>
@@ -278,6 +386,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 48,
+  },
+  resumeBanner: {
+    backgroundColor: 'rgba(16, 231, 96, 0.08)',
+    borderWidth: 1.5,
+    borderColor: colors.accentVolt,
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  resumeBannerPressed: {
+    backgroundColor: 'rgba(16, 231, 96, 0.16)',
+    borderColor: colors.accentVolt,
+  },
+  resumeBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    paddingRight: 8,
+  },
+  resumePulseBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: colors.accentVolt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resumeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  resumeBannerTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.accentVolt,
+    letterSpacing: 0.5,
+  },
+  resumeBannerSubtitle: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   cardLabel: {
     fontSize: fontSize.xs,

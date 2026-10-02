@@ -1,10 +1,20 @@
-import React from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Library } from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Library, Trash2 } from 'lucide-react-native';
 import { Badge, Button } from '../ui';
 import { colors } from '../../theme/colors';
 import { fontSize, fontWeight } from '../../theme/typography';
-import type { WorkoutPlan } from '../../api/plans';
+import { deletePlan, type WorkoutPlan } from '../../api/plans';
 
 export interface PlansLibraryModalProps {
   visible: boolean;
@@ -14,9 +24,11 @@ export interface PlansLibraryModalProps {
   activatingPlanId: string | null;
   onClose: () => void;
   onActivate: (planId: string) => void;
+  onDelete?: (planId: string) => Promise<void> | void;
+  onRefresh?: () => Promise<void> | void;
 }
 
-/** "My Plans Library" — browse saved routines and 1-click activate. */
+/** "My Plans Library" — browse saved routines, 1-click activate, and delete inactive routines. */
 export function PlansLibraryModal({
   visible,
   plans,
@@ -24,7 +36,46 @@ export function PlansLibraryModal({
   activatingPlanId,
   onClose,
   onActivate,
+  onDelete,
+  onRefresh,
 }: PlansLibraryModalProps) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const confirmDelete = (plan: WorkoutPlan) => {
+    Alert.alert(
+      'Delete Plan',
+      'Are you sure you want to delete this workout plan?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => void handleDelete(plan.id),
+        },
+      ],
+    );
+  };
+
+  const handleDelete = async (planId: string) => {
+    setDeletingId(planId);
+    try {
+      await deletePlan(planId);
+      if (onDelete) {
+        await onDelete(planId);
+      }
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (err) {
+      Alert.alert(
+        'Delete Failed',
+        err instanceof Error ? err.message : 'Could not delete workout plan.',
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -38,7 +89,12 @@ export function PlansLibraryModal({
             <Library size={20} color={colors.accentVolt} strokeWidth={2} />
             <Text style={styles.title}>My Plans Library</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Close plans library" hitSlop={8} onPress={onClose}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close plans library"
+            hitSlop={8}
+            onPress={onClose}
+          >
             <Text style={styles.close}>Done</Text>
           </Pressable>
         </View>
@@ -64,13 +120,29 @@ export function PlansLibraryModal({
                 {item.isActive ? (
                   <Badge label="Active" variant="volt" />
                 ) : (
-                  <Button
-                    label={activatingPlanId === item.id ? 'Activating…' : 'Activate'}
-                    variant="outline"
-                    size="sm"
-                    loading={activatingPlanId === item.id}
-                    onPress={() => onActivate(item.id)}
-                  />
+                  <View style={styles.actions}>
+                    <Button
+                      label={activatingPlanId === item.id ? 'Activating…' : 'Activate'}
+                      variant="outline"
+                      size="sm"
+                      loading={activatingPlanId === item.id}
+                      onPress={() => onActivate(item.id)}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${item.title}`}
+                      hitSlop={8}
+                      disabled={deletingId === item.id}
+                      onPress={() => confirmDelete(item)}
+                      style={styles.deleteBtn}
+                    >
+                      {deletingId === item.id ? (
+                        <ActivityIndicator size="small" color={colors.accentRed} />
+                      ) : (
+                        <Trash2 size={18} color={colors.accentRed} strokeWidth={2} />
+                      )}
+                    </Pressable>
+                  </View>
                 )}
               </View>
             ))}
@@ -142,6 +214,21 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: fontSize.xs,
     color: colors.textMuted,
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deleteBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   empty: {
     fontSize: fontSize.sm,

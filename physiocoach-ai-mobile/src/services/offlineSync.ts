@@ -23,6 +23,25 @@ import { request, ApiError } from '../api/client';
 import { buildPainAlertApiBody } from '../api/sessions';
 
 export const OFFLINE_QUEUE_STORAGE_KEY = '@physiocoach/offline_queue';
+export const ACTIVE_SESSION_DRAFT_KEY = '@physiocoach/active_session_draft';
+export const CACHED_CURRENT_PLAN_KEY = '@physiocoach/cached_current_plan';
+
+/** Active session draft persisted locally during workouts. */
+export interface ActiveSessionDraft {
+  planId?: string;
+  planTitle?: string;
+  dayNumber: number;
+  dayName?: string;
+  seconds: number;
+  sessionState: 'idle' | 'active' | 'paused';
+  logs: Record<string, any[]>;
+  exercises: any[];
+  sessionRpe?: number;
+  sessionPainScore?: number;
+  painJointRegion?: string;
+  painNotes?: string;
+  updatedAt: string;
+}
 
 /** Placeholder session id used while a session runs fully offline. */
 export const OFFLINE_SESSION_ID = 'local';
@@ -513,6 +532,67 @@ export async function getQueueCount(): Promise<number> {
   return queue.length;
 }
 
+// ---------------------------------------------------------------------------
+// In-Progress Session Draft Persistence
+// ---------------------------------------------------------------------------
+
+/** Save the in-progress session draft to local storage. */
+export async function saveActiveSessionDraft(draft: ActiveSessionDraft): Promise<void> {
+  try {
+    await AsyncStorage.setItem(ACTIVE_SESSION_DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Best-effort storage
+  }
+}
+
+/** Retrieve the saved in-progress session draft if one exists. */
+export async function getActiveSessionDraft(): Promise<ActiveSessionDraft | null> {
+  try {
+    const raw = await AsyncStorage.getItem(ACTIVE_SESSION_DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as ActiveSessionDraft;
+  } catch {
+    return null;
+  }
+}
+
+/** Clear the saved active session draft upon completion or discard. */
+export async function clearActiveSessionDraft(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(ACTIVE_SESSION_DRAFT_KEY);
+  } catch {
+    // Best-effort
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Offline Plan Caching
+// ---------------------------------------------------------------------------
+
+/** Cache the current active workout plan locally for instant offline loading. */
+export async function setCachedCurrentPlan(plan: unknown): Promise<void> {
+  try {
+    if (plan === undefined || plan === null) {
+      await AsyncStorage.removeItem(CACHED_CURRENT_PLAN_KEY);
+    } else {
+      await AsyncStorage.setItem(CACHED_CURRENT_PLAN_KEY, JSON.stringify(plan));
+    }
+  } catch {
+    // Best-effort
+  }
+}
+
+/** Retrieve the cached current workout plan from local storage. */
+export async function getCachedCurrentPlan(): Promise<unknown | null> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHED_CURRENT_PLAN_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export const offlineSync = {
   enqueueAction,
   processQueue,
@@ -520,4 +600,9 @@ export const offlineSync = {
   clearQueue,
   getQueueCount,
   isNetworkError,
+  saveActiveSessionDraft,
+  getActiveSessionDraft,
+  clearActiveSessionDraft,
+  setCachedCurrentPlan,
+  getCachedCurrentPlan,
 };
